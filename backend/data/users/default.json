@@ -1,0 +1,16 @@
+{
+  "userId": "default",
+  "name": "Yash Saravgi",
+  "about": "A software engineer working on AI and voice projects. Based in India. Usually busy with work during weekdays.",
+  "phoneNumber": "+18633493216",
+  "twilioNumber": "+18633493216",
+  "preferences": {
+    "aiVoice": "shimmer",
+    "aiTone": "professional but friendly",
+    "greeting": "Hi there! This is Yash's AI assistant speaking. How may I help you today?",
+    "defaultAction": "screen"
+  },
+  "contacts": [],
+  "createdAt": "2026-02-13T00:00:00.000Z",
+  "updatedAt": "2026-02-13T00:00:00.000Z"
+}

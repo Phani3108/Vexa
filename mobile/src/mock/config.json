@@ -1,0 +1,121 @@
+{
+  "config": {
+    "_id": "698eff7352e017226cbaea3f",
+    "userId": "default",
+    "name": "Yash",
+    "about": "Software engineer who receives many calls. Lives in Bangalore apartment 402.",
+    "phoneNumber": "+919876543210",
+    "twilioNumber": "+14155559999",
+    "greeting": "Hi there! How can I help you today?",
+    "preferences": {
+      "aiVoice": "shimmer",
+      "aiTone": "professional but friendly",
+      "defaultAction": "screen",
+      "escalateKeywords": []
+    },
+    "contacts": [],
+    "createdAt": "2026-02-13T10:39:47.153Z",
+    "updatedAt": "2026-02-15T16:06:58.428Z",
+    "__v": 0,
+    "aiSettings": {
+      "voice": "shimmer",
+      "tone": "professional but friendly",
+      "language": "en-IN"
+    },
+    "availability": {
+      "timezone": "Asia/Kolkata",
+      "workHours": {
+        "start": "09:00",
+        "end": "18:00"
+      },
+      "dndSchedule": {
+        "enabled": true,
+        "start": "23:00",
+        "end": "07:00"
+      },
+      "currentStatus": "available"
+    },
+    "blockedNumbers": [
+      "+911234567890"
+    ],
+    "callerRules": {
+      "contacts": "inform_availability",
+      "vipContacts": "connect_immediately",
+      "unknown": "screen",
+      "repeated": {
+        "threshold": 3,
+        "withinMinutes": 10,
+        "action": "escalate"
+      }
+    },
+    "deliveryPreferences": {
+      "food": {
+        "defaultAction": "leave_at_door",
+        "instructions": "Leave at main door, ring bell once"
+      },
+      "packages": {
+        "defaultAction": "leave_at_location",
+        "location": "shoe rack outside apartment 402",
+        "alternateLocation": "with security guard",
+        "instructions": "Please place carefully, fragile items possible"
+      },
+      "groceries": {
+        "defaultAction": "hand_to_person",
+        "instructions": "Please wait 2 minutes, someone will collect",
+        "fallbackInstructions": "Leave with security if no answer"
+      }
+    },
+    "escalation": {
+      "urgentKeywords": [
+        "emergency",
+        "urgent",
+        "hospital",
+        "accident"
+      ],
+      "alwaysNotify": true,
+      "autoEscalate": [
+        "vip",
+        "repeated",
+        "urgent"
+      ]
+    },
+    "servicePreferences": {
+      "mygate": {
+        "autoApprove": [
+          "maid",
+          "cook",
+          "newspaper",
+          "milkman"
+        ],
+        "askPurpose": [
+          "unknown_visitor",
+          "delivery"
+        ],
+        "reject": [
+          "salesperson",
+          "solicitor"
+        ],
+        "defaultInstructions": "Please come to 4th floor, apartment 402"
+      },
+      "maintenance": {
+        "requireAppointment": true,
+        "noAppointmentResponse": "Please schedule an appointment through the society app first",
+        "emergencyException": true
+      }
+    },
+    "vipContacts": [
+      {
+        "name": "Mom",
+        "phoneNumber": "+919876543211",
+        "relationship": "mother",
+        "_id": "6991ef2290f5ac01810dbb3a"
+      },
+      {
+        "name": "Boss",
+        "phoneNumber": "+919876543212",
+        "relationship": "manager",
+        "_id": "6991ef2290f5ac01810dbb3b"
+      }
+    ]
+  }
+}
