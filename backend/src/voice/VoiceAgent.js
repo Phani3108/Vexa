@@ -964,12 +964,19 @@ class VoiceAgent extends EventEmitter {
 
   /**
    * Emit call:started event to mobile app
+   *
+   * suppressNotification = true during priority time — the mobile app should
+   * NOT ring or show an incoming-call notification; the AI handles silently.
+   * isVIP = true when the caller is in the user's VIP list.
    */
   emitCallStarted(callContext) {
     if (!this.io) return;
     
     const userId = callContext.userId || process.env.OWNER_PHONE_NUMBER || 'unknown';
     const callerName = callContext.context?.callerName || 'Unknown';
+    const isVIP = callContext.context?.isVIP || false;
+    const suppressNotification = callContext.context?.suppressNotification || false;
+    const inPriorityTime = callContext.context?.priorityTimeInfo?.inPriorityTime || false;
     
     this.io.to(`user:${userId}`).emit('call:started', {
       callId: callContext.callSid,
@@ -977,10 +984,12 @@ class VoiceAgent extends EventEmitter {
       to: callContext.to,
       callerName,
       timestamp: callContext.startTime.toISOString(),
-      isVIP: callContext.context?.isVIP || false
+      isVIP,
+      inPriorityTime,
+      suppressNotification  // if true, mobile app skips notification/ringing
     });
     
-    console.log(`📱 Emitted call:started to user:${userId}`);
+    console.log(`📱 Emitted call:started to user:${userId} (VIP=${isVIP}, suppress=${suppressNotification})`);
   }
 
   /**

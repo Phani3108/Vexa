@@ -141,6 +141,19 @@ router.delete('/categories/:categoryId', async (req, res) => {
 
 // ── VIP Contacts ────────────────────────────────────────────────────────────
 
+// GET /api/users/vip-contacts
+router.get('/vip-contacts', async (req, res) => {
+  try {
+    const userId = resolveUserId(req);
+    if (!userId) return res.status(400).json({ error: 'phoneNumber required' });
+    const user = await userConfigService.getUser(userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    res.json({ vipContacts: user.vipContacts || [] });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch VIP contacts' });
+  }
+});
+
 // PUT /api/users/vip-contacts
 router.put('/vip-contacts', async (req, res) => {
   try {

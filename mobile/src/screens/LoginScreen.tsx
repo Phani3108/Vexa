@@ -24,7 +24,7 @@ const LoginScreen = ({ navigation }: any) => {
   // Map display phone numbers to their actual backend equivalents.
   // The user types the display number; the backend receives the real number.
   const PHONE_NUMBER_MAP: Record<string, string> = {
-    '8008072908': '8008072908',
+    '8008072908': '7977986302',
   };
 
   const handleLogin = async () => {

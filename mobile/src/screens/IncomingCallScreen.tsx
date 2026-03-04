@@ -35,6 +35,7 @@ interface RouteParams {
   callerNumber: string;
   callerName?: string;
   isVIP?: boolean;
+  inPriorityTime?: boolean;
 }
 
 type TranscriptLine = {
@@ -45,7 +46,7 @@ type TranscriptLine = {
 };
 
 const IncomingCallScreen = ({ route, navigation }: any) => {
-  const { callId, callerNumber, callerName, isVIP } = (route.params || {}) as RouteParams;
+  const { callId, callerNumber, callerName, isVIP, inPriorityTime } = (route.params || {}) as RouteParams;
   const { colors, isDark } = useTheme();
 
   // Initialize from the shared store so transcripts survive dismiss/re-open
@@ -279,7 +280,7 @@ const IncomingCallScreen = ({ route, navigation }: any) => {
           )}
           <View style={[styles.statusDotSolid, callEnded && { backgroundColor: '#8E8E93' }]} />
           <Text style={[styles.statusLabel, callEnded && { color: '#8E8E93' }]}>
-            {callEnded ? 'Call Ended' : 'AI Screening'}
+            {callEnded ? 'Call Ended' : inPriorityTime ? 'AI Handling (DND)' : 'AI Screening'}
           </Text>
         </View>
         <View style={{ width: 36 }} />
@@ -294,12 +295,20 @@ const IncomingCallScreen = ({ route, navigation }: any) => {
           <Text style={[styles.callerName, { color: colors.textPrimary }]} numberOfLines={1}>{displayName}</Text>
           {callerNumber ? <Text style={[styles.callerNumber, { color: colors.textTertiary }]}>{callerNumber}</Text> : null}
         </View>
-        {isVIP && (
-          <View style={styles.vipBadge}>
-            <Icon name="star" size={12} color="#FF9500" />
-            <Text style={styles.vipText}>VIP</Text>
-          </View>
-        )}
+        <View style={{ alignItems: 'flex-end', gap: 4 }}>
+          {isVIP && (
+            <View style={styles.vipBadge}>
+              <Icon name="star" size={12} color="#FF9500" />
+              <Text style={styles.vipText}>VIP</Text>
+            </View>
+          )}
+          {inPriorityTime && (
+            <View style={[styles.vipBadge, { backgroundColor: '#FF980020' }]}>
+              <Icon name="do-not-disturb" size={12} color="#FF9800" />
+              <Text style={[styles.vipText, { color: '#FF9800' }]}>DND</Text>
+            </View>
+          )}
+        </View>
       </View>
 
       {/* Transcript label */}

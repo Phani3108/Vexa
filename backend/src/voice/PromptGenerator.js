@@ -29,7 +29,7 @@ class PromptGenerator {
       this._priorityTimeSection(callInfo),
       this._categoryRules(user),
       this._addressSection(user),
-      this._vipSection(user, callerCtx),
+      this._vipSection(user, callerCtx, callInfo),
       this._callerContext(callerCtx),
       this._guidelines(user)
     ];
@@ -104,16 +104,42 @@ ${isOutbound && callInfo.additionalContext ? `REASON FOR CALLING: ${callInfo.add
       ? `from ${startTime} to ${endTime}`
       : 'at the moment';
     const availableAfter = endTime || 'later';
+    const userName = callInfo.user?.name || 'The user';
+
+    // VIP caller during priority time — warmer message but still AI-handled
+    if (callInfo.isVIP && callInfo.vipContact) {
+      const vipName = callInfo.vipContact.name;
+      const vipRelation = callInfo.vipContact.relationship ? ` (${callInfo.vipContact.relationship})` : '';
+      return `## ⚠️ USER CURRENTLY UNAVAILABLE — VIP CALLER
+
+${userName} is currently in priority/DND mode ${timeRange} and CANNOT take calls directly.
+This caller is a VIP contact: **${vipName}${vipRelation}**.
+
+Your job is to:
+1. **Greet them warmly** — address them by name (${vipName}) if possible
+2. **Apologise genuinely** that ${userName} is currently in an important session
+3. **Reassure them** their message is high priority and ${userName} will call back promptly
+4. **Take a detailed message** — what is urgent, any specific ask, best time to call back
+
+**Message to convey:** "${message}"
+
+After delivering this message:
+- Ask: "${vipName}, could you let me know what this is regarding so ${userName} can prioritise calling you back?"
+- Collect: the subject, urgency level, any specific information they want to pass on
+- Assure: "${userName} will see this as a priority and get back to you as soon as they're free ${availableAfter}."
+- Do NOT transfer the call (${userName} is unavailable)
+- Be warm, empathetic, and give this caller your full attention`;
+    }
 
     return `## ⚠️ USER CURRENTLY UNAVAILABLE
 
-${callInfo.user?.name || 'The user'} is currently unavailable due to important work ${timeRange}.
+${userName} is currently unavailable due to important work ${timeRange}.
 They CANNOT take calls directly during this time. Your job is to:
 
 1. **Handle the call professionally** on their behalf
 2. **Collect essential information** from the caller
 3. **Inform the caller** that they are currently busy with important work
-4. **Take a detailed message** so ${callInfo.user?.name || 'the user'} can respond later
+4. **Take a detailed message** so ${userName} can respond later
 
 **IMPORTANT MESSAGE TO DELIVER:**
 "${message}"
@@ -122,7 +148,7 @@ After delivering this message:
 - Ask: "Would you like to leave a message or let me know what this is regarding so they can get back to you?"
 - Collect: caller's name, reason for calling, purpose/subject of the call, any urgent details or specific information
 - Do NOT ask for their phone number (you already have it from the incoming call)
-- Assure: "${callInfo.user?.name || 'They'} will receive your message and reach out to you ${availableAfter}."
+- Assure: "${userName} will receive your message and reach out to you ${availableAfter}."
 - Do NOT transfer the call to the user (they are unavailable)
 - Be warm, professional, and helpful`;
   }
@@ -205,20 +231,46 @@ ${sections.join('\n\n')}`;
     return lines.join('\n');
   }
 
-  _vipSection(user, callerCtx) {
+  _vipSection(user, callerCtx, callInfo = {}) {
     const vips = user.vipContacts || [];
     if (vips.length === 0) return '';
 
-    const isVIP = callerCtx && vips.some(v => v.phoneNumber === callerCtx.phoneNumber);
+    const isVIP = callInfo.isVIP || (callerCtx && vips.some(v => {
+      const normalizedVIP = v.phoneNumber.replace(/\D/g, '');
+      const normalizedCaller = (callerCtx.phoneNumber || '').replace(/\D/g, '');
+      return normalizedVIP === normalizedCaller ||
+        normalizedCaller.endsWith(normalizedVIP) ||
+        normalizedVIP.endsWith(normalizedCaller);
+    }));
+    const vipContact = callInfo.vipContact || (isVIP && callerCtx
+      ? vips.find(v => {
+          const normalizedVIP = v.phoneNumber.replace(/\D/g, '');
+          const normalizedCaller = (callerCtx.phoneNumber || '').replace(/\D/g, '');
+          return normalizedVIP === normalizedCaller ||
+            normalizedCaller.endsWith(normalizedVIP) ||
+            normalizedVIP.endsWith(normalizedCaller);
+        })
+      : null);
 
-    let section = `## VIP CONTACTS\nThese callers get top priority:\n`;
+    const inPriorityTime = callInfo.priorityTimeInfo?.inPriorityTime || false;
+
+    let section = `## VIP CONTACTS\nThese callers receive priority treatment:\n`;
     vips.forEach(v => {
-      section += `- ${v.name} (${v.relationship || 'VIP'}): ${v.phoneNumber}\n`;
+      section += `- ${v.name}${v.relationship ? ` (${v.relationship})` : ''}: ${v.phoneNumber}\n`;
     });
 
-    if (isVIP) {
-      const vip = vips.find(v => v.phoneNumber === callerCtx.phoneNumber);
-      section += `\n⚠️ THIS CALLER IS A VIP: ${vip.name} (${vip.relationship}). Be extra warm. Offer to connect them immediately.`;
+    if (isVIP && vipContact) {
+      if (inPriorityTime) {
+        // DND is active — VIP is screened by AI but with extra warmth
+        section += `\n⭐ THIS CALLER IS A VIP: ${vipContact.name}${vipContact.relationship ? ` (${vipContact.relationship})` : ''}.
+Even though ${user.name || 'the user'} is in priority/DND mode, treat this caller with extra warmth and priority.
+Take their message carefully and assure them ${user.name || 'the user'} will call back as soon as possible.
+Do NOT transfer the call — ${user.name || 'the user'} is unavailable.`;
+      } else {
+        // Normal time — VIP gets warm treatment and offer to transfer
+        section += `\n⭐ THIS CALLER IS A VIP: ${vipContact.name}${vipContact.relationship ? ` (${vipContact.relationship})` : ''}.
+Be extra warm. Ask what they need. If they want to speak with ${user.name || 'the owner'} directly, offer to transfer them.`;
+      }
     }
 
     return section;

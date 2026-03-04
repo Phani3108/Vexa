@@ -18,6 +18,7 @@
     "@react-navigation/stack": "^7.7.1",
     "react": "19.2.3",
     "react-native": "0.84.0",
+    "react-native-contacts": "^7.0.9",
     "react-native-gesture-handler": "^2.30.0",
     "react-native-linear-gradient": "^2.8.3",
     "react-native-safe-area-context": "^5.6.2",

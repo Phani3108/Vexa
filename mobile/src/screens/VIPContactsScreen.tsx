@@ -1,5 +1,17 @@
-import React, { useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Alert, TextInput } from 'react-native';
+import React, { useState, useCallback, useEffect } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  ScrollView,
+  Alert,
+  TextInput,
+  Modal,
+  FlatList,
+  PermissionsAndroid,
+  Platform,
+  ActivityIndicator,
+} from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { CommonHeader } from '../components';
 import styles from '../styles/VIPContactsScreen.styles';
@@ -8,18 +20,12 @@ import { useTheme } from '../contexts/ThemeContext';
 import * as api from '../services/api';
 import { VIPContact } from '../types/api';
 
-// ─── Mock data preserved as comments ─────────────────────────────────────────
-/*
-const [vipContacts, setVipContacts] = useState([
-  { id: '1', name: 'Mom', initial: 'M', initialBg: '#FFE5D0', initialColor: '#FF6B00',
-    description: 'Always bypasses screening', escalate: true },
-  { id: '2', name: 'Rahul (Boss)', initial: 'R', initialBg: '#E3F2FD', initialColor: '#2196F3',
-    description: 'Work hours priority', escalate: true },
-  { id: '3', name: 'Wife', initial: 'W', initialBg: '#F3E5F5', initialColor: '#9C27B0',
-    description: 'Mobile: +91 98765 00003', escalate: true },
-]);
-*/
-// ─────────────────────────────────────────────────────────────────────────────
+// ─── Type for a phone contact ────────────────────────────────────────────────
+interface PhoneContact {
+  recordID: string;
+  displayName: string;
+  phoneNumbers: { label: string; number: string }[];
+}
 
 /** Generate a colour from a name for the avatar */
 function avatarColor(name: string): { bg: string; fg: string } {
@@ -35,6 +41,11 @@ function avatarColor(name: string): { bg: string; fg: string } {
   return colors[Math.abs(hash) % colors.length];
 }
 
+/** Normalise a phone number to digits only for duplicate detection */
+function normalizePhone(phone: string): string {
+  return phone.replace(/\D/g, '');
+}
+
 const VIPContactsScreen = ({ navigation }: any) => {
   const { userConfig, refreshConfig } = useAuth();
   const { colors, isDark } = useTheme();
@@ -45,6 +56,12 @@ const VIPContactsScreen = ({ navigation }: any) => {
   const [newName, setNewName] = useState('');
   const [newPhone, setNewPhone] = useState('');
   const [newRelationship, setNewRelationship] = useState('');
+
+  // ── Contact picker state ──────────────────────────────────────────────────
+  const [showContactPicker, setShowContactPicker] = useState(false);
+  const [phoneContacts, setPhoneContacts] = useState<PhoneContact[]>([]);
+  const [contactSearch, setContactSearch] = useState('');
+  const [loadingContacts, setLoadingContacts] = useState(false);
 
   /** Persist the full vipContacts list via PUT */
   const saveContacts = useCallback(async (updated: VIPContact[]) => {
@@ -74,7 +91,7 @@ const VIPContactsScreen = ({ navigation }: any) => {
     ]);
   }, [contacts, saveContacts]);
 
-  /** Add a new contact */
+  /** Add a new contact manually */
   const handleAdd = useCallback(() => {
     if (!newName.trim() || !newPhone.trim()) {
       Alert.alert('Missing info', 'Name and phone number are required');
@@ -91,6 +108,111 @@ const VIPContactsScreen = ({ navigation }: any) => {
     setNewRelationship('');
   }, [contacts, newName, newPhone, newRelationship, saveContacts]);
 
+  // ── Contact picker helpers ────────────────────────────────────────────────
+
+  /** Request contacts permission and load phone contacts */
+  const openContactPicker = useCallback(async () => {
+    try {
+      setLoadingContacts(true);
+      let granted = true;
+
+      if (Platform.OS === 'android') {
+        const result = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.READ_CONTACTS,
+          {
+            title: 'Contacts Permission',
+            message: 'Vexa needs access to your contacts to add VIP contacts.',
+            buttonPositive: 'Allow',
+            buttonNegative: 'Deny',
+          }
+        );
+        granted = result === PermissionsAndroid.RESULTS.GRANTED;
+      }
+
+      if (!granted) {
+        Alert.alert('Permission Denied', 'Please allow contacts access in Settings to use this feature.');
+        setLoadingContacts(false);
+        return;
+      }
+
+      // Dynamic import — works only after `npm install react-native-contacts` + pod install
+      let Contacts: any;
+      try {
+        Contacts = require('react-native-contacts').default;
+      } catch {
+        Alert.alert(
+          'Not Available',
+          'Contact picker requires react-native-contacts to be installed and linked.\n\nRun:\n  npm install react-native-contacts\n  cd ios && pod install',
+        );
+        setLoadingContacts(false);
+        return;
+      }
+
+      if (Platform.OS === 'ios') {
+        await Contacts.requestPermission();
+      }
+
+      const allContacts: PhoneContact[] = await Contacts.getAll();
+      // Filter to only contacts with phone numbers, sort by name
+      const withPhones = allContacts
+        .filter((c: PhoneContact) => c.phoneNumbers && c.phoneNumbers.length > 0)
+        .sort((a: PhoneContact, b: PhoneContact) =>
+          (a.displayName || '').localeCompare(b.displayName || '')
+        );
+
+      setPhoneContacts(withPhones);
+      setContactSearch('');
+      setShowContactPicker(true);
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'Could not load contacts');
+    } finally {
+      setLoadingContacts(false);
+    }
+  }, []);
+
+  /** Add a phone contact to VIP list */
+  const handlePickContact = useCallback((contact: PhoneContact) => {
+    const phone = contact.phoneNumbers[0]?.number || '';
+    const normalizedNew = normalizePhone(phone);
+
+    // Check for duplicates
+    const alreadyAdded = contacts.some(c => {
+      const normalizedExisting = normalizePhone(c.phoneNumber);
+      return normalizedExisting === normalizedNew ||
+        normalizedNew.endsWith(normalizedExisting) ||
+        normalizedExisting.endsWith(normalizedNew);
+    });
+
+    if (alreadyAdded) {
+      Alert.alert('Already Added', `${contact.displayName} is already a VIP contact.`);
+      return;
+    }
+
+    Alert.alert(
+      'Add VIP Contact',
+      `Add ${contact.displayName} (${phone}) to your VIP list?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Add',
+          onPress: () => {
+            const updated: VIPContact[] = [
+              ...contacts,
+              { name: contact.displayName, phoneNumber: phone },
+            ];
+            saveContacts(updated);
+            setShowContactPicker(false);
+          },
+        },
+      ]
+    );
+  }, [contacts, saveContacts]);
+
+  const filteredContacts = phoneContacts.filter(c =>
+    (c.displayName || '').toLowerCase().includes(contactSearch.toLowerCase()) ||
+    c.phoneNumbers.some(p => p.number.includes(contactSearch))
+  );
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
@@ -100,24 +222,30 @@ const VIPContactsScreen = ({ navigation }: any) => {
         showBackButton={true}
       />
 
-        {/* ── Blocked tab commented out — backend has blockedNumbers[] but no CRUD API ──
-        <View style={styles.tabsContainer}>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'VIP' && styles.tabActive]}
-            onPress={() => setActiveTab('VIP')}
-          >
-            <Text style={[styles.tabText, activeTab === 'VIP' && styles.tabTextActive]}>VIP Contacts</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'Blocked' && styles.tabActive]}
-            onPress={() => setActiveTab('Blocked')}
-          >
-            <Text style={[styles.tabText, activeTab === 'Blocked' && styles.tabTextActive]}>Blocked</Text>
-          </TouchableOpacity>
-        </View>
-        ──────────────────────────────────────────────────────────────────────── */}
-
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {/* DND Behaviour Info Card */}
+        <View style={[styles.sectionHeader, { marginTop: 8 }]}>
+          <Text style={[styles.sectionTitle, { color: colors.textTertiary }]}>HOW VIP CONTACTS WORK</Text>
+        </View>
+        <View style={[styles.card, { backgroundColor: colors.surface, marginBottom: 4 }]}>
+          <View style={{ padding: 4 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 8 }}>
+              <Icon name="bell-ring" size={16} color="#4CAF50" style={{ marginTop: 2, marginRight: 8 }} />
+              <Text style={{ color: colors.textSecondary, fontSize: 13, flex: 1 }}>
+                <Text style={{ fontWeight: '700', color: colors.textPrimary }}>Normal mode: </Text>
+                AI screens the call and offers to transfer VIP callers directly to you.
+              </Text>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+              <Icon name="do-not-disturb" size={16} color="#FF9800" style={{ marginTop: 2, marginRight: 8 }} />
+              <Text style={{ color: colors.textSecondary, fontSize: 13, flex: 1 }}>
+                <Text style={{ fontWeight: '700', color: colors.textPrimary }}>DND / Priority Time: </Text>
+                All calls including VIP are handled by AI — VIPs get a warmer message and are told you'll call back promptly.
+              </Text>
+            </View>
+          </View>
+        </View>
+
         {/* Section Header */}
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { color: colors.textTertiary }]}>YOUR VIP LIST</Text>
@@ -151,17 +279,6 @@ const VIPContactsScreen = ({ navigation }: any) => {
                   <TouchableOpacity onPress={() => handleDelete(index)}>
                     <Icon name="close-circle" size={22} color="#FF3B30" />
                   </TouchableOpacity>
-                  {/* ── Escalate toggle commented out — not in backend VIPContact schema ──
-                  <View style={styles.contactRight}>
-                    <Text style={styles.escalateLabel}>Escalate</Text>
-                    <Switch
-                      value={contact.escalate}
-                      onValueChange={() => toggleEscalate(contact.id)}
-                      trackColor={{ false: '#E0E0E0', true: '#34C759' }}
-                      thumbColor="#fff"
-                    />
-                  </View>
-                  ──────────────────────────────────────────────────────────── */}
                 </View>
                 {index < contacts.length - 1 && <View style={[styles.divider, { backgroundColor: colors.divider }]} />}
               </View>
@@ -180,7 +297,7 @@ const VIPContactsScreen = ({ navigation }: any) => {
               style={{ borderBottomWidth: 1, borderColor: colors.border, paddingVertical: 8, marginBottom: 8, color: colors.textPrimary }}
             />
             <TextInput
-              placeholder="Phone Number"
+              placeholder="Phone Number (E.164, e.g. +919876543210)"
               value={newPhone}
               onChangeText={setNewPhone}
               keyboardType="phone-pad"
@@ -188,7 +305,7 @@ const VIPContactsScreen = ({ navigation }: any) => {
               style={{ borderBottomWidth: 1, borderColor: colors.border, paddingVertical: 8, marginBottom: 8, color: colors.textPrimary }}
             />
             <TextInput
-              placeholder="Relationship (optional)"
+              placeholder="Relationship (optional, e.g. Mom, Boss)"
               value={newRelationship}
               onChangeText={setNewRelationship}
               placeholderTextColor={colors.placeholderText}
@@ -207,23 +324,158 @@ const VIPContactsScreen = ({ navigation }: any) => {
           </View>
         )}
 
-        {/* Helper Text */}
-        <View style={styles.helperContainer}>
-          <Text style={[styles.helperText, { color: colors.textTertiary }]}>
-            Calls from VIP contacts will bypass the AI screening and ring your phone immediately.
+        {/* Import from Contacts button */}
+        <TouchableOpacity
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginHorizontal: 16,
+            marginTop: 12,
+            paddingVertical: 12,
+            borderRadius: 10,
+            borderWidth: 1.5,
+            borderStyle: 'dashed',
+            borderColor: colors.accent,
+            gap: 8,
+          }}
+          onPress={openContactPicker}
+          disabled={loadingContacts}>
+          {loadingContacts
+            ? <ActivityIndicator size="small" color={colors.accent} />
+            : <Icon name="contacts" size={20} color={colors.accent} />
+          }
+          <Text style={{ color: colors.accent, fontSize: 15, fontWeight: '600' }}>
+            {loadingContacts ? 'Loading contacts…' : 'Import from Phone Contacts'}
           </Text>
-        </View>
+        </TouchableOpacity>
 
         {/* Bottom padding */}
         <View style={{ height: 100 }} />
       </ScrollView>
 
       {/* Floating Add Button */}
-      <TouchableOpacity style={styles.floatingButton} onPress={() => setShowAdd(true)}>
-        <Icon name="plus" size={28} color="#fff" />
+      <TouchableOpacity style={styles.floatingButton} onPress={() => setShowAdd(!showAdd)}>
+        <Icon name={showAdd ? 'close' : 'plus'} size={28} color="#fff" />
       </TouchableOpacity>
+
+      {/* ── Phone Contact Picker Modal ──────────────────────────────────────── */}
+      <Modal
+        visible={showContactPicker}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowContactPicker(false)}>
+        <View style={{ flex: 1, backgroundColor: colors.background }}>
+          {/* Modal Header */}
+          <View style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            paddingHorizontal: 16,
+            paddingTop: 16,
+            paddingBottom: 8,
+            borderBottomWidth: 1,
+            borderBottomColor: colors.divider,
+          }}>
+            <Text style={{ fontSize: 17, fontWeight: '700', color: colors.textPrimary }}>
+              Choose a Contact
+            </Text>
+            <TouchableOpacity onPress={() => setShowContactPicker(false)}>
+              <Icon name="close" size={24} color={colors.textTertiary} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Search */}
+          <View style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            margin: 12,
+            paddingHorizontal: 12,
+            backgroundColor: colors.surface,
+            borderRadius: 10,
+            borderWidth: 1,
+            borderColor: colors.border,
+          }}>
+            <Icon name="magnify" size={20} color={colors.textTertiary} />
+            <TextInput
+              value={contactSearch}
+              onChangeText={setContactSearch}
+              placeholder="Search contacts…"
+              placeholderTextColor={colors.placeholderText}
+              style={{ flex: 1, paddingVertical: 10, paddingHorizontal: 8, color: colors.textPrimary, fontSize: 15 }}
+              autoFocus
+            />
+            {contactSearch.length > 0 && (
+              <TouchableOpacity onPress={() => setContactSearch('')}>
+                <Icon name="close-circle" size={18} color={colors.textTertiary} />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Contact list */}
+          <FlatList
+            data={filteredContacts}
+            keyExtractor={item => item.recordID}
+            keyboardShouldPersistTaps="handled"
+            ListEmptyComponent={
+              <Text style={{ color: colors.textTertiary, textAlign: 'center', marginTop: 40 }}>
+                No contacts found
+              </Text>
+            }
+            renderItem={({ item }) => {
+              const colour = avatarColor(item.displayName || '?');
+              const primaryPhone = item.phoneNumbers[0]?.number || '';
+              const alreadyAdded = contacts.some(c => {
+                const normalizedExisting = normalizePhone(c.phoneNumber);
+                const normalizedNew = normalizePhone(primaryPhone);
+                return normalizedExisting === normalizedNew ||
+                  normalizedNew.endsWith(normalizedExisting) ||
+                  normalizedExisting.endsWith(normalizedNew);
+              });
+              return (
+                <TouchableOpacity
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    paddingHorizontal: 16,
+                    paddingVertical: 12,
+                    borderBottomWidth: 0.5,
+                    borderBottomColor: colors.divider,
+                    opacity: alreadyAdded ? 0.5 : 1,
+                  }}
+                  onPress={() => !alreadyAdded && handlePickContact(item)}
+                  disabled={alreadyAdded}>
+                  <View style={[styles.avatar, { backgroundColor: colour.bg, marginRight: 12 }]}>
+                    <Text style={[styles.avatarText, { color: colour.fg }]}>
+                      {(item.displayName || '?').charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: colors.textPrimary, fontSize: 15, fontWeight: '500' }}>
+                      {item.displayName}
+                    </Text>
+                    <Text style={{ color: colors.textTertiary, fontSize: 13, marginTop: 2 }}>
+                      {primaryPhone}
+                      {item.phoneNumbers.length > 1 ? ` +${item.phoneNumbers.length - 1} more` : ''}
+                    </Text>
+                  </View>
+                  {alreadyAdded ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      <Icon name="check-circle" size={18} color="#4CAF50" />
+                      <Text style={{ color: '#4CAF50', fontSize: 12 }}>VIP</Text>
+                    </View>
+                  ) : (
+                    <Icon name="plus-circle-outline" size={22} color={colors.accent} />
+                  )}
+                </TouchableOpacity>
+              );
+            }}
+          />
+        </View>
+      </Modal>
     </View>
   );
 };
 
 export default VIPContactsScreen;
+

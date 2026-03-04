@@ -119,13 +119,46 @@ async function buildCallContext(phoneNumber, userId = process.env.OWNER_PHONE_NU
     callHistoryService.getCallerContext(phoneNumber, null)
   ]);
 
+  // Detect if caller is a VIP contact (normalised phone comparison)
+  const normalizedCaller = phoneNumber ? phoneNumber.replace(/\D/g, '') : '';
+  const isVIP = (user?.vipContacts || []).some(v => {
+    const normalizedVIP = v.phoneNumber.replace(/\D/g, '');
+    return normalizedVIP === normalizedCaller ||
+      normalizedCaller.endsWith(normalizedVIP) ||
+      normalizedVIP.endsWith(normalizedCaller);
+  });
+  const vipContact = isVIP
+    ? (user?.vipContacts || []).find(v => {
+        const normalizedVIP = v.phoneNumber.replace(/\D/g, '');
+        return normalizedVIP === normalizedCaller ||
+          normalizedCaller.endsWith(normalizedVIP) ||
+          normalizedVIP.endsWith(normalizedCaller);
+      })
+    : null;
+
   // Check if user is in priority time (pass caller number for emergency bypass check)
   const priorityTimeInfo = userConfigService.isInPriorityTime(user, phoneNumber);
-  
-  // Add priority time and user info to callInfo for prompt generation
+
+  // ── DND + VIP logic ──────────────────────────────────────────────────────
+  // During Priority Time:
+  //   - ALL calls (including VIP) are handled by AI — no push notification
+  //   - VIP callers are screened with a warmer, priority message
+  //   - Only Emergency contacts bypass (handled in isInPriorityTime)
+  //
+  // Outside Priority Time:
+  //   - Non-VIP calls → AI screens → push notification sent
+  //   - VIP calls → AI screens with warm message → push notification sent
+  //
+  // suppressNotification = true when in priority time (AI silently handles)
+  const suppressNotification = !!priorityTimeInfo?.inPriorityTime;
+
+  // Add priority time, VIP info, and user info to callInfo for prompt generation
   const enrichedCallInfo = {
     ...callInfo,
     priorityTimeInfo,
+    isVIP,
+    vipContact,
+    suppressNotification,
     user
   };
 
@@ -134,7 +167,7 @@ async function buildCallContext(phoneNumber, userId = process.env.OWNER_PHONE_NU
     ? PromptGenerator.generateOutboundGreeting(user, callerCtx, callInfo.callerName)
     : PromptGenerator.generateInitialGreeting(user, callerCtx);
 
-  return { user, callerCtx, systemPrompt, initialGreeting, priorityTimeInfo };
+  return { user, callerCtx, systemPrompt, initialGreeting, priorityTimeInfo, isVIP, vipContact, suppressNotification };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -163,24 +196,33 @@ router.post('/incoming-call', async (req, res) => {
       return res.status(500).send('No user configured for this number');
     }
 
-    const { callerCtx, systemPrompt, initialGreeting, priorityTimeInfo } = await buildCallContext(from, user.userId, { from, to });
+    const { callerCtx, systemPrompt, initialGreeting, priorityTimeInfo, isVIP, vipContact, suppressNotification } = await buildCallContext(from, user.userId, { from, to });
 
     console.log(`👤 User: ${user.name} (${user.userId})`);
     console.log(`📚 Caller context: ${callerCtx?.totalCalls || 0} previous calls`);
     if (callerCtx?.lastCategoryLabel) {
       console.log(`   Last category: ${callerCtx.lastCategoryLabel}`);
     }
+    if (isVIP) {
+      console.log(`⭐ VIP caller detected: ${vipContact?.name} (${vipContact?.relationship || 'VIP'})`);
+    }
     if (priorityTimeInfo?.inPriorityTime) {
-      console.log(`⏰ User unavailable (busy hours): ${priorityTimeInfo.startTime} - ${priorityTimeInfo.endTime}`);
-      console.log(`   AI will handle call and take message`);
+      console.log(`⏰ User unavailable (priority time): ${priorityTimeInfo.startTime} - ${priorityTimeInfo.endTime}`);
+      console.log(`   AI will handle call silently — no push notification`);
+      if (isVIP) {
+        console.log(`   VIP caller during priority time — AI screens with warm VIP message`);
+      }
     }
 
     voiceAgent.handleIncomingCall(callSid, from, to, systemPrompt, initialGreeting, {
       userId: user.userId,
       user,
       callerCtx,
-      callerName: callerCtx?.callerName || 'Unknown',
-      priorityTimeInfo
+      callerName: callerCtx?.callerName || vipContact?.name || 'Unknown',
+      priorityTimeInfo,
+      isVIP,
+      vipContact,
+      suppressNotification  // mobile app uses this to skip ringing/notification
     });
 
     const twiml = voiceAgent.generateIncomingCallTwiML(req);

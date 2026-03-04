@@ -41,15 +41,22 @@ function App() {
     callerNumber: string;
     callerName?: string;
     isVIP?: boolean;
+    inPriorityTime?: boolean;
   } | null>(null);
 
   // Global socket listener — auto-show IncomingCallScreen when a call arrives.
   useEffect(() => {
-    const navigateToIncoming = (callId: string, callerNumber: string, callerName?: string, isVIP?: boolean) => {
+    const navigateToIncoming = (
+      callId: string,
+      callerNumber: string,
+      callerName?: string,
+      isVIP?: boolean,
+      inPriorityTime?: boolean,
+    ) => {
       if (activeCallRef.current === callId) return; // already showing
       activeCallRef.current = callId;
       transcriptStore.startCall(callId);
-      setActiveCall({ callId, callerNumber, callerName, isVIP });
+      setActiveCall({ callId, callerNumber, callerName, isVIP, inPriorityTime });
       console.log('[App] Navigating to IncomingCall for', callId);
 
       const doNavigate = () => {
@@ -58,6 +65,7 @@ function App() {
           callerNumber,
           callerName: callerName || callerNumber,
           isVIP: isVIP || false,
+          inPriorityTime: inPriorityTime || false,
         });
       };
 
@@ -79,7 +87,25 @@ function App() {
 
     const onCallStarted = (data: SocketCallStartedEvent) => {
       console.log('[App] call:started received:', JSON.stringify(data));
-      navigateToIncoming(data.callId, data.from, data.callerName, data.isVIP);
+
+      if (data.suppressNotification) {
+        // Priority/DND mode — AI handles the call silently.
+        // Still track it internally (for the call-in-progress banner / history)
+        // but do NOT navigate to IncomingCallScreen and do NOT show any notification.
+        console.log('[App] DND/Priority mode — suppressing notification for call', data.callId);
+        activeCallRef.current = data.callId;
+        transcriptStore.startCall(data.callId);
+        setActiveCall({
+          callId: data.callId,
+          callerNumber: data.from,
+          callerName: data.callerName,
+          isVIP: data.isVIP,
+          inPriorityTime: true,
+        });
+        return;
+      }
+
+      navigateToIncoming(data.callId, data.from, data.callerName, data.isVIP, data.inPriorityTime);
     };
 
     // Fallback: if call:started was missed, first transcript opens the screen

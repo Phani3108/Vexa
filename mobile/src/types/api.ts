@@ -228,6 +228,8 @@ export interface SocketCallStartedEvent {
   callerName?: string;
   timestamp: string;
   isVIP?: boolean;
+  inPriorityTime?: boolean;   // true when user is in priority/DND mode
+  suppressNotification?: boolean; // true = AI handles silently, no ringing/notification
 }
 
 export interface SocketCallEndedEvent {

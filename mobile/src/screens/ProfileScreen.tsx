@@ -52,6 +52,8 @@ const ProfileScreen = ({ navigation }: any) => {
     callId: string;
     callerNumber: string;
     callerName?: string;
+    isVIP?: boolean;
+    inPriorityTime?: boolean;
   } | null>(null);
 
   // Pulse animation for live indicator
@@ -75,6 +77,8 @@ const ProfileScreen = ({ navigation }: any) => {
         callId: data.callId,
         callerNumber: data.from,
         callerName: data.callerName,
+        isVIP: data.isVIP || false,
+        inPriorityTime: data.inPriorityTime || data.suppressNotification || false,
       });
     };
     const onEnded = () => setActiveCall(null);
@@ -151,23 +155,31 @@ const ProfileScreen = ({ navigation }: any) => {
       {/* Call in Progress widget */}
       {activeCall && (
         <TouchableOpacity
-          style={styles.callWidget}
+          style={[styles.callWidget, activeCall.inPriorityTime && { backgroundColor: '#FF980015' }]}
           onPress={() => {
+            // In DND/priority mode, calls are handled silently — tapping the widget
+            // still lets the user view the live transcript if they want.
             navigation.navigate('IncomingCall', {
               callId: activeCall.callId,
               callerNumber: activeCall.callerNumber,
               callerName: activeCall.callerName || activeCall.callerNumber,
-              isVIP: false,
+              isVIP: activeCall.isVIP || false,
+              inPriorityTime: activeCall.inPriorityTime || false,
             });
           }}
           activeOpacity={0.8}
         >
           <View style={styles.callWidgetLeft}>
-            <Animated.View style={[styles.callWidgetDot, { opacity: pulseAnim }]} />
+            <Animated.View style={[
+              styles.callWidgetDot,
+              { opacity: pulseAnim, backgroundColor: activeCall.inPriorityTime ? '#FF9800' : '#4CD964' },
+            ]} />
             <View>
-              <Text style={styles.callWidgetTitle}>Call in Progress</Text>
+              <Text style={styles.callWidgetTitle}>
+                {activeCall.inPriorityTime ? '🤫 AI Handling (DND)' : 'Call in Progress'}
+              </Text>
               <Text style={styles.callWidgetSub}>
-                {activeCall.callerName || activeCall.callerNumber}
+                {activeCall.isVIP ? '⭐ VIP · ' : ''}{activeCall.callerName || activeCall.callerNumber}
               </Text>
             </View>
           </View>

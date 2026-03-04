@@ -22,7 +22,7 @@ import {
 // ─── Config ─────────────────────────────────────────────────────────────────
 
 // Always use the deployed Render backend — Twilio and Socket.io events both come from here.
-export const BASE_URL = 'YOUR_BACKEND_URL_HERE';
+export const BASE_URL = 'https://vexa-9hgb.onrender.com';
 
 let _phoneNumber: string | null = null;
 
@@ -194,6 +194,11 @@ export async function deleteCategory(
 }
 
 // ─── VIP Contacts ───────────────────────────────────────────────────────────
+
+/** GET /api/users/vip-contacts — fetch current VIP list */
+export async function getVIPContacts(): Promise<{ vipContacts: VIPContact[] }> {
+  return get('/api/users/vip-contacts');
+}
 
 /** PUT /api/users/vip-contacts — replace full VIP list */
 export async function updateVIPContacts(
