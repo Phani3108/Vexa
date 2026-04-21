@@ -29,6 +29,22 @@ export async function connectToMongoDB() {
     await mongoose.connect(mongoUri, options);
     isConnected = true;
     
+    // Track connection state changes
+    mongoose.connection.on('disconnected', () => {
+      console.error('❌ MongoDB disconnected');
+      isConnected = false;
+    });
+
+    mongoose.connection.on('reconnected', () => {
+      console.log('✅ MongoDB reconnected');
+      isConnected = true;
+    });
+
+    mongoose.connection.on('error', (err) => {
+      console.error('❌ MongoDB connection error:', err.message);
+      isConnected = false;
+    });
+
     console.log('✅ Connected to MongoDB Atlas');
     return true;
   } catch (error) {

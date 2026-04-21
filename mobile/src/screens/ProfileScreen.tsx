@@ -46,6 +46,7 @@ const ProfileScreen = ({ navigation }: any) => {
   const [recentCalls, setRecentCalls] = useState<CallListItem[]>([]);
   const [callsToday, setCallsToday] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   // Active call tracking for the widget
   const [activeCall, setActiveCall] = useState<{
@@ -93,6 +94,7 @@ const ProfileScreen = ({ navigation }: any) => {
 
   const fetchRecent = useCallback(async () => {
     try {
+      setFetchError(null);
       // Fetch 5 for the recent list, and up to 200 to count today's calls
       const [recentRes, allRes] = await Promise.all([
         api.getCalls(5, 0),
@@ -103,8 +105,8 @@ const ProfileScreen = ({ navigation }: any) => {
       setCallsToday(
         allRes.calls.filter(c => c.timestamp && new Date(c.timestamp).toDateString() === today).length,
       );
-    } catch (_err) {
-      // silently fail
+    } catch (err: any) {
+      setFetchError(err.message || 'Failed to load recent calls');
     } finally {
       setLoading(false);
     }
@@ -241,7 +243,17 @@ const ProfileScreen = ({ navigation }: any) => {
 
         {loading && <ActivityIndicator style={{ paddingVertical: 30 }} color={colors.accent} />}
 
-        {!loading && recentCalls.length === 0 && (
+        {!loading && fetchError && (
+          <View style={[styles.emptyState, { backgroundColor: colors.surface }]}>
+            <Icon name="alert-circle-outline" size={40} color="#FF3B30" />
+            <Text style={[styles.emptyText, { color: '#FF3B30' }]}>Could not load calls</Text>
+            <TouchableOpacity onPress={fetchRecent} style={{ marginTop: 8 }}>
+              <Text style={{ color: colors.accent, fontSize: 14 }}>Tap to retry</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {!loading && !fetchError && recentCalls.length === 0 && (
           <View style={[styles.emptyState, { backgroundColor: colors.surface }]}>
             <Icon name="phone-off" size={40} color="#CCC" />
             <Text style={styles.emptyText}>No recent calls yet</Text>

@@ -704,7 +704,7 @@ class VoiceAgent extends EventEmitter {
    */
   _initiateAITakeover(callContext) {
     const callSid = callContext.callSid;
-    const userId  = callContext.userId || process.env.OWNER_PHONE_NUMBER;
+    const userId  = callContext.userId;
 
     console.log(`🔀 Initiating AI-triggered takeover for ${callSid}`);
     console.log(`   Bridging in: ${userId}`);
@@ -773,7 +773,7 @@ class VoiceAgent extends EventEmitter {
       callSid,
       from,
       to,
-      userId: context.userId || process.env.OWNER_PHONE_NUMBER || 'unknown',  // For Socket.io room targeting
+      userId: context.userId,  // For Socket.io room targeting
       direction: 'incoming',
       systemPrompt,
       initialGreeting,
@@ -945,7 +945,7 @@ class VoiceAgent extends EventEmitter {
    */
   _emitCallerNameUpdate(callContext, callerName) {
     if (!this.io) return;
-    const userId = callContext.userId || process.env.OWNER_PHONE_NUMBER || 'unknown';
+    const userId = callContext.userId;
     this.io.to(`user:${userId}`).emit('call:caller-name', {
       callId: callContext.callSid,
       callerName,
@@ -972,7 +972,7 @@ class VoiceAgent extends EventEmitter {
   emitCallStarted(callContext) {
     if (!this.io) return;
     
-    const userId = callContext.userId || process.env.OWNER_PHONE_NUMBER || 'unknown';
+    const userId = callContext.userId;
     const callerName = callContext.context?.callerName || 'Unknown';
     const isVIP = callContext.context?.isVIP || false;
     const suppressNotification = callContext.context?.suppressNotification || false;
@@ -998,7 +998,7 @@ class VoiceAgent extends EventEmitter {
    */
   _emitTranscriptClear(callContext) {
     if (!this.io) return;
-    const userId = callContext.userId || process.env.OWNER_PHONE_NUMBER || 'unknown';
+    const userId = callContext.userId;
     this.io.to(`user:${userId}`).emit('call:transcript:clear', {
       callId: callContext.callSid,
       timestamp: new Date().toISOString()
@@ -1011,7 +1011,7 @@ class VoiceAgent extends EventEmitter {
   emitTranscriptDelta(callContext, delta, fullText) {
     if (!this.io) return;
     
-    const userId = callContext.userId || process.env.OWNER_PHONE_NUMBER || 'unknown';
+    const userId = callContext.userId;
     
     this.io.to(`user:${userId}`).emit('call:transcript:delta', {
       callId: callContext.callSid,
@@ -1032,7 +1032,7 @@ class VoiceAgent extends EventEmitter {
   emitTranscript(callContext, transcriptEntry) {
     if (!this.io) return;
     
-    const userId = callContext.userId || process.env.OWNER_PHONE_NUMBER || 'unknown';
+    const userId = callContext.userId;
     
     let speaker;
     if (transcriptEntry.speaker === 'assistant') {
@@ -1061,7 +1061,7 @@ class VoiceAgent extends EventEmitter {
   emitIntent(callContext, intent, confidence = 0.8) {
     if (!this.io) return;
     
-    const userId = callContext.userId || process.env.OWNER_PHONE_NUMBER || 'unknown';
+    const userId = callContext.userId;
     
     this.io.to(`user:${userId}`).emit('call:intent', {
       callId: callContext.callSid,
@@ -1079,7 +1079,7 @@ class VoiceAgent extends EventEmitter {
   emitAction(callContext, action, response) {
     if (!this.io) return;
     
-    const userId = callContext.userId || process.env.OWNER_PHONE_NUMBER || 'unknown';
+    const userId = callContext.userId;
     
     this.io.to(`user:${userId}`).emit('call:action', {
       callId: callContext.callSid,
@@ -1095,7 +1095,7 @@ class VoiceAgent extends EventEmitter {
   emitCallEnded(callContext, result) {
     if (!this.io) return;
     
-    const userId = callContext.userId || process.env.OWNER_PHONE_NUMBER || 'unknown';
+    const userId = callContext.userId;
     
     this.io.to(`user:${userId}`).emit('call:ended', {
       callId: callContext.callSid,

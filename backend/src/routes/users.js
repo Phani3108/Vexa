@@ -3,9 +3,7 @@
  *
  * userId = the user's phone number (E.164)
  *
- * userId resolved from (in order):
- *   1. req.user.userId  — set by auth middleware (JWT in prod, body phoneNumber in dev)
- *   2. OWNER_PHONE_NUMBER env var — fallback for single-user dev mode
+ * userId resolved from req.user.userId (set by auth middleware).
  */
 
 import express from 'express';
@@ -15,9 +13,7 @@ const router = express.Router();
 
 // Helper: resolve userId for any request
 function resolveUserId(req) {
-  return req.user?.userId
-    || process.env.OWNER_PHONE_NUMBER
-    || null;
+  return req.user?.userId || null;
 }
 
 // ── Setup (called once on first app login) ────────────────────────────────────
@@ -164,6 +160,49 @@ router.put('/vip-contacts', async (req, res) => {
     res.json({ vipContacts: user?.vipContacts });
   } catch (err) {
     res.status(500).json({ error: 'Failed to update VIP contacts' });
+  }
+});
+
+// ── Blocked Numbers ─────────────────────────────────────────────────────────
+
+// GET /api/users/blocked-numbers
+router.get('/blocked-numbers', async (req, res) => {
+  try {
+    const userId = resolveUserId(req);
+    if (!userId) return res.status(400).json({ error: 'phoneNumber required' });
+    const user = await userConfigService.getUser(userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    res.json({ blockedNumbers: user.blockedNumbers || [] });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch blocked numbers' });
+  }
+});
+
+// POST /api/users/blocked-numbers  — add a number to the block list
+router.post('/blocked-numbers', async (req, res) => {
+  try {
+    const userId = resolveUserId(req);
+    if (!userId) return res.status(400).json({ error: 'phoneNumber required' });
+    const { phoneNumber } = req.body;
+    if (!phoneNumber) return res.status(400).json({ error: 'phoneNumber to block is required' });
+
+    const user = await userConfigService.addBlockedNumber(userId, phoneNumber);
+    res.json({ blockedNumbers: user?.blockedNumbers || [], message: 'Number blocked' });
+  } catch (err) {
+    res.status(400).json({ error: err.message || 'Failed to block number' });
+  }
+});
+
+// DELETE /api/users/blocked-numbers/:phoneNumber  — unblock a number
+router.delete('/blocked-numbers/:phoneNumber', async (req, res) => {
+  try {
+    const userId = resolveUserId(req);
+    if (!userId) return res.status(400).json({ error: 'phoneNumber required' });
+    const phoneNumber = decodeURIComponent(req.params.phoneNumber);
+    const user = await userConfigService.removeBlockedNumber(userId, phoneNumber);
+    res.json({ blockedNumbers: user?.blockedNumbers || [], message: 'Number unblocked' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to unblock number' });
   }
 });
 

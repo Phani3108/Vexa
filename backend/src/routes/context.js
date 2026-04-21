@@ -1,17 +1,28 @@
 /**
- * Context API Routes
- * 
+ * Context API Routes — /api/context/*
+ *
  * Endpoints for managing call context and user profile:
  * - Log outgoing calls (calls YOU made)
  * - Update user profile (your info, preferences)
  * - Get full context for a phone number
+ *
+ * All routes require authentication. userId is derived from req.user.
  */
 
 import express from 'express';
 import callHistoryService from '../services/callHistoryService.js';
 import userConfigService from '../services/userConfigService.js';
+import { authenticate } from '../middleware/auth.js';
 
 const router = express.Router();
+
+// All context routes require authentication
+router.use(authenticate);
+
+// Helper: resolve userId from auth
+function userId(req) {
+  return req.user?.userId || null;
+}
 
 /**
  * POST /api/context/outgoing-call
@@ -30,6 +41,9 @@ const router = express.Router();
  */
 router.post('/outgoing-call', async (req, res) => {
   try {
+    const uid = userId(req);
+    if (!uid) return res.status(401).json({ error: 'Not authenticated' });
+
     const { phoneNumber, callerName, summary, outcome, notes, timestamp } = req.body;
     
     if (!phoneNumber) {
@@ -46,6 +60,7 @@ router.post('/outgoing-call', async (req, res) => {
       from: phoneNumber,
       to: process.env.TWILIO_PHONE_NUMBER || 'your-number',
       direction: 'outgoing',
+      userId: uid,
       startTime: timestamp || new Date().toISOString(),
       duration: 0, // Unknown for manual logs
       status: 'completed',
@@ -67,7 +82,7 @@ router.post('/outgoing-call', async (req, res) => {
     
     // Update caller name if provided
     if (callerName && history) {
-      await callHistoryService.updateCallerName(phoneNumber, callerName);
+      await callHistoryService.updateCallerName(phoneNumber, uid, callerName);
     }
     
     res.json({
@@ -80,7 +95,7 @@ router.post('/outgoing-call', async (req, res) => {
     
   } catch (error) {
     console.error('❌ Error logging outgoing call:', error);
-    res.status(500).json({ error: 'Failed to log outgoing call', details: error.message });
+    res.status(500).json({ error: 'Failed to log outgoing call' });
   }
 });
 
@@ -91,12 +106,15 @@ router.post('/outgoing-call', async (req, res) => {
  */
 router.get('/caller/:phoneNumber', async (req, res) => {
   try {
+    const uid = userId(req);
+    if (!uid) return res.status(401).json({ error: 'Not authenticated' });
+
     const { phoneNumber } = req.params;
     
     // Decode URL-encoded phone number
     const decodedNumber = decodeURIComponent(phoneNumber);
     
-    const history = await callHistoryService.getCallerHistory(decodedNumber);
+    const history = await callHistoryService.getCallerHistory(decodedNumber, uid);
     
     if (!history) {
       return res.json({
@@ -112,7 +130,7 @@ router.get('/caller/:phoneNumber', async (req, res) => {
     
   } catch (error) {
     console.error('❌ Error getting caller context:', error);
-    res.status(500).json({ error: 'Failed to get caller context', details: error.message });
+    res.status(500).json({ error: 'Failed to get caller context' });
   }
 });
 
@@ -132,46 +150,33 @@ router.get('/caller/:phoneNumber', async (req, res) => {
  */
 router.put('/caller/:phoneNumber', async (req, res) => {
   try {
+    const uid = userId(req);
+    if (!uid) return res.status(401).json({ error: 'Not authenticated' });
+
     const { phoneNumber } = req.params;
     const { callerName, organization, relationship, notes, tags } = req.body;
     
     const decodedNumber = decodeURIComponent(phoneNumber);
-    
-    // Get existing history
-    let history = await callHistoryService.getCallerHistory(decodedNumber);
-    
-    if (!history) {
-      // Create new entry
-      history = {
-        phoneNumber: decodedNumber,
-        callerName: callerName || 'Unknown',
-        calls: [],
-        totalCalls: 0
-      };
-    }
-    
-    // Update fields
-    if (callerName) history.callerName = callerName;
-    if (organization) history.organization = organization;
-    if (relationship) history.relationship = relationship;
-    if (notes) history.notes = notes;
-    if (tags) history.tags = tags;
-    
-    history.updatedAt = new Date().toISOString();
-    
-    // Save
-    await callHistoryService.saveCallerInfo(decodedNumber, history);
+
+    const updates = {};
+    if (callerName) updates.callerName = callerName;
+    if (organization) updates.organization = organization;
+    if (relationship) updates.relationship = relationship;
+    if (notes) updates.notes = notes;
+    if (tags) updates.tags = tags;
+
+    const result = await callHistoryService.updateCallerProfile(decodedNumber, uid, updates);
     
     res.json({
       success: true,
       message: 'Caller info updated',
       phoneNumber: decodedNumber,
-      callerName: history.callerName
+      callerName: result?.callerName || callerName
     });
     
   } catch (error) {
     console.error('❌ Error updating caller info:', error);
-    res.status(500).json({ error: 'Failed to update caller info', details: error.message });
+    res.status(500).json({ error: 'Failed to update caller info' });
   }
 });
 
@@ -182,18 +187,19 @@ router.put('/caller/:phoneNumber', async (req, res) => {
  */
 router.get('/user-profile', async (req, res) => {
   try {
-    const userId = req.query.userId || 'default';
-    const profile = await userConfigService.getUserConfig(userId);
+    const uid = userId(req);
+    if (!uid) return res.status(401).json({ error: 'Not authenticated' });
+    const profile = await userConfigService.getUserConfig(uid);
     
     res.json(profile || {
-      userId,
+      userId: uid,
       name: 'Not configured',
       message: 'Update your profile so the AI knows how to represent you'
     });
     
   } catch (error) {
     console.error('❌ Error getting user profile:', error);
-    res.status(500).json({ error: 'Failed to get user profile', details: error.message });
+    res.status(500).json({ error: 'Failed to get user profile' });
   }
 });
 
@@ -221,7 +227,9 @@ router.get('/user-profile', async (req, res) => {
  */
 router.put('/user-profile', async (req, res) => {
   try {
-    const userId = req.body.userId || 'default';
+    const uid = userId(req);
+    if (!uid) return res.status(401).json({ error: 'Not authenticated' });
+
     const profile = req.body;
     
     // Validate required fields
@@ -229,18 +237,14 @@ router.put('/user-profile', async (req, res) => {
       return res.status(400).json({ error: 'name is required' });
     }
     
-    // Add metadata
-    profile.userId = userId;
-    profile.updatedAt = new Date().toISOString();
-    
     // Save
-    await userConfigService.saveUserConfig(userId, profile);
+    await userConfigService.saveUserConfig(uid, profile);
     
     res.json({
       success: true,
       message: 'User profile updated',
       profile: {
-        userId,
+        userId: uid,
         name: profile.name,
         greeting: profile.greeting
       }
@@ -248,7 +252,7 @@ router.put('/user-profile', async (req, res) => {
     
   } catch (error) {
     console.error('❌ Error updating user profile:', error);
-    res.status(500).json({ error: 'Failed to update user profile', details: error.message });
+    res.status(500).json({ error: 'Failed to update user profile' });
   }
 });
 
@@ -259,12 +263,15 @@ router.put('/user-profile', async (req, res) => {
  */
 router.get('/summary', async (req, res) => {
   try {
-    const userId = req.query.userId || 'default';
+    const uid = userId(req);
+    if (!uid) return res.status(401).json({ error: 'Not authenticated' });
     
-    const [userProfile, allCalls] = await Promise.all([
-      userConfigService.getUserConfig(userId),
-      callHistoryService.getAllCalls()
+    const [userProfile, allCallsResult] = await Promise.all([
+      userConfigService.getUserConfig(uid),
+      callHistoryService.getAllCalls(uid)
     ]);
+    
+    const allCalls = allCallsResult.calls || [];
     
     // Count unique callers
     const uniqueCallers = new Set(allCalls.map(c => c.from)).size;
@@ -298,7 +305,7 @@ router.get('/summary', async (req, res) => {
     
   } catch (error) {
     console.error('❌ Error getting context summary:', error);
-    res.status(500).json({ error: 'Failed to get context summary', details: error.message });
+    res.status(500).json({ error: 'Failed to get context summary' });
   }
 });
 

@@ -72,15 +72,14 @@ class SocketService {
     console.log('[Socket] Attempting connection to:', BASE_URL);
 
     this.socket = io(BASE_URL, {
-      // Use polling only — the polling→websocket upgrade fails silently
-      // in React Native / Hermes, causing events to never arrive.
-      transports: ['polling'],
+      // Try websocket first, fall back to polling if it fails
+      transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionAttempts: Infinity,
       reconnectionDelay: 2000,
+      reconnectionDelayMax: 10000,
       timeout: 20000,
-      // Disable upgrade to websocket (stays on polling)
-      upgrade: false,
+      upgrade: true,
     });
 
     // Catch-all: log every event the raw socket receives
@@ -131,12 +130,16 @@ class SocketService {
 
   /** Disconnect from the server */
   disconnect() {
-    this.socket?.disconnect();
-    this.socket = null;
+    if (this.socket) {
+      this.socket.removeAllListeners();
+      this.socket.disconnect();
+      this.socket = null;
+    }
     this.userId = null;
     // On explicit logout, wipe all listener state so a fresh login starts clean
     this.activeListeners = [];
     this.pendingListeners = [];
+    this._onAnyHandlers = [];
   }
 
   /** Join the user's personal room so we receive their call events */

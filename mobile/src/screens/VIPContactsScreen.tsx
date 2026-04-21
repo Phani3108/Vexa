@@ -63,6 +63,12 @@ const VIPContactsScreen = ({ navigation }: any) => {
   const [contactSearch, setContactSearch] = useState('');
   const [loadingContacts, setLoadingContacts] = useState(false);
 
+  // ── Blocked numbers state ─────────────────────────────────────────────────
+  const [activeTab, setActiveTab] = useState<'VIP' | 'Blocked'>('VIP');
+  const [blockedNumbers, setBlockedNumbers] = useState<string[]>(userConfig?.blockedNumbers || []);
+  const [showAddBlocked, setShowAddBlocked] = useState(false);
+  const [newBlockedPhone, setNewBlockedPhone] = useState('');
+
   /** Persist the full vipContacts list via PUT */
   const saveContacts = useCallback(async (updated: VIPContact[]) => {
     setSaving(true);
@@ -213,16 +219,74 @@ const VIPContactsScreen = ({ navigation }: any) => {
     c.phoneNumbers.some(p => p.number.includes(contactSearch))
   );
 
+  // ── Blocked number handlers ───────────────────────────────────────────────
+
+  const handleAddBlocked = useCallback(async () => {
+    if (!newBlockedPhone.trim()) {
+      Alert.alert('Missing info', 'Phone number is required');
+      return;
+    }
+    setSaving(true);
+    try {
+      const result = await api.addBlockedNumber(newBlockedPhone.trim());
+      setBlockedNumbers(result.blockedNumbers);
+      setShowAddBlocked(false);
+      setNewBlockedPhone('');
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'Failed to block number');
+    } finally {
+      setSaving(false);
+    }
+  }, [newBlockedPhone]);
+
+  const handleRemoveBlocked = useCallback((phoneNumber: string) => {
+    Alert.alert('Unblock', `Unblock ${phoneNumber}?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Unblock',
+        onPress: async () => {
+          setSaving(true);
+          try {
+            const result = await api.removeBlockedNumber(phoneNumber);
+            setBlockedNumbers(result.blockedNumbers);
+          } catch (err: any) {
+            Alert.alert('Error', err.message || 'Failed to unblock');
+          } finally {
+            setSaving(false);
+          }
+        },
+      },
+    ]);
+  }, []);
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
       <CommonHeader
-        title="VIP Contacts"
+        title={activeTab === 'VIP' ? 'VIP Contacts' : 'Blocked Numbers'}
         onBackPress={() => navigation.goBack()}
         showBackButton={true}
       />
 
+      {/* Tab Bar */}
+      <View style={{ flexDirection: 'row', marginHorizontal: 16, marginTop: 8, marginBottom: 4, borderRadius: 10, overflow: 'hidden', backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7' }}>
+        <TouchableOpacity
+          style={{ flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 10, backgroundColor: activeTab === 'VIP' ? colors.accent : 'transparent' }}
+          onPress={() => setActiveTab('VIP')}
+        >
+          <Text style={{ fontWeight: '600', color: activeTab === 'VIP' ? '#fff' : colors.textSecondary }}>VIP Contacts</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={{ flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 10, backgroundColor: activeTab === 'Blocked' ? '#FF3B30' : 'transparent' }}
+          onPress={() => setActiveTab('Blocked')}
+        >
+          <Text style={{ fontWeight: '600', color: activeTab === 'Blocked' ? '#fff' : colors.textSecondary }}>Blocked</Text>
+        </TouchableOpacity>
+      </View>
+
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {activeTab === 'VIP' ? (
+          <>
         {/* DND Behaviour Info Card */}
         <View style={[styles.sectionHeader, { marginTop: 8 }]}>
           <Text style={[styles.sectionTitle, { color: colors.textTertiary }]}>HOW VIP CONTACTS WORK</Text>
@@ -349,14 +413,83 @@ const VIPContactsScreen = ({ navigation }: any) => {
             {loadingContacts ? 'Loading contacts…' : 'Import from Phone Contacts'}
           </Text>
         </TouchableOpacity>
+          </>
+        ) : (
+          <>
+            {/* Blocked Numbers List */}
+            <View style={styles.sectionHeader}>
+              <Text style={[styles.sectionTitle, { color: colors.textTertiary }]}>BLOCKED NUMBERS</Text>
+            </View>
+
+            <View style={[styles.card, { backgroundColor: colors.surface }]}>
+              {blockedNumbers.length === 0 && (
+                <Text style={{ color: colors.textTertiary, textAlign: 'center', paddingVertical: 20 }}>
+                  No blocked numbers. Tap + to block a number.
+                </Text>
+              )}
+              {blockedNumbers.map((number, index) => (
+                <View key={number}>
+                  <View style={styles.contactRow}>
+                    <View style={styles.contactLeft}>
+                      <View style={[styles.avatar, { backgroundColor: '#FF3B3020' }]}>
+                        <Icon name="phone-off" size={18} color="#FF3B30" />
+                      </View>
+                      <View style={styles.contactInfo}>
+                        <Text style={[styles.contactName, { color: colors.textPrimary }]}>{number}</Text>
+                        <Text style={[styles.contactDescription, { color: colors.textTertiary }]}>Blocked</Text>
+                      </View>
+                    </View>
+                    <TouchableOpacity onPress={() => handleRemoveBlocked(number)}>
+                      <Icon name="close-circle" size={22} color="#FF3B30" />
+                    </TouchableOpacity>
+                  </View>
+                  {index < blockedNumbers.length - 1 && <View style={[styles.divider, { backgroundColor: colors.divider }]} />}
+                </View>
+              ))}
+            </View>
+
+            {/* Inline Add Blocked Form */}
+            {showAddBlocked && (
+              <View style={[styles.card, { marginHorizontal: 16, marginTop: 12, padding: 16, backgroundColor: colors.surface }]}>
+                <TextInput
+                  placeholder="Phone Number (e.g. +1234567890)"
+                  value={newBlockedPhone}
+                  onChangeText={setNewBlockedPhone}
+                  keyboardType="phone-pad"
+                  placeholderTextColor={colors.placeholderText}
+                  style={{ borderBottomWidth: 1, borderColor: colors.border, paddingVertical: 8, marginBottom: 12, color: colors.textPrimary }}
+                />
+                <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 12 }}>
+                  <TouchableOpacity onPress={() => setShowAddBlocked(false)}>
+                    <Text style={{ color: colors.textTertiary, fontSize: 16 }}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={handleAddBlocked} disabled={saving}>
+                    <Text style={{ color: '#FF3B30', fontSize: 16, fontWeight: '600' }}>
+                      {saving ? 'Blocking...' : 'Block'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
+            <View style={styles.helperContainer}>
+              <Text style={[styles.helperText, { color: colors.textTertiary }]}>
+                Blocked numbers will be automatically rejected — the caller will hear a busy signal.
+              </Text>
+            </View>
+          </>
+        )}
 
         {/* Bottom padding */}
         <View style={{ height: 100 }} />
       </ScrollView>
 
       {/* Floating Add Button */}
-      <TouchableOpacity style={styles.floatingButton} onPress={() => setShowAdd(!showAdd)}>
-        <Icon name={showAdd ? 'close' : 'plus'} size={28} color="#fff" />
+      <TouchableOpacity
+        style={[styles.floatingButton, activeTab === 'Blocked' && { backgroundColor: '#FF3B30' }]}
+        onPress={() => activeTab === 'VIP' ? setShowAdd(true) : setShowAddBlocked(true)}
+      >
+        <Icon name="plus" size={28} color="#fff" />
       </TouchableOpacity>
 
       {/* ── Phone Contact Picker Modal ──────────────────────────────────────── */}

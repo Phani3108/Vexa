@@ -35,8 +35,12 @@
 	</dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string></string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Vexa needs microphone access for voice calls and call takeover.</string>
 	<key>NSContactsUsageDescription</key>
 	<string>Vexa needs access to your contacts so you can add VIP contacts from your phone's address book.</string>
+	<key>NSUserNotificationsUsageDescription</key>
+	<string>Vexa sends notifications about incoming calls and call summaries.</string>
 	<key>RCTNewArchEnabled</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>

@@ -30,16 +30,18 @@ class CallHistoryService {
    * Returns caller profile + recent call history + category history.
    *
    * @param {string} phoneNumber
+   * @param {string} userId - owner's userId (required for multi-user isolation)
    * @param {string} [hintCategoryId] - Optional: if we already know the likely
    *   category (e.g. from Caller.lastCategoryId), pre-fetch category context.
    */
-  async getCallerContext(phoneNumber, hintCategoryId = null) {
+  async getCallerContext(phoneNumber, userId, hintCategoryId = null) {
     if (!this.isAvailable()) return null;
+    if (!userId) { console.warn('⚠️ getCallerContext called without userId'); return null; }
 
     try {
       const [caller, calls] = await Promise.all([
-        Caller.findOne({ phoneNumber }).lean(),
-        Call.find({ phoneNumber })
+        Caller.findOne({ userId, phoneNumber }).lean(),
+        Call.find({ userId, phoneNumber })
           .sort({ createdAt: -1 })
           .limit(10)
           .lean()
@@ -47,10 +49,10 @@ class CallHistoryService {
 
       const categoryId = hintCategoryId || caller?.lastCategoryId || null;
 
-      // Fetch similar-category calls (across all numbers, for AI context richness)
+      // Fetch similar-category calls for this user (for AI context richness)
       let categoryCalls = [];
       if (categoryId) {
-        categoryCalls = await Call.find({ 'analysis.categoryId': categoryId })
+        categoryCalls = await Call.find({ userId, 'analysis.categoryId': categoryId })
           .sort({ createdAt: -1 })
           .limit(5)
           .lean();
@@ -111,9 +113,12 @@ class CallHistoryService {
     try {
       const phoneNumber = callResult.from || callResult.phoneNumber;
 
+      const userId = callResult.userId;
+      if (!userId) console.warn('⚠️ saveCall: no userId — call will not be queryable per-user');
+
       const call = new Call({
         callId: callResult.callId,
-        userId: callResult.userId || process.env.OWNER_PHONE_NUMBER || 'default',
+        userId: userId || 'unknown',
         phoneNumber,
         direction: callResult.direction || 'incoming',
         status: callResult.status || 'completed',
@@ -162,7 +167,7 @@ class CallHistoryService {
         callerUpdate.$set.lastCategoryLabel = analysis.categoryLabel || analysis.categoryId;
       }
 
-      await Caller.findOneAndUpdate({ phoneNumber }, callerUpdate, { upsert: true, new: true });
+      await Caller.findOneAndUpdate({ userId: userId || 'unknown', phoneNumber }, callerUpdate, { upsert: true, new: true });
 
       return call;
     } catch (err) {
@@ -175,13 +180,15 @@ class CallHistoryService {
   // General history queries (used by /api/calls routes)
   // ─────────────────────────────────────────────────────────────────────────
 
-  async getAllCalls(limit = 50, offset = 0) {
+  async getAllCalls(userId, limit = 50, offset = 0) {
     if (!this.isAvailable()) return { calls: [], total: 0 };
+    if (!userId) { console.warn('⚠️ getAllCalls called without userId'); return { calls: [], total: 0 }; }
 
     try {
+      const filter = { userId };
       const [calls, total] = await Promise.all([
-        Call.find().sort({ createdAt: -1 }).skip(offset).limit(limit).lean(),
-        Call.countDocuments()
+        Call.find(filter).sort({ createdAt: -1 }).skip(offset).limit(limit).lean(),
+        Call.countDocuments(filter)
       ]);
 
       return {
@@ -205,21 +212,24 @@ class CallHistoryService {
     }
   }
 
-  async getCallById(callId) {
+  async getCallById(callId, userId = null) {
     if (!this.isAvailable()) return null;
     try {
-      return await Call.findOne({ callId }).lean();
+      const filter = { callId };
+      if (userId) filter.userId = userId;
+      return await Call.findOne(filter).lean();
     } catch (err) {
       console.error('❌ getCallById:', err);
       return null;
     }
   }
 
-  async updateCallerProfile(phoneNumber, updates) {
+  async updateCallerProfile(phoneNumber, userId, updates) {
     if (!this.isAvailable()) return null;
+    if (!userId) return null;
     try {
       return await Caller.findOneAndUpdate(
-        { phoneNumber },
+        { userId, phoneNumber },
         { $set: { ...updates, updatedAt: new Date() } },
         { upsert: true, new: true }
       );
@@ -230,12 +240,12 @@ class CallHistoryService {
   }
 
   // Legacy alias kept so nothing else breaks
-  async getCallerHistory(phoneNumber) {
-    return this.getCallerContext(phoneNumber);
+  async getCallerHistory(phoneNumber, userId) {
+    return this.getCallerContext(phoneNumber, userId);
   }
 
-  async updateCallerName(phoneNumber, callerName) {
-    return this.updateCallerProfile(phoneNumber, { callerName });
+  async updateCallerName(phoneNumber, userId, callerName) {
+    return this.updateCallerProfile(phoneNumber, userId, { callerName });
   }
 }
 

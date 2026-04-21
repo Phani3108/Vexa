@@ -18,6 +18,7 @@ import PromptGenerator from '../voice/PromptGenerator.js';
 import callHistoryService from '../services/callHistoryService.js';
 import userConfigService from '../services/userConfigService.js';
 import ConversationAnalyzer from '../voice/ConversationAnalyzer.js';
+import pushService from '../services/pushNotificationService.js';
 
 const router = express.Router();
 
@@ -39,7 +40,7 @@ export function initVoiceRoutes(config, io = null) {
     console.log(`📞 Call completed: ${result.callId}`);
     try {
       // Load user categories for context-aware analysis
-      const user = await userConfigService.getUser(result.userId || process.env.OWNER_PHONE_NUMBER);
+      const user = await userConfigService.getUser(result.userId);
       const categories = user?.callCategories || [];
 
       let analysis = null;
@@ -51,6 +52,16 @@ export function initVoiceRoutes(config, io = null) {
       }
 
       await callHistoryService.saveCall(result, analysis);
+
+      // Send push notification with call summary
+      if (result.userId) {
+        pushService.sendCallSummaryNotification(result.userId, {
+          callId: result.callId,
+          callerName: analysis?.callerName || result.callerName || 'Unknown',
+          callerNumber: result.from || result.phoneNumber,
+          summary: analysis?.summary || 'Call completed',
+        }).catch(err => console.error('Push notification error:', err));
+      }
     } catch (err) {
       console.error('❌ Error on call:completed:', err);
     }
@@ -113,10 +124,11 @@ export function getVoiceAgent() {
 // Shared helper: build prompt + context for a phone number
 // ─────────────────────────────────────────────────────────────────────────────
 
-async function buildCallContext(phoneNumber, userId = process.env.OWNER_PHONE_NUMBER, callInfo = {}) {
+async function buildCallContext(phoneNumber, userId, callInfo = {}) {
+  if (!userId) throw new Error('userId is required for buildCallContext');
   const [user, callerCtx] = await Promise.all([
     userConfigService.getUser(userId),
-    callHistoryService.getCallerContext(phoneNumber, null)
+    callHistoryService.getCallerContext(phoneNumber, userId)
   ]);
 
   // Detect if caller is a VIP contact (normalised phone comparison)
@@ -198,6 +210,15 @@ router.post('/incoming-call', async (req, res) => {
 
     const { callerCtx, systemPrompt, initialGreeting, priorityTimeInfo, isVIP, vipContact, suppressNotification } = await buildCallContext(from, user.userId, { from, to });
 
+    // Check if caller is blocked
+    if (user.blockedNumbers?.includes(from)) {
+      console.log(`🚫 Blocked caller: ${from} → rejecting call`);
+      const twiml = new twilio.twiml.VoiceResponse();
+      twiml.reject({ reason: 'rejected' });
+      res.type('text/xml');
+      return res.send(twiml.toString());
+    }
+
     console.log(`👤 User: ${user.name} (${user.userId})`);
     console.log(`📚 Caller context: ${callerCtx?.totalCalls || 0} previous calls`);
     if (callerCtx?.lastCategoryLabel) {
@@ -224,6 +245,16 @@ router.post('/incoming-call', async (req, res) => {
       vipContact,
       suppressNotification  // mobile app uses this to skip ringing/notification
     });
+
+    // Send push notification for incoming call
+    pushService.sendLiveCallNotification(user.userId, {
+      callId: callSid,
+      callerName: callerCtx?.callerName || 'Unknown',
+      callerNumber: from,
+      context: callerCtx?.lastCategoryLabel
+        ? `Likely: ${callerCtx.lastCategoryLabel}`
+        : 'New caller',
+    }).catch(err => console.error('Push notification error:', err));
 
     const twiml = voiceAgent.generateIncomingCallTwiML(req);
     res.type('text/xml');
@@ -294,7 +325,9 @@ router.post('/outbound-call', async (req, res) => {
   console.log('📤 OUTBOUND CALL REQUEST');
   console.log('='.repeat(60));
 
-  const { to, callerName, context: additionalContext, greeting: customGreeting, userId = process.env.OWNER_PHONE_NUMBER || 'default' } = req.body;
+  const { to, callerName, context: additionalContext, greeting: customGreeting } = req.body;
+  const userId = req.user?.userId || req.body.userId;
+  if (!userId) return res.status(400).json({ error: 'userId is required (authenticate or pass userId in body)' });
 
   if (!to) return res.status(400).json({ error: 'Missing required field: to' });
   if (!/^\+[1-9]\d{1,14}$/.test(to)) {
@@ -313,7 +346,7 @@ router.post('/outbound-call', async (req, res) => {
 
     // Store the provided caller name
     if (callerName) {
-      await callHistoryService.updateCallerName(to, callerName);
+      await callHistoryService.updateCallerName(to, userId, callerName);
     }
 
     const greeting = customGreeting || initialGreeting;
@@ -338,7 +371,7 @@ router.post('/outbound-call', async (req, res) => {
 
     // Register context so that when Twilio opens the media-stream, we have it ready
     voiceAgent.handleIncomingCall(call.sid, to, process.env.TWILIO_PHONE_NUMBER, systemPrompt, greeting, {
-      userId: user.userId || process.env.OWNER_PHONE_NUMBER,
+      userId: user.userId,
       user,
       callerCtx,
       callerName: callerName || callerCtx?.callerName || 'Unknown',
@@ -356,7 +389,7 @@ router.post('/outbound-call', async (req, res) => {
     });
   } catch (err) {
     console.error('❌ outbound-call error:', err);
-    res.status(500).json({ error: 'Failed to initiate call', details: err.message });
+    res.status(500).json({ error: 'Failed to initiate call' });
   }
 });
 

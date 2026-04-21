@@ -1,10 +1,13 @@
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import { createServer } from 'http';
 import { WebSocketServer } from 'ws';
 import { Server as SocketIOServer } from 'socket.io';
-import { connectToMongoDB } from './config/mongodb.js';
+import { connectToMongoDB, isMongoConnected } from './config/mongodb.js';
+import logger from './config/logger.js';
 
 // Load environment variables
 dotenv.config();
@@ -19,29 +22,36 @@ const PORT = process.env.PORT || 3000;
 // ============================================
 // Socket.io for Real-time Mobile App Communication
 // ============================================
+const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',')
+  : ['http://localhost:3000', 'http://localhost:8081'];
+
 const io = new SocketIOServer(server, {
   cors: {
-    origin: '*',  // Configure for production
+    origin: process.env.NODE_ENV === 'production' ? ALLOWED_ORIGINS : '*',
     methods: ['GET', 'POST']
   }
 });
 
 // Socket.io connection handling
 io.on('connection', (socket) => {
-  console.log('📱 Mobile app connected:', socket.id);
+  logger.info(`📱 Mobile app connected: ${socket.id}`);
+  let userRoom = null;
   
   // User joins their personal room for call events
   socket.on('join:user', (userId) => {
-    socket.join(`user:${userId}`);
-    console.log(`   User ${userId} joined their room`);
+    // Leave previous room if any
+    if (userRoom) socket.leave(userRoom);
+    userRoom = `user:${userId}`;
+    socket.join(userRoom);
+    logger.info(`   User ${userId} joined their room`);
   });
   
   // Handle call takeover request from mobile app
   socket.on('call:takeover', async (data) => {
     const { callId, userId } = data;
-    console.log(`📞 Takeover requested for call ${callId} by user ${userId}`);
+    logger.info(`📞 Takeover requested for call ${callId} by user ${userId}`);
     
-    // This will be handled by the voice routes
     io.to(`user:${userId}`).emit('call:takeover-initiated', {
       callId,
       status: 'connecting',
@@ -52,13 +62,14 @@ io.on('connection', (socket) => {
   // Handle call disconnect request
   socket.on('call:disconnect', async (data) => {
     const { callId, userId } = data;
-    console.log(`📞 Disconnect requested for call ${callId}`);
+    logger.info(`📞 Disconnect requested for call ${callId}`);
     
     io.to(`user:${userId}`).emit('call:disconnecting', { callId });
   });
   
   socket.on('disconnect', () => {
-    console.log('📱 Mobile app disconnected:', socket.id);
+    logger.info(`📱 Mobile app disconnected: ${socket.id}`);
+    // Room cleanup is automatic when socket disconnects
   });
 });
 
@@ -66,9 +77,32 @@ io.on('connection', (socket) => {
 export { io };
 
 // Middleware
-app.use(cors());
-app.use(express.json());
+app.use(helmet({ contentSecurityPolicy: false })); // Security headers
+app.use(cors({
+  origin: process.env.NODE_ENV === 'production' ? ALLOWED_ORIGINS : '*',
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
+app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
+
+// Rate limiting
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 200,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again later' },
+});
+app.use('/api/', apiLimiter);
+
+// Stricter rate limit for voice/outbound (prevents Twilio abuse)
+const voiceLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 10,
+  message: { error: 'Too many call requests, please try again later' },
+});
+app.use('/voice/outbound-call', voiceLimiter);
 
 // ============================================
 // Voice Agent Configuration
@@ -111,31 +145,8 @@ app.get('/health', (req, res) => {
     message: 'AI Caller Backend API is running',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV,
-    voiceEnabled: !!voiceConfig
-  });
-});
-
-// DEBUG: Test socket emit — remove after debugging
-app.get('/debug/socket-test/:userId', (req, res) => {
-  const { userId } = req.params;
-  const room = `user:${userId}`;
-  const sockets = io.sockets.adapter.rooms.get(room);
-  const count = sockets ? sockets.size : 0;
-  
-  io.to(room).emit('call:started', {
-    callId: 'TEST-' + Date.now(),
-    from: '+910000000000',
-    to: '+18633493216',
-    callerName: 'DEBUG TEST',
-    timestamp: new Date().toISOString(),
-    isVIP: false
-  });
-  
-  res.json({
-    emittedTo: room,
-    socketsInRoom: count,
-    socketIds: sockets ? [...sockets] : [],
-    allRooms: [...io.sockets.adapter.rooms.keys()].filter(r => r.startsWith('user:'))
+    voiceEnabled: !!voiceConfig,
+    mongodb: isMongoConnected() ? 'connected' : 'disconnected',
   });
 });
 
@@ -148,6 +159,7 @@ app.get('/api', (req, res) => {
       auth: '/api/auth/*',
       users: '/api/users/*',
       calls: '/api/calls/*',
+      context: '/api/context/*',
       voice: '/voice/*'
     },
     voiceEnabled: !!voiceConfig
@@ -158,6 +170,7 @@ app.get('/api', (req, res) => {
 import authRoutes from './routes/auth.js';
 import userRoutes from './routes/users.js';
 import callRoutes from './routes/calls.js';
+import contextRoutes from './routes/context.js';
 import voiceRoutes, { initVoiceRoutes, getVoiceAgent } from './routes/voice.js';
 import { authenticate } from './middleware/auth.js';
 
@@ -165,7 +178,8 @@ import { authenticate } from './middleware/auth.js';
 app.use('/api/auth', authRoutes);
 app.use('/api/users/setup', userRoutes);           // no auth — user doesn't exist yet
 app.use('/api/users', authenticate, userRoutes);   // everything else requires identity
-app.use('/api/calls', callRoutes);
+app.use('/api/calls', callRoutes);                 // auth handled inside router
+app.use('/api/context', contextRoutes);            // auth handled inside router
 
 // Initialize voice routes if config is available
 if (voiceConfig) {
@@ -197,10 +211,12 @@ if (voiceConfig) {
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error('Error:', err.stack);
+  logger.error('Unhandled error:', err);
   res.status(err.status || 500).json({
     error: {
-      message: err.message || 'Internal Server Error',
+      message: process.env.NODE_ENV === 'production'
+        ? 'Internal Server Error'
+        : (err.message || 'Internal Server Error'),
       status: err.status || 500
     }
   });

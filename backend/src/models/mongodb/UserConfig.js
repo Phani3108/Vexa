@@ -47,7 +47,7 @@ const deliveryAddressSchema = new mongoose.Schema({
 }, { _id: false });
 
 const userConfigSchema = new mongoose.Schema({
-  userId: { type: String, required: true, unique: true, default: 'default' },
+  userId: { type: String, required: true, unique: true },
   name: { type: String, default: 'User' },
   about: { type: String, default: 'A professional who receives many calls.' },
   phoneNumber: String,

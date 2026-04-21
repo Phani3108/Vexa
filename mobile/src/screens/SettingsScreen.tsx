@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Switch } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Switch, Modal, FlatList } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { CommonActions } from '@react-navigation/native';
 import styles from '../styles/SettingsScreen.styles';
@@ -7,13 +7,35 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import * as api from '../services/api';
 
+const VOICES = [
+  { id: 'alloy',   label: 'Alloy',   desc: 'Warm and balanced' },
+  { id: 'echo',    label: 'Echo',    desc: 'Clear and composed' },
+  { id: 'shimmer', label: 'Shimmer', desc: 'Bright and articulate' },
+  { id: 'ash',     label: 'Ash',     desc: 'Smooth and confident' },
+  { id: 'ballad',  label: 'Ballad',  desc: 'Expressive and engaging' },
+  { id: 'coral',   label: 'Coral',   desc: 'Calm and reassuring' },
+  { id: 'sage',    label: 'Sage',    desc: 'Wise and professional' },
+  { id: 'verse',   label: 'Verse',   desc: 'Dynamic and versatile' },
+];
+
+const TONES = [
+  { id: 'professional but friendly', label: 'Professional & Friendly' },
+  { id: 'casual and relaxed',        label: 'Casual & Relaxed' },
+  { id: 'formal and concise',        label: 'Formal & Concise' },
+  { id: 'warm and empathetic',       label: 'Warm & Empathetic' },
+  { id: 'cheerful and upbeat',       label: 'Cheerful & Upbeat' },
+];
+
 const SettingsScreen = ({ navigation }: any) => {
-  const { userConfig, phoneNumber, logout } = useAuth();
+  const { userConfig, phoneNumber, logout, refreshConfig } = useAuth();
   const { isDark, colors, toggleTheme } = useTheme();
   const [quickToggleActive, setQuickToggleActive] = useState(false);
   const [dndEnabled, setDndEnabled] = useState(false);
   const [loading, setLoading] = useState(true);
   const [toggling, setToggling] = useState(false);
+  const [voicePickerVisible, setVoicePickerVisible] = useState(false);
+  const [tonePickerVisible, setTonePickerVisible] = useState(false);
+  const [savingVoice, setSavingVoice] = useState(false);
 
   useEffect(() => {
     fetchPriorityTimeStatus();
@@ -41,6 +63,32 @@ const SettingsScreen = ({ navigation }: any) => {
       Alert.alert('Error', 'Could not toggle DND. Please try again.');
     } finally {
       setToggling(false);
+    }
+  };
+
+  const handleVoiceSelect = async (voiceId: string) => {
+    try {
+      setSavingVoice(true);
+      await api.updateUserConfig({ aiSettings: { voice: voiceId } });
+      await refreshConfig();
+      setVoicePickerVisible(false);
+    } catch (_err) {
+      Alert.alert('Error', 'Could not update voice. Please try again.');
+    } finally {
+      setSavingVoice(false);
+    }
+  };
+
+  const handleToneSelect = async (toneId: string) => {
+    try {
+      setSavingVoice(true);
+      await api.updateUserConfig({ aiSettings: { tone: toneId } });
+      await refreshConfig();
+      setTonePickerVisible(false);
+    } catch (_err) {
+      Alert.alert('Error', 'Could not update tone. Please try again.');
+    } finally {
+      setSavingVoice(false);
     }
   };
 
@@ -166,8 +214,7 @@ const SettingsScreen = ({ navigation }: any) => {
             iconBg="#9C27B015"
             label="Voice"
             value={voiceLabel}
-            onPress={() => {}}
-            showChevron={false}
+            onPress={() => setVoicePickerVisible(true)}
           />
           <View style={[styles.divider, { backgroundColor: colors.divider }]} />
           <SettingRow
@@ -176,8 +223,7 @@ const SettingsScreen = ({ navigation }: any) => {
             iconBg="#FF980015"
             label="Conversation Tone"
             value={toneLabel}
-            onPress={() => {}}
-            showChevron={false}
+            onPress={() => setTonePickerVisible(true)}
           />
         </View>
       </View>
@@ -257,6 +303,73 @@ const SettingsScreen = ({ navigation }: any) => {
       </View>
 
       <View style={{ height: 48 }} />
+
+      {/* Voice Picker Modal */}
+      <Modal visible={voicePickerVisible} transparent animationType="slide">
+        <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 34 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: colors.divider }}>
+              <Text style={{ fontSize: 18, fontWeight: '600', color: colors.textPrimary }}>Choose Voice</Text>
+              <TouchableOpacity onPress={() => setVoicePickerVisible(false)}>
+                <Icon name="close" size={24} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            {savingVoice && <ActivityIndicator style={{ padding: 8 }} color="#007AFF" />}
+            <FlatList
+              data={VOICES}
+              keyExtractor={item => item.id}
+              renderItem={({ item }) => {
+                const isSelected = userConfig?.aiSettings?.voice === item.id;
+                return (
+                  <TouchableOpacity
+                    style={{ flexDirection: 'row', alignItems: 'center', padding: 16, backgroundColor: isSelected ? '#007AFF10' : 'transparent' }}
+                    onPress={() => handleVoiceSelect(item.id)}
+                    disabled={savingVoice}
+                  >
+                    <Icon name={isSelected ? 'radiobox-marked' : 'radiobox-blank'} size={22} color={isSelected ? '#007AFF' : colors.textTertiary} />
+                    <View style={{ marginLeft: 12 }}>
+                      <Text style={{ fontSize: 16, fontWeight: isSelected ? '600' : '400', color: colors.textPrimary }}>{item.label}</Text>
+                      <Text style={{ fontSize: 13, color: colors.textTertiary }}>{item.desc}</Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              }}
+            />
+          </View>
+        </View>
+      </Modal>
+
+      {/* Tone Picker Modal */}
+      <Modal visible={tonePickerVisible} transparent animationType="slide">
+        <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 34 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: colors.divider }}>
+              <Text style={{ fontSize: 18, fontWeight: '600', color: colors.textPrimary }}>Choose Tone</Text>
+              <TouchableOpacity onPress={() => setTonePickerVisible(false)}>
+                <Icon name="close" size={24} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            {savingVoice && <ActivityIndicator style={{ padding: 8 }} color="#007AFF" />}
+            <FlatList
+              data={TONES}
+              keyExtractor={item => item.id}
+              renderItem={({ item }) => {
+                const isSelected = userConfig?.aiSettings?.tone === item.id;
+                return (
+                  <TouchableOpacity
+                    style={{ flexDirection: 'row', alignItems: 'center', padding: 16, backgroundColor: isSelected ? '#FF980010' : 'transparent' }}
+                    onPress={() => handleToneSelect(item.id)}
+                    disabled={savingVoice}
+                  >
+                    <Icon name={isSelected ? 'radiobox-marked' : 'radiobox-blank'} size={22} color={isSelected ? '#FF9800' : colors.textTertiary} />
+                    <Text style={{ marginLeft: 12, fontSize: 16, fontWeight: isSelected ? '600' : '400', color: colors.textPrimary }}>{item.label}</Text>
+                  </TouchableOpacity>
+                );
+              }}
+            />
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 };

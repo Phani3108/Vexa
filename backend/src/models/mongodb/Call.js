@@ -10,7 +10,7 @@ import mongoose from 'mongoose';
 
 const callSchema = new mongoose.Schema({
   callId: { type: String, required: true, unique: true, index: true },
-  userId: { type: String, default: 'default', index: true },
+  userId: { type: String, required: true, index: true },
   phoneNumber: { type: String, required: true, index: true },   // caller's number
   direction: { type: String, enum: ['incoming', 'outgoing'], default: 'incoming' },
   status: {

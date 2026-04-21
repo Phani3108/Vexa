@@ -1,7 +1,7 @@
 /**
  * MongoDB Caller Model
  *
- * One document per phone number across all users.
+ * One document per (userId, phoneNumber) pair.
  * Stores aggregated information learned from previous calls.
  * Used to pre-populate context before a new call begins.
  */
@@ -9,7 +9,8 @@
 import mongoose from 'mongoose';
 
 const callerSchema = new mongoose.Schema({
-  phoneNumber: { type: String, required: true, unique: true, index: true },
+  userId: { type: String, required: true, index: true },
+  phoneNumber: { type: String, required: true, index: true },
 
   // Discovered info
   callerName: { type: String, default: 'Unknown' },
@@ -36,5 +37,8 @@ const callerSchema = new mongoose.Schema({
   tags: [String]
 
 }, { timestamps: true });
+
+// Each user has their own caller profile for a given phone number
+callerSchema.index({ userId: 1, phoneNumber: 1 }, { unique: true });
 
 export default mongoose.model('Caller', callerSchema);

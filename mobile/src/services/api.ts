@@ -22,9 +22,14 @@ import {
 // ─── Config ─────────────────────────────────────────────────────────────────
 
 // Always use the deployed Render backend — Twilio and Socket.io events both come from here.
-export const BASE_URL = 'https://vexa-9hgb.onrender.com';
+export let BASE_URL = 'https://vexa-9hgb.onrender.com';
 
 let _phoneNumber: string | null = null;
+
+/** Override the backend URL at runtime (e.g. from a config screen) */
+export function setBaseUrl(url: string) {
+  BASE_URL = url.replace(/\/+$/, ''); // strip trailing slashes
+}
 
 /** Call once after login / setup so every subsequent request includes identity */
 export function setPhoneNumber(phone: string) {
@@ -37,6 +42,14 @@ export function getPhoneNumber(): string | null {
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
+const DEFAULT_TIMEOUT_MS = 15_000;
+
+function withTimeout(ms: number = DEFAULT_TIMEOUT_MS): { signal: AbortSignal; clear: () => void } {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  return { signal: controller.signal, clear: () => clearTimeout(timer) };
+}
+
 async function get<T>(path: string, queryParams?: Record<string, string>): Promise<T> {
   const params = new URLSearchParams(queryParams);
   if (_phoneNumber) {
@@ -45,13 +58,18 @@ async function get<T>(path: string, queryParams?: Record<string, string>): Promi
   const qs = params.toString();
   const url = `${BASE_URL}${path}${qs ? `?${qs}` : ''}`;
 
-  const res = await fetch(url, { headers: { 'Content-Type': 'application/json' } });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    const msg = typeof body.error === 'string' ? body.error : body.error?.message || `GET ${path} failed (${res.status})`;
-    throw new Error(msg);
+  const { signal, clear } = withTimeout();
+  try {
+    const res = await fetch(url, { headers: { 'Content-Type': 'application/json' }, signal });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      const msg = typeof body.error === 'string' ? body.error : body.error?.message || `GET ${path} failed (${res.status})`;
+      throw new Error(msg);
+    }
+    return res.json();
+  } finally {
+    clear();
   }
-  return res.json();
 }
 
 async function post<T>(path: string, body?: Record<string, any>): Promise<T> {
@@ -59,17 +77,23 @@ async function post<T>(path: string, body?: Record<string, any>): Promise<T> {
   if (_phoneNumber && !payload.phoneNumber) {
     payload.phoneNumber = _phoneNumber;
   }
-  const res = await fetch(`${BASE_URL}${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    const msg = typeof data.error === 'string' ? data.error : data.error?.message || `POST ${path} failed (${res.status})`;
-    throw new Error(msg);
+  const { signal, clear } = withTimeout();
+  try {
+    const res = await fetch(`${BASE_URL}${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal,
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      const msg = typeof data.error === 'string' ? data.error : data.error?.message || `POST ${path} failed (${res.status})`;
+      throw new Error(msg);
+    }
+    return res.json();
+  } finally {
+    clear();
   }
-  return res.json();
 }
 
 async function put<T>(path: string, body?: Record<string, any>): Promise<T> {
@@ -77,17 +101,23 @@ async function put<T>(path: string, body?: Record<string, any>): Promise<T> {
   if (_phoneNumber && !payload.phoneNumber) {
     payload.phoneNumber = _phoneNumber;
   }
-  const res = await fetch(`${BASE_URL}${path}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    const msg = typeof data.error === 'string' ? data.error : data.error?.message || `PUT ${path} failed (${res.status})`;
-    throw new Error(msg);
+  const { signal, clear } = withTimeout();
+  try {
+    const res = await fetch(`${BASE_URL}${path}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal,
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      const msg = typeof data.error === 'string' ? data.error : data.error?.message || `PUT ${path} failed (${res.status})`;
+      throw new Error(msg);
+    }
+    return res.json();
+  } finally {
+    clear();
   }
-  return res.json();
 }
 
 async function patch<T>(path: string, body?: Record<string, any>): Promise<T> {
@@ -95,17 +125,23 @@ async function patch<T>(path: string, body?: Record<string, any>): Promise<T> {
   if (_phoneNumber && !payload.phoneNumber) {
     payload.phoneNumber = _phoneNumber;
   }
-  const res = await fetch(`${BASE_URL}${path}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    const msg = typeof data.error === 'string' ? data.error : data.error?.message || `PATCH ${path} failed (${res.status})`;
-    throw new Error(msg);
+  const { signal, clear } = withTimeout();
+  try {
+    const res = await fetch(`${BASE_URL}${path}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal,
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      const msg = typeof data.error === 'string' ? data.error : data.error?.message || `PATCH ${path} failed (${res.status})`;
+      throw new Error(msg);
+    }
+    return res.json();
+  } finally {
+    clear();
   }
-  return res.json();
 }
 
 async function del<T>(path: string, body?: Record<string, any>): Promise<T> {
@@ -113,17 +149,23 @@ async function del<T>(path: string, body?: Record<string, any>): Promise<T> {
   if (_phoneNumber && !payload.phoneNumber) {
     payload.phoneNumber = _phoneNumber;
   }
-  const res = await fetch(`${BASE_URL}${path}`, {
-    method: 'DELETE',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    const msg = typeof data.error === 'string' ? data.error : data.error?.message || `DELETE ${path} failed (${res.status})`;
-    throw new Error(msg);
+  const { signal, clear } = withTimeout();
+  try {
+    const res = await fetch(`${BASE_URL}${path}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal,
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      const msg = typeof data.error === 'string' ? data.error : data.error?.message || `DELETE ${path} failed (${res.status})`;
+      throw new Error(msg);
+    }
+    return res.json();
+  } finally {
+    clear();
   }
-  return res.json();
 }
 
 // ─── User Setup & Config ────────────────────────────────────────────────────
@@ -205,6 +247,23 @@ export async function updateVIPContacts(
   vipContacts: VIPContact[],
 ): Promise<{ vipContacts: VIPContact[] }> {
   return put('/api/users/vip-contacts', { vipContacts });
+}
+
+// ─── Blocked Numbers ────────────────────────────────────────────────────────
+
+/** GET /api/users/blocked-numbers */
+export async function getBlockedNumbers(): Promise<{ blockedNumbers: string[] }> {
+  return get('/api/users/blocked-numbers');
+}
+
+/** POST /api/users/blocked-numbers */
+export async function addBlockedNumber(phoneNumber: string): Promise<{ blockedNumbers: string[]; message: string }> {
+  return post('/api/users/blocked-numbers', { phoneNumber });
+}
+
+/** DELETE /api/users/blocked-numbers/:phoneNumber */
+export async function removeBlockedNumber(phoneNumber: string): Promise<{ blockedNumbers: string[]; message: string }> {
+  return del(`/api/users/blocked-numbers/${encodeURIComponent(phoneNumber)}`);
 }
 
 // ─── Device Token ───────────────────────────────────────────────────────────

@@ -1,169 +1,117 @@
 /**
  * Webhook Routes
- * VAPI sends real-time events to these endpoints
- * 
- * Note: These are NOT called by iOS app, only by VAPI platform
+ * Twilio sends real-time events to these endpoints.
+ *
+ * These are NOT called by the mobile app, only by Twilio / external services.
+ * The voice agent already handles most Twilio events via /voice/call-status,
+ * so these serve as supplementary endpoints for VAPI-style integrations
+ * or future third-party webhook consumers.
  */
 
 import express from 'express';
+import callHistoryService from '../services/callHistoryService.js';
+import pushService from '../services/pushNotificationService.js';
+import logger from '../config/logger.js';
 
 const router = express.Router();
 
-/**
- * POST /webhooks/vapi/call-started
- * VAPI webhook: Call has been initiated
- * 
- * Request body (from VAPI):
- * {
- *   "event": "call.started",
- *   "callId": "call-123",
- *   "userId": "user-123",
- *   "callerPhoneNumber": "+14155551234",
- *   "timestamp": "2026-02-11T10:30:00Z"
- * }
- */
+// ── Call started ────────────────────────────────────────────────────────────
+
 router.post('/call-started', async (req, res) => {
   try {
-    const { event, callId, userId, callerPhoneNumber, timestamp } = req.body;
+    const { callId, userId, callerPhoneNumber, timestamp } = req.body;
 
-    console.log(`🎬 Call started: ${callId} from ${callerPhoneNumber}`);
+    logger.info(`🎬 Webhook: call started ${callId} from ${callerPhoneNumber}`);
 
-    // TODO (Week 3):
-    // - Create call record in database with status 'in-progress'
-    // - Send real-time notification to iOS app (optional)
-    // - Start logging transcript chunks
-
-    res.json({
-      success: true,
-      message: 'Call started event received'
-    });
-  } catch (error) {
-    console.error('Webhook error:', error);
-    res.status(500).json({ error: 'Webhook processing failed' });
-  }
-});
-
-/**
- * POST /webhooks/vapi/call-ended
- * VAPI webhook: Call has ended
- * 
- * Request body (from VAPI):
- * {
- *   "event": "call.ended",
- *   "callId": "call-123",
- *   "userId": "user-123",
- *   "duration": 45,
- *   "endReason": "completed" | "failed" | "no-answer",
- *   "timestamp": "2026-02-11T10:31:00Z"
- * }
- */
-router.post('/call-ended', async (req, res) => {
-  try {
-    const { event, callId, userId, duration, endReason, timestamp } = req.body;
-
-    console.log(`🏁 Call ended: ${callId} (${duration}s) - ${endReason}`);
-
-    // TODO (Week 3):
-    // - Update call record status to 'completed'
-    // - Trigger final summary generation
-    // - Send push notification to iOS with summary
-    // - Update analytics
-
-    res.json({
-      success: true,
-      message: 'Call ended event received'
-    });
-  } catch (error) {
-    console.error('Webhook error:', error);
-    res.status(500).json({ error: 'Webhook processing failed' });
-  }
-});
-
-/**
- * POST /webhooks/vapi/transcript-update
- * VAPI webhook: Real-time transcript chunk
- * 
- * Request body (from VAPI):
- * {
- *   "event": "transcript.updated",
- *   "callId": "call-123",
- *   "speaker": "ai" | "caller",
- *   "text": "Hello, this is John's assistant",
- *   "timestamp": "2026-02-11T10:30:15Z"
- * }
- */
-router.post('/transcript-update', async (req, res) => {
-  try {
-    const { event, callId, speaker, text, timestamp } = req.body;
-
-    console.log(`💬 Transcript [${callId}] ${speaker}: ${text}`);
-
-    // TODO (Week 3):
-    // - Append transcript chunk to database
-    // - Analyze for urgency keywords in real-time
-    // - If urgent detected, trigger escalation
-
-    // Check for urgency keywords (simple example)
-    const urgentKeywords = ['emergency', 'urgent', 'asap', 'immediately', 'hospital'];
-    const isUrgent = urgentKeywords.some(keyword => 
-      text.toLowerCase().includes(keyword)
-    );
-
-    if (isUrgent) {
-      console.log(`🚨 Urgent keyword detected in call ${callId}: "${text}"`);
-      // TODO: Trigger escalation endpoint
+    // Send live-call push notification
+    if (userId) {
+      pushService.sendLiveCallNotification(userId, {
+        callId,
+        callerNumber: callerPhoneNumber,
+      }).catch(err => logger.error('Push error on call-started:', err));
     }
 
-    res.json({
-      success: true,
-      urgentDetected: isUrgent
-    });
+    res.json({ success: true, message: 'Call started event received' });
   } catch (error) {
-    console.error('Webhook error:', error);
+    logger.error('Webhook call-started error:', error);
     res.status(500).json({ error: 'Webhook processing failed' });
   }
 });
 
-/**
- * POST /webhooks/vapi/status-update
- * VAPI webhook: Call status changed
- * 
- * Request body (from VAPI):
- * {
- *   "event": "status.updated",
- *   "callId": "call-123",
- *   "status": "ringing" | "answered" | "in-progress" | "completed",
- *   "timestamp": "2026-02-11T10:30:00Z"
- * }
- */
+// ── Call ended ──────────────────────────────────────────────────────────────
+
+router.post('/call-ended', async (req, res) => {
+  try {
+    const { callId, userId, duration, endReason, timestamp } = req.body;
+
+    logger.info(`🏁 Webhook: call ended ${callId} (${duration}s) - ${endReason}`);
+
+    // Send summary push notification
+    if (userId) {
+      pushService.sendCallSummaryNotification(userId, {
+        callId,
+        callerName: req.body.callerName,
+        callerNumber: req.body.callerPhoneNumber,
+        summary: `Call ended after ${duration}s — ${endReason}`,
+      }).catch(err => logger.error('Push error on call-ended:', err));
+    }
+
+    res.json({ success: true, message: 'Call ended event received' });
+  } catch (error) {
+    logger.error('Webhook call-ended error:', error);
+    res.status(500).json({ error: 'Webhook processing failed' });
+  }
+});
+
+// ── Transcript update ───────────────────────────────────────────────────────
+
+router.post('/transcript-update', async (req, res) => {
+  try {
+    const { callId, speaker, text, userId } = req.body;
+
+    logger.debug(`💬 Webhook transcript [${callId}] ${speaker}: ${text}`);
+
+    // Check for urgency keywords
+    const urgentKeywords = ['emergency', 'urgent', 'asap', 'immediately', 'hospital', 'accident', 'fire'];
+    const isUrgent = urgentKeywords.some(keyword =>
+      text?.toLowerCase().includes(keyword)
+    );
+
+    if (isUrgent && userId) {
+      logger.warn(`🚨 Urgent keyword in call ${callId}: "${text}"`);
+      pushService.sendUrgentCallNotification(userId, {
+        callId,
+        callerNumber: req.body.callerPhoneNumber,
+        reason: `Urgent keyword detected: "${text.slice(0, 100)}"`,
+      }).catch(err => logger.error('Urgent push error:', err));
+    }
+
+    res.json({ success: true, urgentDetected: isUrgent });
+  } catch (error) {
+    logger.error('Webhook transcript error:', error);
+    res.status(500).json({ error: 'Webhook processing failed' });
+  }
+});
+
+// ── Status update ───────────────────────────────────────────────────────────
+
 router.post('/status-update', async (req, res) => {
   try {
-    const { event, callId, status, timestamp } = req.body;
-
-    console.log(`📊 Call status update: ${callId} -> ${status}`);
-
-    // TODO (Week 3):
-    // - Update call status in database
-    // - Send real-time update to iOS app (WebSocket/push)
-
-    res.json({
-      success: true,
-      message: 'Status update received'
-    });
+    const { callId, status, timestamp } = req.body;
+    logger.info(`📊 Webhook status: ${callId} → ${status}`);
+    res.json({ success: true, message: 'Status update received' });
   } catch (error) {
-    console.error('Webhook error:', error);
+    logger.error('Webhook status error:', error);
     res.status(500).json({ error: 'Webhook processing failed' });
   }
 });
 
-/**
- * GET /webhooks/vapi/verify
- * VAPI uses this to verify webhook endpoint is working
- */
+// ── Verify ──────────────────────────────────────────────────────────────────
+
 router.get('/verify', (req, res) => {
   res.json({
     status: 'OK',
-    message: 'VAPI webhook endpoint verified',
+    message: 'Webhook endpoint verified',
     timestamp: new Date().toISOString()
   });
 });

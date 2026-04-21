@@ -20,6 +20,25 @@
 class PromptGenerator {
 
   // ─────────────────────────────────────────────────────────────────────────
+  // Sanitization — prevent prompt injection via user-controlled fields
+  // ─────────────────────────────────────────────────────────────────────────
+
+  _sanitize(text, maxLen = 500) {
+    if (!text || typeof text !== 'string') return '';
+    return text
+      .replace(/\r?\n/g, ' ')                // flatten newlines
+      .replace(/[#*`~>|]/g, '')              // strip markdown-like control chars
+      .replace(/\b(system|ignore previous|disregard|new instructions?|you are now|act as|pretend)\b/gi, '[REDACTED]')
+      .slice(0, maxLen)
+      .trim();
+  }
+
+  _sanitizeName(name) {
+    if (!name || typeof name !== 'string') return 'User';
+    return name.replace(/[^a-zA-Z0-9\s\u0900-\u097F\u0C00-\u0C7F\u0600-\u06FF'.,-]/g, '').slice(0, 100).trim() || 'User';
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
   // Entry points
   // ─────────────────────────────────────────────────────────────────────────
 
@@ -69,14 +88,15 @@ class PromptGenerator {
 
   _identity(user, callInfo) {
     const isOutbound = callInfo.isOutbound || false;
-    const userName = user.name || 'User';
+    const userName = this._sanitizeName(user.name);
+    const userAbout = this._sanitize(user.about, 300);
 
     return `## YOUR ROLE
 You are an AI phone assistant screening calls for ${userName}.
-${user.about ? `About ${userName}: ${user.about}` : ''}
+${userAbout ? `About ${userName}: ${userAbout}` : ''}
 
 CALL TYPE: ${isOutbound ? 'OUTBOUND — you initiated this call on behalf of ' + userName : 'INCOMING — an external caller has called in'}
-${isOutbound && callInfo.additionalContext ? `REASON FOR CALLING: ${callInfo.additionalContext}` : ''}
+${isOutbound && callInfo.additionalContext ? `REASON FOR CALLING: ${this._sanitize(callInfo.additionalContext, 300)}` : ''}
 
 ## FUNDAMENTAL RULES
 1. You are speaking DIRECTLY TO the caller — the person on the other end of the line.
@@ -162,7 +182,7 @@ After delivering this message:
 
     const sections = categories.map(cat => {
       const keywords = cat.keywords?.length > 0
-        ? `  Recognise by: ${cat.keywords.join(', ')}`
+        ? `  Recognise by: ${cat.keywords.map(k => this._sanitize(k, 50)).join(', ')}`
         : '';
 
       const actionDesc = {
@@ -178,7 +198,7 @@ After delivering this message:
 
       // Format the owner's instructions into a caller-facing action
       const instructionNote = cat.instructions
-        ? `  What to do: ${cat.instructions.replace(/^Tell the (delivery person|caller|agent|them|visitor)/i, 'Tell them').replace(/^Ask them/i, 'Ask them').replace(/^Inform (the )?(delivery person|caller|agent|visitor)/i, 'Tell them')}`
+        ? `  What to do: ${this._sanitize(cat.instructions, 500)}`
         : '';
 
       return [

@@ -8,7 +8,7 @@
  *      → creates UserConfig with userId = phoneNumber, seeds default categories
  *   2. Incoming call hits Twilio → To = twilioNumber (our Twilio number)
  *      → look up UserConfig by twilioNumber to get the right user
- *   3. For now: OWNER_PHONE_NUMBER env var acts as the single user
+ *   3. Multi-user: each user gets their own Twilio number assigned during setup
  */
 
 import UserConfig, { DEFAULT_CATEGORIES } from '../models/mongodb/UserConfig.js';
@@ -117,17 +117,11 @@ class UserConfigService {
       let user = await UserConfig.findOne({ twilioNumber }).lean();
       if (user) return user;
 
-      // 2. Fallback: if only one user exists (single-user mode), use that
+      // 2. Fallback: if only one user exists (single-user / dev mode), use that
       const count = await UserConfig.countDocuments();
       if (count === 1) {
         user = await UserConfig.findOne({}).lean();
         return user;
-      }
-
-      // 3. Fallback: use OWNER_PHONE_NUMBER env var
-      if (process.env.OWNER_PHONE_NUMBER) {
-        user = await UserConfig.findOne({ userId: process.env.OWNER_PHONE_NUMBER }).lean();
-        if (user) return user;
       }
 
       return null;
@@ -243,15 +237,50 @@ class UserConfigService {
     }
   }
 
+  // ── Blocked Numbers ───────────────────────────────────────────────────────
+
+  async addBlockedNumber(userId, phoneNumber) {
+    if (!this.isAvailable()) return null;
+    try {
+      const user = await UserConfig.findOne({ userId }).select('blockedNumbers').lean();
+      if (user?.blockedNumbers?.includes(phoneNumber)) {
+        throw new Error('Number is already blocked');
+      }
+      return await UserConfig.findOneAndUpdate(
+        { userId },
+        { $addToSet: { blockedNumbers: phoneNumber } },
+        { new: true }
+      );
+    } catch (err) {
+      console.error('❌ addBlockedNumber:', err);
+      throw err;
+    }
+  }
+
+  async removeBlockedNumber(userId, phoneNumber) {
+    if (!this.isAvailable()) return null;
+    try {
+      return await UserConfig.findOneAndUpdate(
+        { userId },
+        { $pull: { blockedNumbers: phoneNumber } },
+        { new: true }
+      );
+    } catch (err) {
+      console.error('❌ removeBlockedNumber:', err);
+      return null;
+    }
+  }
+
   // ── Device tokens ─────────────────────────────────────────────────────────
 
   async addDeviceToken(userId, token, platform) {
     if (!this.isAvailable()) return null;
     try {
+      // Remove any existing entry for this token first, then add atomically
       await UserConfig.updateOne({ userId }, { $pull: { deviceTokens: { token } } });
       return await UserConfig.findOneAndUpdate(
         { userId },
-        { $push: { deviceTokens: { token, platform, addedAt: new Date() } } },
+        { $addToSet: { deviceTokens: { token, platform, addedAt: new Date() } } },
         { new: true, upsert: true }
       );
     } catch (err) {

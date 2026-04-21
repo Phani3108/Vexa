@@ -58,9 +58,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else {
           setState(s => ({ ...s, isLoading: false }));
         }
-      } catch {
-        // Config fetch failed — treat as logged out
-        await AsyncStorage.removeItem(STORAGE_KEY_PHONE);
+      } catch (err: any) {
+        // Distinguish "user not found" (clear session) from "network error" (keep session, let user retry)
+        const isNotFound = err?.message?.includes('not found') || err?.message?.includes('404');
+        if (isNotFound) {
+          await AsyncStorage.removeItem(STORAGE_KEY_PHONE);
+        }
+        // Either way, stop loading — user will see login screen or can retry
         setState(s => ({ ...s, isLoading: false }));
       }
     })();
@@ -84,8 +88,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch (err: any) {
         lastError = err;
         if (attempt < 3) {
-          console.log(`[Auth] Login attempt ${attempt} failed, retrying in 2s…`);
-          await new Promise(resolve => setTimeout(resolve, 2000));
+          console.log(`[Auth] Login attempt ${attempt} failed, retrying in 1s…`);
+          await new Promise(resolve => setTimeout(resolve, 1000));
         }
       }
     }

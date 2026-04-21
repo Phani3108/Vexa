@@ -103,14 +103,25 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        // TODO: Before Play Store release, create a production keystore:
+        //   keytool -genkeypair -v -storetype PKCS12 -keystore vexa-release.keystore \
+        //     -alias vexa-key -keyalg RSA -keysize 2048 -validity 10000
+        // Then configure:
+        // release {
+        //     storeFile file('vexa-release.keystore')
+        //     storePassword VEXA_RELEASE_STORE_PASSWORD
+        //     keyAlias VEXA_RELEASE_KEY_ALIAS
+        //     keyPassword VEXA_RELEASE_KEY_PASSWORD
+        // }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
+            // WARNING: Using debug keystore for release builds.
+            // You MUST replace this with a production keystore before publishing.
+            // See: https://reactnative.dev/docs/signed-apk-android
             signingConfig signingConfigs.debug
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
