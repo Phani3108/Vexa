@@ -2,6 +2,8 @@
 
 Vexa is your personal AI assistant that answers phone calls on your behalf, screens callers, and sends you a summary — so you only talk to the people that matter.
 
+<img width="2720" height="3016" alt="vexa_call_lifecycle_end_to_end" src="https://github.com/user-attachments/assets/e7e6e401-ab8b-4a1a-9db7-8d1d03776af2" />
+
 ## ✨ What It Does
 
 - 🤖 **AI answers your calls** — Uses OpenAI's Realtime Voice API to have natural conversations with callers
