@@ -4,10 +4,17 @@
  * userId = the user's phone number (E.164)
  *
  * userId resolved from req.user.userId (set by auth middleware).
+ * Accounts are created by OTP verification (routes/auth.js), not here.
  */
 
 import express from 'express';
 import userConfigService from '../services/userConfigService.js';
+import { industryList } from '../config/templates.js';
+import { isValidE164 } from '../lib/phone.js';
+import { seedDemoCalls } from '../services/demoData.js';
+import { DEFAULT_CATEGORIES } from '../models/mongodb/UserConfig.js';
+
+export const demoDataEnabled = () => process.env.NODE_ENV !== 'production' || process.env.ENABLE_DEMO_DATA === 'true';
 
 const router = express.Router();
 
@@ -16,60 +23,107 @@ function resolveUserId(req) {
   return req.user?.userId || null;
 }
 
-// ── Setup (called once on first app login) ────────────────────────────────────
-//
-// Creates the user config, seeds default categories.
-// Pass callCategories[] to override specific defaults.
-// Safe to call again — acts as upsert.
-
-// POST /api/users/setup
-router.post('/setup', async (req, res) => {
-  try {
-    const { phoneNumber } = req.body;
-    if (!phoneNumber) return res.status(400).json({ error: 'phoneNumber is required' });
-    if (!/^\+[1-9]\d{6,14}$/.test(phoneNumber)) {
-      return res.status(400).json({ error: 'phoneNumber must be E.164 format: +919876543210' });
-    }
-
-    const config = await userConfigService.setupUser(phoneNumber, req.body);
-    res.status(201).json({
-      message: 'User setup complete',
-      userId: config.userId,
-      isNewUser: config.isNewUser,
-      config
-    });
-  } catch (err) {
-    console.error('❌ /setup error:', err);
-    res.status(500).json({ error: err.message || 'Failed to setup user' });
-  }
-});
-
 // ── Config ───────────────────────────────────────────────────────────────────
 
 // GET /api/users/config
 router.get('/config', async (req, res) => {
   try {
     const userId = resolveUserId(req);
-    if (!userId) return res.status(400).json({ error: 'phoneNumber required' });
     const config = await userConfigService.getUser(userId);
-    if (!config) return res.status(404).json({ error: 'User not found. Call POST /api/users/setup first.' });
+    if (!config) return res.status(404).json({ error: 'User not found' });
     res.json({ config });
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch user config' });
   }
 });
 
-// PUT /api/users/config  — update specific fields (not categories — use /categories endpoints)
+// PUT /api/users/config  — update owner-editable fields only (see EDITABLE_FIELDS).
+// Categories, VIPs, blocked numbers and priority time have dedicated endpoints.
 router.put('/config', async (req, res) => {
   try {
     const userId = resolveUserId(req);
-    if (!userId) return res.status(400).json({ error: 'phoneNumber required' });
-    const config = await userConfigService.updateUser(userId, req.body);
-    if (!config) return res.status(404).json({ error: 'User not found. Call POST /api/users/setup first.' });
+    const config = await userConfigService.updateEditable(userId, req.body || {});
+    if (!config) return res.status(404).json({ error: 'User not found' });
     res.json({ config, message: 'Saved' });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to save user config' });
+    res.status(err.status || 500).json({ error: err.status ? err.message : 'Failed to save user config' });
   }
+});
+
+// ── Onboarding (SME) ────────────────────────────────────────────────────────
+
+// GET /api/users/templates — industries available for onboarding
+router.get('/templates', (req, res) => {
+  res.json({ industries: industryList() });
+});
+
+// POST /api/users/onboarding  { industry, name?, businessProfile?, aiSettings? }
+// Seeds categories/FAQs/hours from the industry template and marks onboarding done.
+router.post('/onboarding', async (req, res) => {
+  try {
+    const userId = resolveUserId(req);
+    const { industry = 'other', businessProfile = {}, name, aiSettings, accountType, deliveryAddress } = req.body || {};
+
+    // Personal mode: personal call rules + personal flows; no business template
+    if (accountType === 'personal') {
+      await userConfigService.updateUser(userId, {
+        accountType: 'personal',
+        callCategories: DEFAULT_CATEGORIES,
+        workflows: null
+      });
+      const config = await userConfigService.updateEditable(userId, {
+        ...(name ? { name } : {}),
+        ...(aiSettings ? { aiSettings } : {}),
+        ...(deliveryAddress ? { deliveryAddress } : {}),
+        ...(businessProfile?.timezone ? { businessProfile: { timezone: businessProfile.timezone } } : {}),
+        onboardingCompleted: true
+      });
+      return res.json({ config, message: 'Your AI assistant is ready' });
+    }
+    if (businessProfile.transferNumber && !isValidE164(businessProfile.transferNumber)) {
+      return res.status(400).json({ error: 'Transfer number must be in E.164 format, e.g. +14155551234' });
+    }
+
+    const applied = await userConfigService.applyIndustryTemplate(userId, industry, businessProfile);
+    if (!applied) return res.status(404).json({ error: 'User not found' });
+    await userConfigService.updateUser(userId, { workflows: null });
+
+    const config = await userConfigService.updateEditable(userId, {
+      ...(name ? { name } : {}),
+      ...(aiSettings ? { aiSettings } : {}),
+      onboardingCompleted: true
+    });
+    res.json({ config, message: 'Your AI receptionist is ready' });
+  } catch (err) {
+    console.error('Onboarding error:', err);
+    res.status(err.status || 500).json({ error: err.status ? err.message : 'Onboarding failed' });
+  }
+});
+
+// POST /api/users/mode { accountType } — switch Personal ⇄ Business from the home screen.
+// Both profiles are kept; switching swaps the call rules and flows.
+router.post('/mode', async (req, res) => {
+  const userId = resolveUserId(req);
+  const mode = req.body?.accountType;
+  if (!['personal', 'business'].includes(mode)) return res.status(400).json({ error: 'accountType must be personal or business' });
+  const user = await userConfigService.getUser(userId);
+  if (!user) return res.status(404).json({ error: 'User not found' });
+
+  if (mode === 'business') {
+    if (!user.businessProfile?.businessName) return res.status(409).json({ error: 'Set up your business first', needsOnboarding: true });
+    await userConfigService.applyIndustryTemplate(userId, user.businessProfile.industry || 'other', {});
+    await userConfigService.updateUser(userId, { accountType: 'business', workflows: null });
+  } else {
+    await userConfigService.updateUser(userId, { accountType: 'personal', callCategories: DEFAULT_CATEGORIES, workflows: null });
+  }
+  res.json({ config: await userConfigService.getUser(userId) });
+});
+
+// POST /api/users/demo-data — load sample calls so the dashboard can be explored (dev/demo only)
+router.post('/demo-data', async (req, res) => {
+  if (!demoDataEnabled()) return res.status(404).json({ error: 'Route not found' });
+  const count = await seedDemoCalls(resolveUserId(req));
+  res.json({ inserted: count });
 });
 
 // ── Call Categories ─────────────────────────────────────────────────────────
@@ -78,7 +132,6 @@ router.put('/config', async (req, res) => {
 router.get('/categories', async (req, res) => {
   try {
     const userId = resolveUserId(req);
-    if (!userId) return res.status(400).json({ error: 'phoneNumber required' });
     const user = await userConfigService.getUser(userId);
     if (!user) return res.status(404).json({ error: 'User not found' });
     res.json({ categories: user.callCategories || [] });
@@ -91,21 +144,23 @@ router.get('/categories', async (req, res) => {
 router.post('/categories', async (req, res) => {
   try {
     const userId = resolveUserId(req);
-    if (!userId) return res.status(400).json({ error: 'phoneNumber required' });
     const { id, label, keywords, action, instructions, notify, priority } = req.body;
     if (!id || !label) return res.status(400).json({ error: 'id and label are required' });
 
+    if (!/^[a-z0-9_.-]{2,60}$/i.test(id)) return res.status(400).json({ error: 'id may only contain letters, numbers, dot, dash and underscore' });
+
     const user = await userConfigService.addCategory(userId, {
       id, label,
-      keywords:     keywords     || [],
+      keywords:     Array.isArray(keywords) ? keywords : [],
       action:       action       || 'follow_instructions',
       instructions: instructions || '',
       notify:       notify       !== false,
       priority:     priority     || 5
     });
+    if (!user) return res.status(404).json({ error: 'User not found' });
     res.json({ categories: user.callCategories, message: 'Category added' });
   } catch (err) {
-    res.status(400).json({ error: err.message || 'Failed to add category' });
+    res.status(err.status || 400).json({ error: err.message || 'Failed to add category' });
   }
 });
 
@@ -113,7 +168,6 @@ router.post('/categories', async (req, res) => {
 router.put('/categories/:categoryId', async (req, res) => {
   try {
     const userId = resolveUserId(req);
-    if (!userId) return res.status(400).json({ error: 'phoneNumber required' });
     const { categoryId } = req.params;
     const user = await userConfigService.updateCategory(userId, categoryId, req.body);
     res.json({ categories: user?.callCategories, message: 'Category updated' });
@@ -126,7 +180,6 @@ router.put('/categories/:categoryId', async (req, res) => {
 router.delete('/categories/:categoryId', async (req, res) => {
   try {
     const userId = resolveUserId(req);
-    if (!userId) return res.status(400).json({ error: 'phoneNumber required' });
     const { categoryId } = req.params;
     const user = await userConfigService.removeCategory(userId, categoryId);
     res.json({ categories: user?.callCategories, message: 'Category removed' });
@@ -141,7 +194,6 @@ router.delete('/categories/:categoryId', async (req, res) => {
 router.get('/vip-contacts', async (req, res) => {
   try {
     const userId = resolveUserId(req);
-    if (!userId) return res.status(400).json({ error: 'phoneNumber required' });
     const user = await userConfigService.getUser(userId);
     if (!user) return res.status(404).json({ error: 'User not found' });
     res.json({ vipContacts: user.vipContacts || [] });
@@ -154,9 +206,13 @@ router.get('/vip-contacts', async (req, res) => {
 router.put('/vip-contacts', async (req, res) => {
   try {
     const userId = resolveUserId(req);
-    if (!userId) return res.status(400).json({ error: 'phoneNumber required' });
     const { vipContacts } = req.body;
-    const user = await userConfigService.updateUser(userId, { vipContacts });
+    if (!Array.isArray(vipContacts)) return res.status(400).json({ error: 'vipContacts must be an array' });
+    const clean = vipContacts
+      .filter(v => v && typeof v.phoneNumber === 'string' && v.phoneNumber.trim())
+      .map(v => ({ name: v.name || '', phoneNumber: v.phoneNumber.trim(), relationship: v.relationship || '', notes: v.notes || '' }));
+    const user = await userConfigService.updateUser(userId, { vipContacts: clean });
+    if (!user) return res.status(404).json({ error: 'User not found' });
     res.json({ vipContacts: user?.vipContacts });
   } catch (err) {
     res.status(500).json({ error: 'Failed to update VIP contacts' });
@@ -169,7 +225,6 @@ router.put('/vip-contacts', async (req, res) => {
 router.get('/blocked-numbers', async (req, res) => {
   try {
     const userId = resolveUserId(req);
-    if (!userId) return res.status(400).json({ error: 'phoneNumber required' });
     const user = await userConfigService.getUser(userId);
     if (!user) return res.status(404).json({ error: 'User not found' });
     res.json({ blockedNumbers: user.blockedNumbers || [] });
@@ -182,14 +237,13 @@ router.get('/blocked-numbers', async (req, res) => {
 router.post('/blocked-numbers', async (req, res) => {
   try {
     const userId = resolveUserId(req);
-    if (!userId) return res.status(400).json({ error: 'phoneNumber required' });
     const { phoneNumber } = req.body;
     if (!phoneNumber) return res.status(400).json({ error: 'phoneNumber to block is required' });
 
-    const user = await userConfigService.addBlockedNumber(userId, phoneNumber);
+    const user = await userConfigService.addBlockedNumber(userId, phoneNumber.trim());
     res.json({ blockedNumbers: user?.blockedNumbers || [], message: 'Number blocked' });
   } catch (err) {
-    res.status(400).json({ error: err.message || 'Failed to block number' });
+    res.status(err.status || 400).json({ error: err.message || 'Failed to block number' });
   }
 });
 
@@ -197,7 +251,6 @@ router.post('/blocked-numbers', async (req, res) => {
 router.delete('/blocked-numbers/:phoneNumber', async (req, res) => {
   try {
     const userId = resolveUserId(req);
-    if (!userId) return res.status(400).json({ error: 'phoneNumber required' });
     const phoneNumber = decodeURIComponent(req.params.phoneNumber);
     const user = await userConfigService.removeBlockedNumber(userId, phoneNumber);
     res.json({ blockedNumbers: user?.blockedNumbers || [], message: 'Number unblocked' });
@@ -212,9 +265,8 @@ router.delete('/blocked-numbers/:phoneNumber', async (req, res) => {
 router.post('/device-token', async (req, res) => {
   try {
     const userId = resolveUserId(req);
-    if (!userId) return res.status(400).json({ error: 'phoneNumber required' });
     const { token, platform } = req.body;
-    if (!token || !platform) return res.status(400).json({ error: 'token and platform required' });
+    if (!token || !['ios', 'android'].includes(platform)) return res.status(400).json({ error: 'token and platform (ios|android) required' });
     await userConfigService.addDeviceToken(userId, token, platform);
     res.json({ message: 'Device token registered' });
   } catch (err) {
@@ -228,7 +280,6 @@ router.post('/device-token', async (req, res) => {
 router.get('/priority-time', async (req, res) => {
   try {
     const userId = resolveUserId(req);
-    if (!userId) return res.status(400).json({ error: 'phoneNumber required' });
     const user = await userConfigService.getUser(userId);
     if (!user) return res.status(404).json({ error: 'User not found' });
     res.json({ priorityTime: user.priorityTime || {} });
@@ -241,7 +292,6 @@ router.get('/priority-time', async (req, res) => {
 router.put('/priority-time', async (req, res) => {
   try {
     const userId = resolveUserId(req);
-    if (!userId) return res.status(400).json({ error: 'phoneNumber required' });
     
     const { enabled, timeSlots, recurring, timezone, message, emergencyContacts, quickToggleActive } = req.body;
     
@@ -267,6 +317,7 @@ router.put('/priority-time', async (req, res) => {
     }
     
     const user = await userConfigService.getUser(userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
     const currentPriorityTime = user.priorityTime || {};
     
     const updatedUser = await userConfigService.updateUser(userId, {
@@ -274,7 +325,7 @@ router.put('/priority-time', async (req, res) => {
         enabled: enabled !== undefined ? enabled : currentPriorityTime.enabled || false,
         timeSlots: timeSlots || currentPriorityTime.timeSlots || [],
         recurring: recurring || currentPriorityTime.recurring || { enabled: false, daysOfWeek: [1, 2, 3, 4, 5], excludeDates: [] },
-        timezone: timezone || currentPriorityTime.timezone || 'Asia/Kolkata',
+        timezone: timezone || currentPriorityTime.timezone || 'America/New_York',
         message: message !== undefined ? message : (currentPriorityTime.message || '{userName} is currently unavailable due to important work and cannot take calls. They will be available after {endTime}. Please leave your details and they will get back to you.'),
         emergencyContacts: emergencyContacts !== undefined ? emergencyContacts : (currentPriorityTime.emergencyContacts || []),
         quickToggleActive: quickToggleActive !== undefined ? quickToggleActive : (currentPriorityTime.quickToggleActive || false)
@@ -294,7 +345,6 @@ router.put('/priority-time', async (req, res) => {
 router.post('/priority-time/quick-toggle', async (req, res) => {
   try {
     const userId = resolveUserId(req);
-    if (!userId) return res.status(400).json({ error: 'phoneNumber required' });
     
     const user = await userConfigService.getUser(userId);
     if (!user) return res.status(404).json({ error: 'User not found' });
@@ -321,7 +371,6 @@ router.post('/priority-time/quick-toggle', async (req, res) => {
 router.post('/priority-time/add-slot', async (req, res) => {
   try {
     const userId = resolveUserId(req);
-    if (!userId) return res.status(400).json({ error: 'phoneNumber required' });
     
     const { startTime, endTime, label } = req.body;
     
@@ -360,7 +409,6 @@ router.post('/priority-time/add-slot', async (req, res) => {
 router.delete('/priority-time/remove-slot/:index', async (req, res) => {
   try {
     const userId = resolveUserId(req);
-    if (!userId) return res.status(400).json({ error: 'phoneNumber required' });
     
     const index = parseInt(req.params.index);
     if (isNaN(index) || index < 0) {

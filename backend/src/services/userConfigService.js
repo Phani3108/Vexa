@@ -1,107 +1,123 @@
 /**
  * UserConfigService
  *
- * userId = the user's own phone number (E.164, e.g. "+919876543210")
+ * userId = the account owner's phone number (E.164, e.g. "+14155551234")
  *
  * Flow:
- *   1. User opens app → POST /api/users/setup { phoneNumber, name, ... }
- *      → creates UserConfig with userId = phoneNumber, seeds default categories
- *   2. Incoming call hits Twilio → To = twilioNumber (our Twilio number)
- *      → look up UserConfig by twilioNumber to get the right user
- *   3. Multi-user: each user gets their own Twilio number assigned during setup
+ *   1. Owner verifies their phone via OTP → setupUser() creates the UserConfig
+ *   2. Onboarding (dashboard) sets business profile + industry template
+ *   3. Incoming call hits Twilio → To = twilioNumber → getUserByTwilioNumber()
  */
 
 import UserConfig, { DEFAULT_CATEGORIES } from '../models/mongodb/UserConfig.js';
 import { isMongoConnected } from '../config/mongodb.js';
+import { buildIndustryTemplate } from '../config/templates.js';
+import { phonesMatch, findByPhone } from '../lib/phone.js';
+
+const DEFAULT_PRIORITY_MESSAGE = '{userName} is currently unavailable due to important work and cannot take calls. They will be available after {endTime}. Please leave your details and they will get back to you.';
+
+// Fields the owner may change through the generic PUT /api/users/config.
+// Everything else (userId, phoneNumber, twilioNumber, deviceTokens, ...) is server-controlled.
+export const EDITABLE_FIELDS = [
+  'name', 'about', 'accountType', 'businessProfile', 'aiSettings',
+  'deliveryAddress', 'unknownCallerAction', 'escalationKeywords', 'onboardingCompleted', 'recording'
+];
+const VALID_LANGUAGES = ['en', 'hi', 'te', 'ta', 'ml', 'mr', 'gu', 'es'];
+
+const VALID_VOICES = ['alloy', 'echo', 'shimmer', 'ash', 'ballad', 'coral', 'sage', 'verse'];
+
+function pick(obj, keys) {
+  return Object.fromEntries(keys.filter(k => obj && k in obj).map(k => [k, obj[k]]));
+}
 
 class UserConfigService {
-  constructor() {
-    console.log('✅ UserConfigService initialized');
-  }
-
   isAvailable() {
     return isMongoConnected();
   }
 
-  // ── Setup (called on first app login) ────────────────────────────────────
-  //
-  // Creates or updates the user config for a phone number.
-  // Seeds DEFAULT_CATEGORIES first, then merges any custom categories passed in.
-  // Safe to call again — will only update fields you pass, won't wipe categories.
+  // ── Setup (called on first verified login) ───────────────────────────────
 
   async setupUser(phoneNumber, data = {}) {
-    if (!this.isAvailable()) throw new Error('MongoDB not connected');
+    if (!this.isAvailable()) throw new Error('Database not connected');
 
-    const userId = phoneNumber; // userId IS the phone number
+    const userId = phoneNumber;
     const existing = await UserConfig.findOne({ userId }).lean();
-    const isNewUser = !existing;
-
-    // Merge categories: start with defaults, override with any the user passed
-    let categories = DEFAULT_CATEGORIES;
-    if (data.callCategories && data.callCategories.length > 0) {
-      // User passed custom categories — merge: their categories replace matching defaults
-      const customMap = new Map(data.callCategories.map(c => [c.id, c]));
-      categories = DEFAULT_CATEGORIES.map(d => customMap.has(d.id) ? { ...d, ...customMap.get(d.id) } : d);
-      // Append any brand-new categories that aren't in defaults
-      for (const [id, cat] of customMap) {
-        if (!DEFAULT_CATEGORIES.find(d => d.id === id)) categories.push(cat);
-      }
-    } else if (existing?.callCategories?.length > 0) {
-      // User already has categories — don't overwrite them
-      categories = existing.callCategories;
+    if (existing) {
+      return { ...existing, isNewUser: false };
     }
+
+    const accountType = data.accountType === 'personal' ? 'personal' : 'business';
+    const template = accountType === 'business' ? buildIndustryTemplate(data.industry) : null;
 
     const doc = {
       userId,
       phoneNumber,
-      name:                (data.name && data.name.trim() !== '' && data.name !== 'User' ? data.name.trim() : null) || existing?.name || 'User',
-      about:               data.about               || existing?.about || 'A professional who receives many calls.',
-      twilioNumber:        data.twilioNumber         || existing?.twilioNumber || process.env.TWILIO_PHONE_NUMBER || '',
-      aiSettings:          { ...(existing?.aiSettings || {}), ...(data.aiSettings || {}) },
-      unknownCallerAction: data.unknownCallerAction  || existing?.unknownCallerAction || 'screen',
-      escalationKeywords:  data.escalationKeywords   || existing?.escalationKeywords || ['emergency', 'urgent', 'hospital', 'accident', 'fire'],
-      callCategories:      categories,
-      vipContacts:         data.vipContacts          || existing?.vipContacts || [],
-      blockedNumbers:      data.blockedNumbers        || existing?.blockedNumbers || [],
-      // Delivery address — deep merge: keep existing fields, overlay any new ones
-      deliveryAddress: {
-        ...(existing?.deliveryAddress || {}),
-        ...(data.deliveryAddress      || {})
-      },
-      // Preserve existing priorityTime; seed defaults for new users
-      priorityTime: existing?.priorityTime
-        ? existing.priorityTime
-        : {
-            enabled: false,
-            timeSlots: [],
-            recurring: { enabled: false, daysOfWeek: [1, 2, 3, 4, 5], excludeDates: [] },
-            timezone: 'Asia/Kolkata',
-            message: '{userName} is currently unavailable due to important work and cannot take calls. They will be available after {endTime}. Please leave your details and they will get back to you.',
-            emergencyContacts: [],
-            quickToggleActive: false
-          },
-      updatedAt:           new Date()
+      accountType,
+      name: (typeof data.name === 'string' && data.name.trim()) || 'User',
+      about: data.about || (accountType === 'business' ? '' : 'A professional who receives many calls.'),
+      // In dev / single-number setups the shared Twilio number is assigned to the first account only.
+      twilioNumber: await this._defaultTwilioNumber(),
+      callCategories: template ? template.callCategories : DEFAULT_CATEGORIES,
+      businessProfile: template ? { ...template.businessProfile, timezone: data.timezone || 'America/New_York' } : {},
+      priorityTime: {
+        enabled: false,
+        timeSlots: [],
+        recurring: { enabled: false, daysOfWeek: [1, 2, 3, 4, 5], excludeDates: [] },
+        timezone: data.timezone || 'America/New_York',
+        message: DEFAULT_PRIORITY_MESSAGE,
+        emergencyContacts: [],
+        quickToggleActive: false
+      }
+    };
+
+    const user = await UserConfig.create(doc);
+    console.log(`✅ New account: ${userId} (${accountType}), ${user.callCategories.length} categories`);
+    return { ...user.toObject(), isNewUser: true };
+  }
+
+  async _defaultTwilioNumber() {
+    const shared = process.env.TWILIO_PHONE_NUMBER;
+    if (!shared) return undefined;
+    const taken = await UserConfig.exists({ twilioNumber: shared });
+    return taken ? undefined : shared;
+  }
+
+  /**
+   * Apply an industry template (onboarding). Replaces categories and merges
+   * template services/FAQs/hours into the business profile without discarding
+   * anything the owner already typed.
+   */
+  async applyIndustryTemplate(userId, industry, profile = {}) {
+    if (!this.isAvailable()) return null;
+    const template = buildIndustryTemplate(industry);
+    const existing = await UserConfig.findOne({ userId }).lean();
+    if (!existing) return null;
+
+    const current = existing.businessProfile || {};
+    const businessProfile = {
+      ...template.businessProfile,
+      ...current,
+      ...profile,
+      industry: template.businessProfile.industry,
+      services: profile.services?.length ? profile.services : (current.services?.length ? current.services : template.businessProfile.services),
+      faqs: profile.faqs?.length ? profile.faqs : (current.faqs?.length ? current.faqs : template.businessProfile.faqs),
+      hours: profile.hours?.length ? profile.hours : (current.hours?.length ? current.hours : template.businessProfile.hours)
     };
 
     const user = await UserConfig.findOneAndUpdate(
       { userId },
-      { $set: doc },
-      { upsert: true, new: true }
+      { $set: { businessProfile, callCategories: template.callCategories, accountType: 'business' } },
+      { new: true, runValidators: true }
     );
-
-    console.log(`✅ User setup: ${userId} (${user.name}), ${user.callCategories.length} categories`);
-    return { ...user.toObject(), isNewUser };
+    return user?.toObject() || null;
   }
 
   // ── Read ─────────────────────────────────────────────────────────────────
 
   async getUser(userId) {
-    if (!userId) return null;
-    if (!this.isAvailable()) return null;
-
+    if (!userId || !this.isAvailable()) return null;
     try {
-      const user = await UserConfig.findOne({ userId }).lean();
-      return user || null;
+      return await UserConfig.findOne({ userId }).lean();
     } catch (err) {
       console.error('❌ getUser:', err);
       return null;
@@ -110,20 +126,15 @@ class UserConfigService {
 
   // Look up by the Twilio "To" number — used on incoming call
   async getUserByTwilioNumber(twilioNumber) {
-    if (!this.isAvailable()) return null;
-
+    if (!this.isAvailable() || !twilioNumber) return null;
     try {
-      // 1. Try exact match in DB
-      let user = await UserConfig.findOne({ twilioNumber }).lean();
+      const user = await UserConfig.findOne({ twilioNumber }).lean();
       if (user) return user;
 
-      // 2. Fallback: if only one user exists (single-user / dev mode), use that
-      const count = await UserConfig.countDocuments();
-      if (count === 1) {
-        user = await UserConfig.findOne({}).lean();
-        return user;
+      // Dev convenience only: a single account owns whatever number is calling in.
+      if (process.env.NODE_ENV !== 'production' && (await UserConfig.countDocuments()) === 1) {
+        return await UserConfig.findOne({}).lean();
       }
-
       return null;
     } catch (err) {
       console.error('❌ getUserByTwilioNumber:', err);
@@ -133,32 +144,41 @@ class UserConfigService {
 
   // ── Write ─────────────────────────────────────────────────────────────────
 
-  // Generic field update — never clobbers categories/vipContacts/deviceTokens
-  // unless explicitly included in the updates object
+  /**
+   * Whitelisted update for owner-editable fields. Nested objects
+   * (businessProfile, aiSettings, deliveryAddress) are merged, not replaced.
+   */
+  async updateEditable(userId, updates = {}) {
+    if (!userId || !this.isAvailable()) return null;
+    const clean = pick(updates, EDITABLE_FIELDS);
+    if (clean.accountType && !['personal', 'business'].includes(clean.accountType)) delete clean.accountType;
+    if (clean.aiSettings?.language && !VALID_LANGUAGES.includes(clean.aiSettings.language)) {
+      throw Object.assign(new Error(`language must be one of: ${VALID_LANGUAGES.join(', ')}`), { status: 400 });
+    }
+    if (clean.recording) clean.recording = { ...(clean.recording.enabled !== undefined ? { enabled: !!clean.recording.enabled } : {}), ...(clean.recording.announce !== undefined ? { announce: !!clean.recording.announce } : {}), ...(clean.recording.retentionDays ? { retentionDays: Math.min(Math.max(Number(clean.recording.retentionDays) || 90, 1), 3650) } : {}) };
+    if (clean.aiSettings?.voice && !VALID_VOICES.includes(clean.aiSettings.voice)) {
+      throw Object.assign(new Error(`voice must be one of: ${VALID_VOICES.join(', ')}`), { status: 400 });
+    }
+
+    const $set = {};
+    for (const [key, value] of Object.entries(clean)) {
+      if (['businessProfile', 'aiSettings', 'deliveryAddress', 'recording'].includes(key) && value && typeof value === 'object' && !Array.isArray(value)) {
+        for (const [sub, subVal] of Object.entries(value)) $set[`${key}.${sub}`] = subVal;
+      } else {
+        $set[key] = value;
+      }
+    }
+    if (Object.keys($set).length === 0) return this.getUser(userId);
+
+    const user = await UserConfig.findOneAndUpdate({ userId }, { $set }, { new: true, runValidators: true });
+    return user ? user.toObject() : null;
+  }
+
+  /** Internal update — callers are responsible for passing only safe fields. */
   async updateUser(userId, updates) {
     if (!userId || !this.isAvailable()) return null;
-
     try {
-      const safeUpdates = { ...updates, updatedAt: new Date() };
-      // Never clobber these fields through a generic update — use dedicated methods
-      if (!('callCategories' in updates)) delete safeUpdates.callCategories;
-      if (!('vipContacts'    in updates)) delete safeUpdates.vipContacts;
-      if (!('deviceTokens'   in updates)) delete safeUpdates.deviceTokens;
-
-      // deliveryAddress: deep-merge with existing instead of replacing wholesale
-      if ('deliveryAddress' in updates) {
-        const existing = await UserConfig.findOne({ userId }).select('deliveryAddress').lean();
-        safeUpdates.deliveryAddress = {
-          ...(existing?.deliveryAddress || {}),
-          ...updates.deliveryAddress
-        };
-      }
-
-      const user = await UserConfig.findOneAndUpdate(
-        { userId },
-        { $set: safeUpdates },
-        { new: true }
-      );
+      const user = await UserConfig.findOneAndUpdate({ userId }, { $set: updates }, { new: true, runValidators: true });
       return user ? user.toObject() : null;
     } catch (err) {
       console.error('❌ updateUser:', err);
@@ -170,263 +190,224 @@ class UserConfigService {
 
   async addCategory(userId, category) {
     if (!this.isAvailable()) return null;
-    try {
-      // Prevent duplicate ids
-      const existing = await UserConfig.findOne({ userId, 'callCategories.id': category.id });
-      if (existing) throw new Error(`Category '${category.id}' already exists. Use PUT to update.`);
+    const existing = await UserConfig.findOne({ userId, 'callCategories.id': category.id });
+    if (existing) throw Object.assign(new Error(`Category '${category.id}' already exists. Use PUT to update.`), { status: 409 });
 
-      return await UserConfig.findOneAndUpdate(
-        { userId },
-        { $push: { callCategories: category } },
-        { new: true }
-      );
-    } catch (err) {
-      console.error('❌ addCategory:', err);
-      throw err;
-    }
+    return await UserConfig.findOneAndUpdate(
+      { userId },
+      { $push: { callCategories: category } },
+      { new: true, runValidators: true }
+    );
   }
 
   async updateCategory(userId, categoryId, updates) {
     if (!this.isAvailable()) return null;
-    try {
-      const existing = await UserConfig.findOne({ userId, 'callCategories.id': categoryId });
+    const allowed = pick(updates, ['label', 'keywords', 'action', 'instructions', 'notify', 'priority']);
+    const existing = await UserConfig.findOne({ userId, 'callCategories.id': categoryId });
 
-      if (existing) {
-        // Patch only supplied fields
-        const setFields = {};
-        for (const [key, val] of Object.entries(updates)) {
-          if (key !== 'id') setFields[`callCategories.$[elem].${key}`] = val;
-        }
-        return await UserConfig.findOneAndUpdate(
-          { userId },
-          { $set: setFields },
-          { arrayFilters: [{ 'elem.id': categoryId }], new: true }
-        );
-      } else {
-        // Doesn't exist yet — create it from default definition + updates
-        const defaultCat = DEFAULT_CATEGORIES.find(c => c.id === categoryId);
-        const newCat = {
-          ...(defaultCat || { label: categoryId, action: 'follow_instructions', keywords: [], notify: true, priority: 5 }),
-          ...updates,
-          id: categoryId
-        };
-        console.log(`📝 Created category '${categoryId}' for user ${userId}`);
-        return await UserConfig.findOneAndUpdate(
-          { userId },
-          { $push: { callCategories: newCat } },
-          { new: true, upsert: true }
-        );
-      }
-    } catch (err) {
-      console.error('❌ updateCategory:', err);
-      return null;
+    if (existing) {
+      const setFields = {};
+      for (const [key, val] of Object.entries(allowed)) setFields[`callCategories.$[elem].${key}`] = val;
+      if (Object.keys(setFields).length === 0) return existing;
+      return await UserConfig.findOneAndUpdate(
+        { userId },
+        { $set: setFields },
+        { arrayFilters: [{ 'elem.id': categoryId }], new: true, runValidators: true }
+      );
     }
+
+    const defaultCat = DEFAULT_CATEGORIES.find(c => c.id === categoryId);
+    const newCat = {
+      ...(defaultCat || { label: categoryId, action: 'follow_instructions', keywords: [], notify: true, priority: 5 }),
+      ...allowed,
+      id: categoryId
+    };
+    // No upsert: never create an account as a side effect of editing a category
+    return await UserConfig.findOneAndUpdate(
+      { userId },
+      { $push: { callCategories: newCat } },
+      { new: true, runValidators: true }
+    );
   }
 
   async removeCategory(userId, categoryId) {
     if (!this.isAvailable()) return null;
-    try {
-      return await UserConfig.findOneAndUpdate(
-        { userId },
-        { $pull: { callCategories: { id: categoryId } } },
-        { new: true }
-      );
-    } catch (err) {
-      console.error('❌ removeCategory:', err);
-      return null;
-    }
+    return await UserConfig.findOneAndUpdate(
+      { userId },
+      { $pull: { callCategories: { id: categoryId } } },
+      { new: true }
+    );
   }
 
   // ── Blocked Numbers ───────────────────────────────────────────────────────
 
+  isBlocked(user, phoneNumber) {
+    return !!findByPhone(user?.blockedNumbers, phoneNumber);
+  }
+
   async addBlockedNumber(userId, phoneNumber) {
     if (!this.isAvailable()) return null;
-    try {
-      const user = await UserConfig.findOne({ userId }).select('blockedNumbers').lean();
-      if (user?.blockedNumbers?.includes(phoneNumber)) {
-        throw new Error('Number is already blocked');
-      }
-      return await UserConfig.findOneAndUpdate(
-        { userId },
-        { $addToSet: { blockedNumbers: phoneNumber } },
-        { new: true }
-      );
-    } catch (err) {
-      console.error('❌ addBlockedNumber:', err);
-      throw err;
+    const user = await UserConfig.findOne({ userId }).select('blockedNumbers').lean();
+    if (!user) throw Object.assign(new Error('User not found'), { status: 404 });
+    if (this.isBlocked(user, phoneNumber)) {
+      throw Object.assign(new Error('Number is already blocked'), { status: 409 });
     }
+    return await UserConfig.findOneAndUpdate(
+      { userId },
+      { $addToSet: { blockedNumbers: phoneNumber } },
+      { new: true }
+    );
   }
 
   async removeBlockedNumber(userId, phoneNumber) {
     if (!this.isAvailable()) return null;
-    try {
-      return await UserConfig.findOneAndUpdate(
-        { userId },
-        { $pull: { blockedNumbers: phoneNumber } },
-        { new: true }
-      );
-    } catch (err) {
-      console.error('❌ removeBlockedNumber:', err);
-      return null;
-    }
+    const user = await UserConfig.findOne({ userId }).select('blockedNumbers').lean();
+    const remaining = (user?.blockedNumbers || []).filter(n => !phonesMatch(n, phoneNumber) && n !== phoneNumber);
+    return await UserConfig.findOneAndUpdate(
+      { userId },
+      { $set: { blockedNumbers: remaining } },
+      { new: true }
+    );
   }
 
   // ── Device tokens ─────────────────────────────────────────────────────────
 
   async addDeviceToken(userId, token, platform) {
     if (!this.isAvailable()) return null;
-    try {
-      // Remove any existing entry for this token first, then add atomically
-      await UserConfig.updateOne({ userId }, { $pull: { deviceTokens: { token } } });
-      return await UserConfig.findOneAndUpdate(
-        { userId },
-        { $addToSet: { deviceTokens: { token, platform, addedAt: new Date() } } },
-        { new: true, upsert: true }
-      );
-    } catch (err) {
-      console.error('❌ addDeviceToken:', err);
-      return null;
-    }
+    await UserConfig.updateOne({ userId }, { $pull: { deviceTokens: { token } } });
+    return await UserConfig.findOneAndUpdate(
+      { userId },
+      { $push: { deviceTokens: { token, platform, addedAt: new Date() } } },
+      { new: true }
+    );
   }
 
-  // ── Priority Time ────────────────────────────────────────────────────────
+  // ── Time helpers ─────────────────────────────────────────────────────────
+
+  /** Current weekday (0-6), "YYYY-MM-DD" and minutes-since-midnight in a timezone. */
+  localNow(timezone, now = new Date()) {
+    let parts;
+    try {
+      parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: timezone || 'UTC',
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', hourCycle: 'h23', weekday: 'short'
+      }).formatToParts(now);
+    } catch {
+      return this.localNow('UTC', now);
+    }
+    const get = type => parts.find(p => p.type === type)?.value;
+    const weekdays = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+    return {
+      day: weekdays[get('weekday')],
+      date: `${get('year')}-${get('month')}-${get('day')}`,
+      minutes: Number(get('hour')) * 60 + Number(get('minute'))
+    };
+  }
+
+  format12Hour(time24) {
+    const [h, m] = time24.split(':').map(Number);
+    const period = h >= 12 ? 'PM' : 'AM';
+    const hour12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+    return `${hour12}:${String(m).padStart(2, '0')} ${period}`;
+  }
+
+  _toMinutes(hhmm) {
+    const [h, m] = (hhmm || '0:0').split(':').map(Number);
+    return h * 60 + m;
+  }
+
+  _inSlot(minutes, start, end) {
+    const s = this._toMinutes(start);
+    const e = this._toMinutes(end);
+    return s <= e ? minutes >= s && minutes < e : minutes >= s || minutes < e;
+  }
 
   /**
-   * Check if user is in priority time mode (DND)
-   * @param {Object} user - UserConfig document
-   * @param {String} callerNumber - Caller's phone number (optional, for emergency bypass check)
-   * @returns {Object} { inPriorityTime: boolean, endTime: string, startTime: string, message: string }
+   * Is the business open right now? Returns { open, todayHours, nextOpen }.
+   * If no hours are configured, the business is treated as always open.
    */
-  isInPriorityTime(user, callerNumber = null) {
-    if (!user?.priorityTime?.enabled && !user?.priorityTime?.quickToggleActive) {
-      return { inPriorityTime: false };
-    }
+  businessHoursStatus(user, now = new Date()) {
+    const hours = user?.businessProfile?.hours || [];
+    if (hours.length === 0) return { configured: false, open: true };
+    const tz = user.businessProfile?.timezone || user.priorityTime?.timezone || 'UTC';
+    const local = this.localNow(tz, now);
+    const today = hours.find(h => h.day === local.day);
+    const open = !!today && !today.closed && this._inSlot(local.minutes, today.open, today.close);
 
-    const { timezone, message, emergencyContacts, recurring, timeSlots, quickToggleActive } = user.priorityTime;
-    
+    let nextOpen = null;
+    if (!open) {
+      for (let i = 0; i < 7; i++) {
+        const day = (local.day + i) % 7;
+        const h = hours.find(x => x.day === day);
+        if (!h || h.closed) continue;
+        if (i === 0 && local.minutes >= this._toMinutes(h.open)) continue;
+        const dayName = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][day];
+        nextOpen = `${i === 0 ? 'today' : i === 1 ? 'tomorrow' : dayName} at ${this.format12Hour(h.open)}`;
+        break;
+      }
+    }
+    return { configured: true, open, todayHours: today, nextOpen };
+  }
+
+  /**
+   * Check if user is in priority time mode (DND).
+   * Emergency contacts always bypass. The manual quick toggle wins over the schedule.
+   */
+  /** Shield mode with auto-expiry ("Focus until 5pm"). */
+  effectiveShield(user, now = new Date()) {
+    const sh = user?.shield;
+    if (!sh?.mode || sh.mode === 'standard') return 'standard';
+    if (sh.until && new Date(sh.until) <= now) return 'standard';
+    return sh.mode;
+  }
+
+  isInPriorityTime(user, callerNumber = null, now = new Date()) {
+    if (this.effectiveShield(user, now) === 'focus') {
+      if (callerNumber && findByPhone(user?.priorityTime?.emergencyContacts, callerNumber)) {
+        return { inPriorityTime: false, bypassReason: 'emergency_contact' };
+      }
+      const until = user.shield.until ? new Date(user.shield.until) : null;
+      const userName = user.name ? user.name.split(' ')[0] : 'The user';
+      const endTime = until ? until.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: user.businessProfile?.timezone || user.priorityTime?.timezone || 'UTC' }) : null;
+      return { inPriorityTime: true, endTime, until: until ? until.toISOString() : null, message: `${userName} is focusing right now${endTime ? ` until ${endTime}` : ''} and can't take calls.`, shield: 'focus' };
+    }
+    const pt = user?.priorityTime;
+    if (!pt?.enabled && !pt?.quickToggleActive) return { inPriorityTime: false };
+
+    const { timezone, message, emergencyContacts, recurring, timeSlots, quickToggleActive } = pt;
+    const userName = user.name ? user.name.split(' ')[0] : 'The user';
+    const render = endTime => (message || DEFAULT_PRIORITY_MESSAGE)
+      .replaceAll('{endTime}', endTime)
+      .replaceAll('{userName}', userName);
+
     try {
-      // Check if caller is in emergency bypass list
-      if (callerNumber && emergencyContacts?.length > 0) {
-        const normalizedCaller = callerNumber.replace(/\D/g, ''); // Remove non-digits
-        const isEmergencyContact = emergencyContacts.some(contact => {
-          const normalizedContact = contact.phoneNumber.replace(/\D/g, '');
-          return normalizedContact === normalizedCaller || 
-                 normalizedCaller.endsWith(normalizedContact) ||
-                 normalizedContact.endsWith(normalizedCaller);
-        });
-        
-        if (isEmergencyContact) {
-          console.log('🚨 Emergency contact bypass - allowing call through');
-          return { inPriorityTime: false, bypassReason: 'emergency_contact' };
-        }
+      if (callerNumber && findByPhone(emergencyContacts, callerNumber)) {
+        return { inPriorityTime: false, bypassReason: 'emergency_contact' };
       }
-      
-      // Get current time in user's timezone
-      const now = new Date();
-      const timeStr = now.toLocaleString('en-US', { 
-        timeZone: timezone || 'Asia/Kolkata',
-        hour12: false 
-      });
-      
-      // Get current day of week (0 = Sunday, 6 = Saturday)
-      const dateStr = now.toLocaleString('en-US', { 
-        timeZone: timezone || 'Asia/Kolkata',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit'
-      });
-      const localDate = new Date(dateStr);
-      const currentDay = localDate.getDay();
-      const currentDateStr = localDate.toISOString().split('T')[0];
-      
-      // Check recurring schedule
-      if (recurring?.enabled) {
-        // Check if today is in the allowed days of week
-        if (!recurring.daysOfWeek?.includes(currentDay)) {
-          console.log(`📅 Not in recurring days - today is ${currentDay}, allowed: ${recurring.daysOfWeek}`);
-          return { inPriorityTime: false };
-        }
-        
-        // Check if today is in excluded dates
-        if (recurring.excludeDates?.includes(currentDateStr)) {
-          console.log(`📅 Date excluded from priority time: ${currentDateStr}`);
-          return { inPriorityTime: false };
-        }
-      }
-      
-      // Extract HH:mm from the localized time string
-      const timeParts = timeStr.match(/(\d{1,2}):(\d{2})/);
-      if (!timeParts) return { inPriorityTime: false };
-      
-      const currentHour = parseInt(timeParts[1]);
-      const currentMinute = parseInt(timeParts[2]);
-      const currentTimeMinutes = currentHour * 60 + currentMinute;
-      
-      // Helper function to check if current time is in a slot
-      const checkTimeSlot = (slot) => {
-        const [startHour, startMinute] = slot.startTime.split(':').map(Number);
-        const [endHour, endMinute] = slot.endTime.split(':').map(Number);
-        const startTimeMinutes = startHour * 60 + startMinute;
-        const endTimeMinutes = endHour * 60 + endMinute;
-        
-        if (startTimeMinutes <= endTimeMinutes) {
-          // Normal case: start < end (e.g., 09:00 to 17:00)
-          return currentTimeMinutes >= startTimeMinutes && currentTimeMinutes < endTimeMinutes;
-        } else {
-          // Overnight case: start > end (e.g., 22:00 to 06:00)
-          return currentTimeMinutes >= startTimeMinutes || currentTimeMinutes < endTimeMinutes;
-        }
-      };
-      
-      // Convert to 12-hour format
-      const format12Hour = (time24) => {
-        const [h, m] = time24.split(':').map(Number);
-        const period = h >= 12 ? 'PM' : 'AM';
-        const hour12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
-        return `${hour12}:${m.toString().padStart(2, '0')} ${period}`;
-      };
-      
-      // Check all time slots
-      if (timeSlots && timeSlots.length > 0) {
-        for (const slot of timeSlots) {
-          if (checkTimeSlot(slot)) {
-            const endTime12 = format12Hour(slot.endTime);
-            const userName = user.name ? user.name.split(' ')[0] : 'The user';
-            
-            // Replace placeholders in message
-            const customMessage = message
-              ?.replace('{endTime}', endTime12)
-              .replace('{userName}', userName) || 
-              `${userName} is currently unavailable due to important work and cannot take calls. They will be available after ${endTime12}. Please leave your details and they will get back to you.`;
-            
-            return {
-              inPriorityTime: true,
-              endTime: endTime12,
-              startTime: slot.startTime,
-              slotLabel: slot.label,
-              message: customMessage
-            };
-          }
-        }
-      }
-      
-      // If quick toggle is active but no time slots match, still respect the toggle
+
       if (quickToggleActive) {
-        const userName = user.name ? user.name.split(' ')[0] : 'The user';
-        const customMessage = message
-          ?.replace('{endTime}', 'later')
-          .replace('{userName}', userName) || 
-          `${userName} is currently unavailable and cannot take calls. Please leave your details and they will get back to you.`;
-        
-        return {
-          inPriorityTime: true,
-          endTime: null,
-          startTime: null,
-          message: customMessage,
-          quickToggle: true
-        };
+        return { inPriorityTime: true, endTime: null, startTime: null, message: render('later'), quickToggle: true };
       }
-      
+
+      const local = this.localNow(timezone, now);
+      if (recurring?.enabled) {
+        if (!recurring.daysOfWeek?.includes(local.day)) return { inPriorityTime: false };
+        if (recurring.excludeDates?.includes(local.date)) return { inPriorityTime: false };
+      }
+
+      for (const slot of timeSlots || []) {
+        if (this._inSlot(local.minutes, slot.startTime, slot.endTime)) {
+          const endTime12 = this.format12Hour(slot.endTime);
+          return {
+            inPriorityTime: true,
+            endTime: endTime12,
+            startTime: slot.startTime,
+            slotLabel: slot.label,
+            message: render(endTime12)
+          };
+        }
+      }
       return { inPriorityTime: false };
     } catch (err) {
       console.error('❌ isInPriorityTime error:', err);

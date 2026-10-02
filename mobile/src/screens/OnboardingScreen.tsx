@@ -73,6 +73,24 @@ const OnboardingScreen = ({ navigation }: any) => {
     }
   };
 
+  /** Go to Main; if a call is live (arrived during onboarding), reopen its screen. */
+  const finishOnboarding = () => {
+    navigation.replace('Main');
+    const snap = transcriptStore.getSnapshot();
+    const meta = snap.ended ? null : snap.meta;
+    if (meta) {
+      setTimeout(() => {
+        navigation.navigate('IncomingCall', {
+          callId: meta.callId,
+          callerNumber: meta.callerNumber,
+          callerName: meta.callerName || meta.callerNumber,
+          isVIP: meta.isVIP || false,
+          inPriorityTime: meta.inPriorityTime || false,
+        });
+      }, 300);
+    }
+  };
+
   // ── Save name step ────────────────────────────────────────────────────────
   const saveNameStep = async () => {
     if (!name.trim()) {
@@ -111,19 +129,7 @@ const OnboardingScreen = ({ navigation }: any) => {
       if (isEditMode) {
         navigation.goBack();
       } else {
-        navigation.replace('Main');
-        // If a call arrived during onboarding, open the live screen now
-        const activeCallId = transcriptStore.getActiveCallId();
-        if (activeCallId) {
-          setTimeout(() => {
-            navigation.navigate('IncomingCall', {
-              callId: activeCallId,
-              callerNumber: 'Unknown',
-              callerName: undefined,
-              isVIP: false,
-            });
-          }, 300);
-        }
+        finishOnboarding();
       }
     } catch (err: any) {
       Alert.alert('Error', err.message || 'Failed to save address. Please try again.');
@@ -137,18 +143,7 @@ const OnboardingScreen = ({ navigation }: any) => {
     if (isEditMode) {
       navigation.goBack();
     } else {
-      navigation.replace('Main');
-      const activeCallId = transcriptStore.getActiveCallId();
-      if (activeCallId) {
-        setTimeout(() => {
-          navigation.navigate('IncomingCall', {
-            callId: activeCallId,
-            callerNumber: 'Unknown',
-            callerName: undefined,
-            isVIP: false,
-          });
-        }, 300);
-      }
+      finishOnboarding();
     }
   };
 

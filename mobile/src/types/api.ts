@@ -76,6 +76,37 @@ export interface PriorityTime {
   quickToggleActive: boolean;
 }
 
+// ─── Business Profile (SME receptionist mode) ───────────────────────────────
+
+export interface BusinessHours {
+  day: number;            // 0 = Sunday … 6 = Saturday
+  open: string;           // "HH:mm"
+  close: string;          // "HH:mm"
+  closed: boolean;
+}
+
+export interface BusinessFAQ {
+  question: string;
+  answer: string;
+}
+
+export interface BusinessProfile {
+  businessName: string;
+  industry: string;
+  description: string;
+  website: string;
+  email: string;
+  bookingUrl: string;
+  address: string;
+  services: string[];
+  faqs: BusinessFAQ[];
+  hours: BusinessHours[];
+  afterHoursMessage: string;
+  transferNumber: string;
+}
+
+export type AccountType = 'personal' | 'business';
+
 // ─── User Config (from GET /api/users/config) ───────────────────────────────
 
 export interface UserConfig {
@@ -85,6 +116,9 @@ export interface UserConfig {
   about: string;
   phoneNumber?: string;
   twilioNumber?: string;
+  accountType?: AccountType;
+  onboardingCompleted?: boolean;
+  businessProfile?: BusinessProfile;
   deliveryAddress?: DeliveryAddress;
   aiSettings: AISettings;
   callCategories: CallCategory[];
@@ -96,6 +130,47 @@ export interface UserConfig {
   deviceTokens?: { token: string; platform: 'ios' | 'android'; addedAt: string }[];
   createdAt?: string;
   updatedAt?: string;
+}
+
+/**
+ * Fields accepted by PUT /api/users/config (server-side whitelist).
+ * Everything else has a dedicated endpoint.
+ */
+export interface UpdatableUserConfig {
+  name?: string;
+  about?: string;
+  businessProfile?: Partial<BusinessProfile>;
+  aiSettings?: Partial<AISettings>;
+  deliveryAddress?: Partial<DeliveryAddress>;
+  unknownCallerAction?: UserConfig['unknownCallerAction'];
+  escalationKeywords?: string[];
+  accountType?: AccountType;
+}
+
+// ─── Auth (OTP) ─────────────────────────────────────────────────────────────
+
+export interface AuthTokens {
+  token: string;
+  refreshToken: string;
+}
+
+export interface AuthUser {
+  userId: string;
+  phoneNumber: string;
+  name?: string;
+  isNewUser?: boolean;
+}
+
+/** POST /api/auth/otp/request */
+export interface OtpRequestResponse {
+  sent: boolean;
+  /** Only present when the backend runs in dev mode — may be used to prefill the code. */
+  devCode?: string;
+}
+
+/** POST /api/auth/otp/verify */
+export interface OtpVerifyResponse extends AuthTokens {
+  user: AuthUser;
 }
 
 // ─── Transcript Entry (from Call.transcript) ────────────────────────────────
@@ -206,9 +281,12 @@ export interface CallDetailResponse {
 
 // ─── Socket.io Events (from backend) ────────────────────────────────────────
 
+/** 'user' = the owner speaking after takeover, 'system' = status notes. */
+export type LiveSpeaker = 'caller' | 'ai' | 'user' | 'system';
+
 export interface SocketTranscriptEvent {
   callId: string;
-  speaker: 'caller' | 'ai';
+  speaker: LiveSpeaker;
   text: string;
   timestamp: string;
 }
@@ -232,19 +310,32 @@ export interface SocketCallStartedEvent {
   suppressNotification?: boolean; // true = AI handles silently, no ringing/notification
 }
 
+export interface SocketTranscriptClearEvent {
+  callId: string;
+  timestamp: string;
+}
+
+export interface SocketCallerNameEvent {
+  callId: string;
+  callerName: string;
+  timestamp: string;
+}
+
 export interface SocketCallEndedEvent {
   callId: string;
+  from?: string;
   duration: number;
+  status?: string;
+  transcriptCount?: number;
   summary?: string;
-  categoryId?: string;
-  categoryLabel?: string;
+  timestamp?: string;
 }
 
 export interface SocketCallIntentEvent {
   callId: string;
-  categoryId: string;
-  categoryLabel: string;
+  intent: string;
   confidence: number;
+  timestamp: string;
 }
 
 export interface SocketCallTakeoverEvent {

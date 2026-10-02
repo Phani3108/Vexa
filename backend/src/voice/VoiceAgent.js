@@ -12,6 +12,21 @@
 import WebSocket from 'ws';
 import twilio from 'twilio';
 import { EventEmitter } from 'events';
+import { realtimeConnection } from '../lib/openai.js';
+import ConversationAnalyzer, { NAME_INTRO } from './ConversationAnalyzer.js';
+import { takeTurn, whisper as flowWhisper } from '../workflows/callSession.js';
+import { CallRecorder } from '../lib/recorder.js';
+
+const VALID_VOICES = ['alloy', 'echo', 'shimmer', 'ash', 'ballad', 'coral', 'sage', 'verse'];
+
+const SPOKEN = { en: 'English', hi: 'Hindi', te: 'Telugu', ta: 'Tamil', ml: 'Malayalam', mr: 'Marathi', gu: 'Gujarati', es: 'Spanish' };
+
+/** The engine writes English; the realtime voice speaks it in the caller's current language. */
+function speakInstruction(text, lang = 'en') {
+  const line = text.replace(/"/g, "'");
+  if (!lang || lang === 'en') return `Say the following to the caller, naturally and warmly, without adding or removing information:\n"${line}"`;
+  return `The caller is speaking ${SPOKEN[lang] || lang}. Say the following to them in natural, conversational ${SPOKEN[lang] || lang} (keep names, addresses, numbers, prices and common English words like OTP or booking as they are). Do not add or remove information:\n"${line}"`;
+}
 
 class VoiceAgent extends EventEmitter {
   constructor(config, socketIO = null) {
@@ -40,8 +55,10 @@ class VoiceAgent extends EventEmitter {
       maxResponseTokens: 4096
     };
 
+    this.quickDetector = new ConversationAnalyzer({});  // keyword-only, used for live hints
+
     console.log('✅ VoiceAgent initialized');
-    console.log(`   Azure Endpoint: ${this.azureEndpoint}`);
+    console.log(`   Realtime: ${this.azureEndpoint ? 'Azure OpenAI ' + this.azureEndpoint : 'api.openai.com'}`);
     console.log(`   Twilio Number: ${this.twilioPhoneNumber}`);
   }
 
@@ -80,14 +97,8 @@ class VoiceAgent extends EventEmitter {
     
     // Set up OpenAI Realtime connection
     const setupAzureConnection = async () => {
-      const azureWsUrl = `${this.azureEndpoint.replace('https://', 'wss://')}/openai/realtime?api-version=2024-10-01-preview&deployment=${this.deploymentName}`;
-      
-      azureWs = new WebSocket(azureWsUrl, {
-        headers: {
-          'api-key': this.azureApiKey,
-          'OpenAI-Beta': 'realtime=v1'
-        }
-      });
+      const { url, headers } = realtimeConnection(this.config);
+      azureWs = new WebSocket(url, { headers });
       
       azureWs.on('open', () => {
         console.log('🔗 Connected to OpenAI Realtime API');
@@ -142,7 +153,8 @@ class VoiceAgent extends EventEmitter {
               callContext.currentTranscript = '';
               this._emitTranscriptClear(callContext);
             }
-            this.checkForNaturalEnd(callContext);
+            if (callContext.flowSession) this._afterFlowSpeech(callContext);
+            else this.checkForNaturalEnd(callContext);
           }
           
           if (response.type === 'error') {
@@ -167,6 +179,7 @@ class VoiceAgent extends EventEmitter {
           
           // Forward audio to Twilio
           if (response.type === 'response.audio.delta' && response.delta) {
+            callContext?.recorder?.addOutbound(response.delta, latestMediaTimestamp);
             const audioDelta = {
               event: 'media',
               streamSid: streamSid,
@@ -299,6 +312,8 @@ class VoiceAgent extends EventEmitter {
 
             // Emit to mobile app via Socket.io
             this.emitTranscript(callContext, transcriptEntry);
+            if (callContext.flowSession) this._flowTurn(callContext, rawTranscript);
+            else this._detectLiveSignals(callContext, rawTranscript);
           }
           
           // AI transcript completed
@@ -310,8 +325,10 @@ class VoiceAgent extends EventEmitter {
             const transcriptEntry = {
               speaker: 'assistant',
               text: fullText,
+              ...(callContext.pendingAi || {}),
               timestamp: new Date().toISOString()
             };
+            callContext.pendingAi = null;
             callContext.transcripts.push(transcriptEntry);
             this.emitTranscript(callContext, transcriptEntry);
           }
@@ -354,6 +371,9 @@ class VoiceAgent extends EventEmitter {
           if (callContext) {
             callContext.twilioWs = ws;
             callContext.streamSid = streamSid;
+            // Record both sides unless the owner turned recording off (flow sessions carry the setting)
+            const wantsRecording = callContext.flowSession ? callContext.flowSession.recording : callContext.context?.user?.recording?.enabled !== false;
+            if (wantsRecording && !callContext.recorder) callContext.recorder = new CallRecorder(callSid);
             callContext.status = 'connected';
 
             // ── Context summary log ────────────────────────────────────
@@ -406,6 +426,7 @@ class VoiceAgent extends EventEmitter {
         }
         else if (data.event === 'media' && azureWs && azureWs.readyState === WebSocket.OPEN) {
           latestMediaTimestamp = data.media.timestamp;
+          if (!data.media.track || data.media.track === 'inbound') callContext?.recorder?.addInbound(data.media.payload, data.media.timestamp);
           
           // Forward audio to Azure
           const audioAppend = {
@@ -493,6 +514,7 @@ class VoiceAgent extends EventEmitter {
           }
           
           // Clear Twilio's audio buffer
+          callContext?.recorder?.clearOutboundAfter(latestMediaTimestamp);
           ws.send(JSON.stringify({
             event: 'clear',
             streamSid: streamSid
@@ -542,12 +564,15 @@ class VoiceAgent extends EventEmitter {
       return;
     }
     
+    const userVoice = callContext.context?.user?.aiSettings?.voice;
+    const voice = VALID_VOICES.includes(userVoice) ? userVoice : this.voiceConfig.voice;
+
     const sessionUpdate = {
       type: 'session.update',
       session: {
         modalities: ['text', 'audio'],
         instructions: callContext.systemPrompt,
-        voice: this.voiceConfig.voice,
+        voice,
         input_audio_format: this.voiceConfig.inputAudioFormat,
         output_audio_format: this.voiceConfig.outputAudioFormat,
         input_audio_transcription: {
@@ -562,7 +587,10 @@ class VoiceAgent extends EventEmitter {
           type: 'server_vad',
           threshold: 0.6,           // Raised from 0.5 — fewer false triggers on background noise
           prefix_padding_ms: 300,
-          silence_duration_ms: 1000 // 1s silence ends the turn
+          silence_duration_ms: callContext.flowSession ? 700 : 1000,
+          // Flow-driven calls: the workflow engine decides every reply, so the
+          // model must not auto-respond when the caller stops talking.
+          ...(callContext.flowSession ? { create_response: false, interrupt_response: true } : {})
         },
         temperature: this.voiceConfig.temperature,
         max_response_output_tokens: this.voiceConfig.maxResponseTokens
@@ -570,7 +598,7 @@ class VoiceAgent extends EventEmitter {
     };
     
     console.log('⚙️ Configuring Azure session...');
-    console.log(`   Voice: ${this.voiceConfig.voice}`);
+    console.log(`   Voice: ${voice}`);
     console.log(`   Prompt length: ${callContext.systemPrompt?.length || 0} chars`);
     console.log(`   Greeting: "${callContext.initialGreeting}"`);
     azureWs.send(JSON.stringify(sessionUpdate));
@@ -722,7 +750,8 @@ class VoiceAgent extends EventEmitter {
     this.emit('call:takeover-needed', {
       callSid,
       userId,
-      userPhoneNumber: userId,           // owner's phone = the number to dial
+      // Business accounts can route transfers to a front-desk number; default is the owner's phone
+      userPhoneNumber: callContext.context?.user?.businessProfile?.transferNumber || userId,
       callerName:   callContext.context?.callerName || 'Unknown',
       callerNumber: callContext.from,
       detectedCategory,
@@ -774,7 +803,7 @@ class VoiceAgent extends EventEmitter {
       from,
       to,
       userId: context.userId,  // For Socket.io room targeting
-      direction: 'incoming',
+      direction: context.isOutbound ? 'outgoing' : 'incoming',
       systemPrompt,
       initialGreeting,
       context,  // Previous call history, user info, etc.
@@ -784,6 +813,9 @@ class VoiceAgent extends EventEmitter {
       transcripts: [],
       currentTranscript: '',
       greetingSent: false,   // prevents duplicate greetings if session.updated fires twice
+      flowSession: context.flowSession || null,
+      pendingAi: context.flowSession ? { textEn: context.flowSession.greeting.sayEn, lang: context.flowSession.greeting.language } : null,
+      flowEndAction: context.flowSession?.greeting?.transfer ? 'transfer' : null,
       isEnding: false,
       isTakenOver: false,   // true once user joins via conference
       twilioWs: null,
@@ -870,6 +902,10 @@ class VoiceAgent extends EventEmitter {
       startTime: callContext.startTime,
       endTime,
       transcripts: callContext.transcripts || [],
+      takenOver: !!callContext.isTakenOver,
+      recording: (() => {
+        try { return callContext.recorder?.save() || null; } catch (err) { console.error('Recording save failed:', err.message); return null; }
+      })(),
       context: callContext.context
     };
     
@@ -908,6 +944,135 @@ class VoiceAgent extends EventEmitter {
   // Socket.io Event Emitters
   // ============================================
 
+  // ── Flow-driven conversation ──────────────────────────────────────────
+
+  /** Speak exact text through the realtime voice (keeps the caller's language). */
+  _speak(callContext, text) {
+    const ws = callContext.azureWs;
+    if (!text || !ws || ws.readyState !== WebSocket.OPEN) return;
+    ws.send(JSON.stringify({
+      type: 'response.create',
+      response: {
+        modalities: ['text', 'audio'],
+        instructions: speakInstruction(text, callContext.speakLanguage)
+      }
+    }));
+  }
+
+  /** One caller turn → workflow engine → speak the reply. Turns are serialized per call. */
+  _flowTurn(callContext, text) {
+    callContext.turnChain = (callContext.turnChain || Promise.resolve()).then(async () => {
+      if (callContext.isEnding) return;
+      try {
+        // Live calls: the realtime voice renders the English line in the caller's language
+        const result = await takeTurn(callContext.flowSession, text, { translate: false });
+        // Bilingual transcript: annotate the caller's line, and remember the English of our reply
+        const callerLine = [...callContext.transcripts].reverse().find(l => l.speaker === 'user');
+        if (callerLine && result.heard) {
+          callerLine.lang = result.heard.language;
+          if (result.heard.translation) callerLine.textEn = result.heard.translation;
+          this.io?.to(`user:${callContext.userId}`).emit('call:language', { callId: callContext.callSid, lang: result.heard.language, textEn: result.heard.translation });
+        }
+        callContext.pendingAi = { textEn: result.sayEn || result.say, lang: result.language || 'en' };
+        callContext.speakLanguage = result.language || 'en';
+        this._applyFlowResult(callContext, result);
+      } catch (err) {
+        console.error('❌ Flow turn failed, falling back to free conversation:', err.message);
+        this._speak(callContext, "Sorry, could you say that once more?");
+      }
+    });
+  }
+
+  _applyFlowResult(callContext, result) {
+    if (result.end) callContext.flowEndAction = result.transfer ? 'transfer' : 'end';
+    if (result.workflow && callContext.context && callContext.context.detectedCategory !== result.workflow.id) {
+      callContext.context.detectedCategory = result.workflow.id;
+    }
+    this.io?.to(`user:${callContext.userId}`).emit('call:flow', {
+      callId: callContext.callSid,
+      workflow: result.workflow,
+      slots: result.slots,
+      progress: result.progress,
+      asked: result.asked,
+      ended: !!result.end,
+      transfer: !!result.transfer
+    });
+    if (result.say) this._speak(callContext, result.say);
+    else if (result.end) this._afterFlowSpeech(callContext);
+  }
+
+  /** After the receptionist finishes speaking: hang up or transfer if the flow ended. */
+  _afterFlowSpeech(callContext) {
+    const action = callContext.flowEndAction;
+    if (!action || callContext.isEnding) return;
+    callContext.isEnding = true;
+    if (action === 'transfer') {
+      setTimeout(() => this._initiateAITakeover(callContext), 1200);
+      return;
+    }
+    callContext.pendingHangup = true;
+    callContext.pendingHangupTimer = setTimeout(() => {
+      if (callContext.pendingHangup) {
+        callContext.pendingHangup = false;
+        this._hangupCall(callContext);
+      }
+    }, 8000);
+  }
+
+  /** Owner steering from the app while the call is live. */
+  async whisper(callSid, payload) {
+    const callContext = this.activeCalls.get(callSid);
+    if (!callContext?.flowSession || callContext.isEnding) return null;
+    const result = await flowWhisper(callContext.flowSession, payload);
+    callContext.pendingAi = { textEn: result.sayEn || result.say, lang: result.language || 'en' };
+    this.emitSystemTranscript(callContext, `🗣️ You: ${payload.text || payload.action}`);
+    this._applyFlowResult(callContext, result);
+    return result;
+  }
+
+  /**
+   * Live hints while the call is in progress:
+   *   - first keyword-matched category → call:intent (mobile/web shows a badge)
+   *   - escalation keyword → 'call:urgent' (voice.js sends an urgent push)
+   */
+  _detectLiveSignals(callContext, text) {
+    const user = callContext.context?.user;
+    if (!user) return;
+
+    if (!callContext.context.detectedCategory) {
+      const hit = this.quickDetector.detectCategoryQuick(text, user.callCategories || []);
+      if (hit) {
+        callContext.context.detectedCategory = hit.categoryId;
+        if (this.io) {
+          this.io.to(`user:${callContext.userId}`).emit('call:intent', {
+            callId: callContext.callSid,
+            categoryId: hit.categoryId,
+            categoryLabel: hit.categoryLabel,
+            intent: hit.categoryId,
+            confidence: hit.confidence,
+            timestamp: new Date().toISOString()
+          });
+        }
+      }
+    }
+
+    if (!callContext.urgentNotified) {
+      const lower = text.toLowerCase();
+      const keywords = user.escalationKeywords || [];
+      const keyword = keywords.find(k => k && lower.includes(k.toLowerCase()));
+      if (keyword) {
+        callContext.urgentNotified = true;
+        this.emit('call:urgent', {
+          callId: callContext.callSid,
+          userId: callContext.userId,
+          callerName: callContext.context?.callerName || 'Unknown',
+          callerNumber: callContext.from,
+          reason: `Caller said "${keyword}": ${text.slice(0, 100)}`
+        });
+      }
+    }
+  }
+
   /**
    * Best-effort real-time name extraction from a single transcript line.
    * Returns the name string, or null if not found.
@@ -919,9 +1084,8 @@ class VoiceAgent extends EventEmitter {
     // Require the matched name to be a proper capitalized word, NOT a preposition/article.
     const STOP_WORDS = /^(the|a|an|from|at|in|on|for|with|calling|i|am|is|my|this)$/i;
 
-    const introMatch = text.match(
-      /(?:i(?:'?m| am)|this is|my name is|it'?s|name'?s)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/i
-    );
+    // Case-sensitive name capture: "I'm interested" must not become a name
+    const introMatch = text.match(NAME_INTRO);
     if (introMatch) {
       const candidate = introMatch[1].trim();
       // Reject if any word is a stop word (e.g. "calling from")
@@ -986,7 +1150,9 @@ class VoiceAgent extends EventEmitter {
       timestamp: callContext.startTime.toISOString(),
       isVIP,
       inPriorityTime,
-      suppressNotification  // if true, mobile app skips notification/ringing
+      suppressNotification,  // if true, mobile app skips notification/ringing
+      risk: callContext.flowSession?.risk || null,
+      workflow: callContext.flowSession?.engine?.active ? { id: callContext.flowSession.engine.active.id, name: callContext.flowSession.engine.active.name } : null
     });
     
     console.log(`📱 Emitted call:started to user:${userId} (VIP=${isVIP}, suppress=${suppressNotification})`);
@@ -1051,6 +1217,8 @@ class VoiceAgent extends EventEmitter {
       callId: callContext.callSid,
       speaker,
       text: transcriptEntry.text,
+      lang: transcriptEntry.lang,
+      textEn: transcriptEntry.textEn,
       timestamp: transcriptEntry.timestamp
     });
   }

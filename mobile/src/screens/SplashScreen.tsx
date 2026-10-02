@@ -1,19 +1,15 @@
 
-import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated, Dimensions } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, Text, StyleSheet, Animated } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import { useAuth } from '../contexts/AuthContext';
-
-type RootStackParamList = {
-  Splash: undefined;
-  Login: undefined;
-  Main: undefined;
-};
+import type { RootStackParamList } from '../navigation/AppNavigator';
 
 type NavigationProp = StackNavigationProp<RootStackParamList, 'Splash'>;
 
-const { width } = Dimensions.get('window');
+/** Minimum time the splash stays up so the animation can play. */
+const MIN_SPLASH_MS = 2500;
 
 const SplashScreen = () => {
   const navigation = useNavigation<NavigationProp>();
@@ -22,9 +18,11 @@ const SplashScreen = () => {
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
   const companyFadeAnim = useRef(new Animated.Value(0)).current;
+  const [minTimeElapsed, setMinTimeElapsed] = useState(false);
 
+  // Animations run once on mount (previously they restarted whenever auth
+  // state changed because they shared an effect with navigation).
   useEffect(() => {
-    // Main logo animation
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -45,7 +43,7 @@ const SplashScreen = () => {
     ]).start();
 
     // Company name fade in after logo
-    setTimeout(() => {
+    const companyTimer = setTimeout(() => {
       Animated.timing(companyFadeAnim, {
         toValue: 1,
         duration: 600,
@@ -53,15 +51,20 @@ const SplashScreen = () => {
       }).start();
     }, 400);
 
-    // Navigate after animations — check auth state
-    const timer = setTimeout(() => {
-      if (!isLoading) {
-        navigation.replace(isLoggedIn ? 'Main' : 'Login');
-      }
-    }, 3000);
+    const minTimer = setTimeout(() => setMinTimeElapsed(true), MIN_SPLASH_MS);
 
-    return () => clearTimeout(timer);
-  }, [navigation, isLoading, isLoggedIn, fadeAnim, scaleAnim, slideAnim, companyFadeAnim]);
+    return () => {
+      clearTimeout(companyTimer);
+      clearTimeout(minTimer);
+    };
+  }, [fadeAnim, scaleAnim, slideAnim, companyFadeAnim]);
+
+  // Navigate once auth has loaded AND the minimum splash time has passed.
+  useEffect(() => {
+    if (minTimeElapsed && !isLoading) {
+      navigation.replace(isLoggedIn ? 'Main' : 'Login');
+    }
+  }, [minTimeElapsed, isLoading, isLoggedIn, navigation]);
 
   return (
     <View style={styles.container}>

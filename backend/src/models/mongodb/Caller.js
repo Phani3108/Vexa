@@ -9,11 +9,13 @@
 import mongoose from 'mongoose';
 
 const callerSchema = new mongoose.Schema({
-  userId: { type: String, required: true, index: true },
-  phoneNumber: { type: String, required: true, index: true },
+  userId: { type: String, required: true },
+  phoneNumber: { type: String, required: true },
 
   // Discovered info
   callerName: { type: String, default: 'Unknown' },
+  // true once the owner edits the name — AI guesses then stop overwriting it
+  nameLockedByUser: { type: Boolean, default: false },
   organization: String,                     // e.g. "Swiggy", "Amazon"
   relationship: String,                     // e.g. "delivery", "personal", "business"
 
@@ -34,7 +36,16 @@ const callerSchema = new mongoose.Schema({
   notes: String,
 
   // Custom tags set by the user (e.g. ["trusted", "noisy"])
-  tags: [String]
+  tags: [String],
+
+  // Messages the owner wants delivered next time this person calls
+  instructions: [{ text: String, once: { type: Boolean, default: true }, createdAt: { type: Date, default: Date.now } }],
+  // Owner rule: always put this caller straight through (unless in Focus)
+  alwaysTransfer: { type: Boolean, default: false },
+
+  // Spam signals (updated after every call)
+  spamCount: { type: Number, default: 0 },
+  shortCalls: { type: Number, default: 0 }
 
 }, { timestamps: true });
 

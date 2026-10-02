@@ -14,7 +14,7 @@ import { CallListItem } from '../types/api';
 function getDisplayStatus(call: CallListItem): string {
   if (call.status === 'completed') {return 'SCREENED';}
   if (call.status === 'in-progress') {return 'LIVE';}
-  return call.status.toUpperCase();
+  return (call.status || 'unknown').toUpperCase();
 }
 
 /** Pick an icon + colour based on category */
@@ -32,8 +32,10 @@ function getCategoryVisuals(categoryId?: string): { icon: string; iconColor: str
 }
 
 /** Format date to a section header like "TODAY", "YESTERDAY", or "Feb 20" */
-function getSectionLabel(dateStr: string): string {
+function getSectionLabel(dateStr?: string): string {
+  if (!dateStr) {return 'EARLIER';}
   const d = new Date(dateStr);
+  if (isNaN(d.getTime())) {return 'EARLIER';}
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const callDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -44,7 +46,8 @@ function getSectionLabel(dateStr: string): string {
 }
 
 /** Format time like "12:45 PM" */
-function formatTime(dateStr: string): string {
+function formatTime(dateStr?: string): string {
+  if (!dateStr) {return '';}
   return new Date(dateStr).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true });
 }
 
@@ -60,7 +63,7 @@ const mockCalls = [
 */
 
 const CallHistoryScreen = ({ navigation }: any) => {
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
   const [calls, setCalls] = useState<CallListItem[]>([]);
@@ -89,11 +92,16 @@ const CallHistoryScreen = ({ navigation }: any) => {
 
   // Also refresh when a call ends
   useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
     const onCallEnded = () => {
-      setTimeout(() => fetchCalls(), 1500);
+      if (timer) {clearTimeout(timer);}
+      timer = setTimeout(() => fetchCalls(), 1500);
     };
     socketService.on('call:ended', onCallEnded);
-    return () => { socketService.off('call:ended', onCallEnded); };
+    return () => {
+      if (timer) {clearTimeout(timer);}
+      socketService.off('call:ended', onCallEnded);
+    };
   }, [fetchCalls]);
 
   // ── Status style (matches backend status values) ──────────────────────────
@@ -122,7 +130,7 @@ const CallHistoryScreen = ({ navigation }: any) => {
     const displayStatus = getDisplayStatus(item);
     const statusStyle = getStatusStyle(displayStatus);
     const visuals = getCategoryVisuals(item.categoryId);
-    const callerName = item.callerName || item.from;
+    const callerName = item.callerName || item.from || 'Unknown caller';
     const summary = item.summary || 'No summary available';
 
     return (
@@ -165,12 +173,12 @@ const CallHistoryScreen = ({ navigation }: any) => {
     const matchesFilter =
       activeFilter === 'All' ||
       (activeFilter === 'Screened' && displayStatus === 'SCREENED');
-    const callerName = call.callerName || call.from;
+    const callerName = call.callerName || call.from || '';
     const summary = call.summary || '';
     const matchesSearch =
       searchQuery === '' ||
       callerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      call.from.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (call.from || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
       summary.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesFilter && matchesSearch;
   });

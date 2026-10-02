@@ -17,6 +17,8 @@
  *   callInfo    — { isOutbound, additionalContext }
  */
 
+import { findByPhone } from '../lib/phone.js';
+
 class PromptGenerator {
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -28,7 +30,7 @@ class PromptGenerator {
     return text
       .replace(/\r?\n/g, ' ')                // flatten newlines
       .replace(/[#*`~>|]/g, '')              // strip markdown-like control chars
-      .replace(/\b(system|ignore previous|disregard|new instructions?|you are now|act as|pretend)\b/gi, '[REDACTED]')
+      .replace(/\b(ignore (all )?(previous|prior|above) instructions?|disregard (all )?(previous|prior|above)|new instructions?:|you are now|system prompt)\b/gi, '[REDACTED]')
       .slice(0, maxLen)
       .trim();
   }
@@ -42,10 +44,24 @@ class PromptGenerator {
   // Entry points
   // ─────────────────────────────────────────────────────────────────────────
 
+  isBusiness(user) {
+    return user?.accountType === 'business';
+  }
+
+  // Name the AI introduces itself on behalf of: the business, or the person.
+  principal(user) {
+    if (this.isBusiness(user)) {
+      return this._sanitizeName(user.businessProfile?.businessName || user.name);
+    }
+    return this._sanitizeName(user.name);
+  }
+
   generateSystemPrompt(user, callerCtx = null, callInfo = {}) {
     const parts = [
-      this._identity(user, callInfo),
+      this.isBusiness(user) ? this._businessIdentity(user, callInfo) : this._identity(user, callInfo),
       this._priorityTimeSection(callInfo),
+      this._afterHoursSection(user, callInfo),
+      this._businessKnowledge(user),
       this._categoryRules(user),
       this._addressSection(user),
       this._vipSection(user, callerCtx, callInfo),
@@ -61,6 +77,14 @@ class PromptGenerator {
     const custom = user.aiSettings?.greeting;
     if (custom) return custom;
 
+    if (this.isBusiness(user)) {
+      const biz = this.principal(user);
+      if (callerCtx?.callerName && callerCtx.callerName !== 'Unknown') {
+        return `Thanks for calling ${biz}! Hi ${callerCtx.callerName.split(' ')[0]}, good to hear from you again. How can I help today?`;
+      }
+      return `Thanks for calling ${biz}! This is the virtual receptionist. How can I help you today?`;
+    }
+
     if (callerCtx && callerCtx.callerName && callerCtx.callerName !== 'Unknown') {
       const cFirst = callerCtx.callerName.split(' ')[0];
       return `Hello ${cFirst}! This is ${firstName}'s assistant. How can I help you today?`;
@@ -71,7 +95,7 @@ class PromptGenerator {
   }
 
   generateOutboundGreeting(user, callerCtx = null, callerName = null) {
-    const firstName = (user.name || 'User').split(' ')[0];
+    const firstName = this.isBusiness(user) ? this.principal(user) : (user.name || 'User').split(' ')[0];
     const name = callerName || callerCtx?.callerName;
 
     if (name && name !== 'Unknown') {
@@ -114,6 +138,79 @@ ${isOutbound && callInfo.additionalContext ? `REASON FOR CALLING: ${this._saniti
 - **Never switch to a different language on your own.** Only switch if the caller switches first.
 - **Addresses, proper nouns, and technical terms** may stay in English even in a Hindi/Telugu response — that is natural.
 - **Urdu script is NOT used** — if responding in Hindi, always use Devanagari (\u0939\u093f\u0902\u0926\u0940 \u0932\u093f\u092a\u093f), not Nastaliq/Arabic script.`;
+  }
+
+
+  _businessIdentity(user, callInfo) {
+    const biz = this.principal(user);
+    const p = user.businessProfile || {};
+    const isOutbound = callInfo.isOutbound || false;
+    const description = this._sanitize(p.description || user.about, 500);
+
+    return `## YOUR ROLE
+You are the friendly, efficient virtual receptionist for ${biz}${p.industry && p.industry !== 'other' ? ` (${p.industry.replace(/_/g, ' ')})` : ''}.
+${description ? `About the business: ${description}` : ''}
+
+CALL TYPE: ${isOutbound ? 'OUTBOUND — you are calling on behalf of ' + biz : 'INCOMING — a caller has phoned the business'}
+${isOutbound && callInfo.additionalContext ? `REASON FOR CALLING: ${this._sanitize(callInfo.additionalContext, 300)}` : ''}
+
+## FUNDAMENTAL RULES
+1. You speak DIRECTLY to the caller. The owner and staff are not on this call.
+2. Your goals, in order: (a) handle emergencies, (b) answer questions using ONLY the business information below, (c) capture every potential customer as a lead — name, what they need, best time to call back, (d) keep spam short.
+3. Keep each response to 1-2 short sentences. Ask ONE question at a time.
+4. Never invent prices, availability, policies or appointment slots. If it's not in the business information, say the team will confirm when they call back.
+5. Never confirm a booking yourself — collect the preferred date and time and say the team will confirm.
+6. You can say you are a virtual assistant if asked. Never claim to be a human.
+7. Tone: ${user.aiSettings?.tone || 'warm, professional and concise'}.
+
+## LANGUAGE RULES
+- Mirror the caller's language. If they switch languages, switch with them.
+- Never switch language on your own.
+- Proper nouns, addresses and prices may stay in English.`;
+  }
+
+  _businessKnowledge(user) {
+    if (!this.isBusiness(user)) return '';
+    const p = user.businessProfile || {};
+    const lines = ['## BUSINESS INFORMATION (the only facts you may state)'];
+
+    if (p.address) lines.push(`Address: ${this._sanitize(p.address, 200)}`);
+    if (p.website) lines.push(`Website: ${this._sanitize(p.website, 120)}`);
+    if (p.email) lines.push(`Email: ${this._sanitize(p.email, 120)}`);
+    if (p.bookingUrl) lines.push(`Online booking: ${this._sanitize(p.bookingUrl, 200)} — offer this when someone wants to book.`);
+
+    const hours = this._formatHours(p.hours);
+    if (hours) lines.push(`Opening hours (${p.timezone || 'local time'}):\n${hours}`);
+
+    if (p.services?.length) {
+      lines.push(`Services offered:\n${p.services.slice(0, 40).map(sv => `- ${this._sanitize(sv, 150)}`).join('\n')}`);
+    }
+    if (p.faqs?.length) {
+      lines.push(`Frequently asked questions:\n${p.faqs.slice(0, 30).map(f => `Q: ${this._sanitize(f.question, 200)}\nA: ${this._sanitize(f.answer, 400)}`).join('\n')}`);
+    }
+
+    return lines.length > 1 ? lines.join('\n') : '';
+  }
+
+  _formatHours(hours = []) {
+    if (!hours?.length) return '';
+    const names = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    return hours
+      .slice()
+      .sort((a, b) => ((a.day + 6) % 7) - ((b.day + 6) % 7))
+      .map(h => `- ${names[h.day]}: ${h.closed ? 'Closed' : `${h.open}–${h.close}`}`)
+      .join('\n');
+  }
+
+  _afterHoursSection(user, callInfo) {
+    const status = callInfo.businessHours;
+    if (!this.isBusiness(user) || !status?.configured || status.open) return '';
+    const custom = this._sanitize(user.businessProfile?.afterHoursMessage, 400);
+    return `## ⏰ THE BUSINESS IS CURRENTLY CLOSED
+Tell the caller the business is closed right now${status.nextOpen ? ` and reopens ${status.nextOpen}` : ''}.
+${custom ? `Owner's after-hours message to convey: "${custom}"` : ''}
+Still answer simple questions from the business information, and take a complete message (name, need, best callback time).
+Only transfer for a genuine emergency that matches the emergency rules.`;
   }
 
   _priorityTimeSection(callInfo) {
@@ -189,7 +286,7 @@ After delivering this message:
         follow_instructions: `Execute the instructions below IMMEDIATELY in your very next response — do NOT ask any clarifying question first, do NOT ask to confirm the order or purpose. Speak the instructions DIRECTLY to the caller. Give addresses, directions, and all details right now in this single response.`,
         // ↑ e.g. a Swiggy delivery person says "I'm from Swiggy" → immediately
         //   give the address + drop-off instruction. Do not interrogate them.
-        take_message:        `Ask for the caller's name and what the call is regarding. Assure them ${user.name || 'the owner'} will get back to them. Do not transfer.`,
+        take_message:        `Ask for the caller's name and what the call is regarding. Assure them ${this.isBusiness(user) ? 'the team' : (user.name || 'the owner')} will get back to them. Do not transfer.`,
         connect_user:        `Transfer the call immediately. Say: "Let me connect you now. Transferring you now." (or in Hindi: "मैं आपको अभी जोड़ता हूँ। ट्रांसफर कर रहा हूँ।") — this triggers the live transfer.`,
 
         end_call:            `End the call politely. Say something like "Thanks for calling — I'll note this down. I'm disconnecting the call now." Do NOT transfer even if asked.`,
@@ -255,28 +352,15 @@ ${sections.join('\n\n')}`;
     const vips = user.vipContacts || [];
     if (vips.length === 0) return '';
 
-    const isVIP = callInfo.isVIP || (callerCtx && vips.some(v => {
-      const normalizedVIP = v.phoneNumber.replace(/\D/g, '');
-      const normalizedCaller = (callerCtx.phoneNumber || '').replace(/\D/g, '');
-      return normalizedVIP === normalizedCaller ||
-        normalizedCaller.endsWith(normalizedVIP) ||
-        normalizedVIP.endsWith(normalizedCaller);
-    }));
-    const vipContact = callInfo.vipContact || (isVIP && callerCtx
-      ? vips.find(v => {
-          const normalizedVIP = v.phoneNumber.replace(/\D/g, '');
-          const normalizedCaller = (callerCtx.phoneNumber || '').replace(/\D/g, '');
-          return normalizedVIP === normalizedCaller ||
-            normalizedCaller.endsWith(normalizedVIP) ||
-            normalizedVIP.endsWith(normalizedCaller);
-        })
-      : null);
+    const matched = callInfo.vipContact || (callerCtx ? findByPhone(vips, callerCtx.phoneNumber) : null);
+    const isVIP = !!(callInfo.isVIP || matched);
+    const vipContact = matched;
 
     const inPriorityTime = callInfo.priorityTimeInfo?.inPriorityTime || false;
 
     let section = `## VIP CONTACTS\nThese callers receive priority treatment:\n`;
     vips.forEach(v => {
-      section += `- ${v.name}${v.relationship ? ` (${v.relationship})` : ''}: ${v.phoneNumber}\n`;
+      section += `- ${this._sanitizeName(v.name)}${v.relationship ? ` (${this._sanitize(v.relationship, 50)})` : ''}\n`;
     });
 
     if (isVIP && vipContact) {
@@ -350,7 +434,7 @@ NAME COLLECTION: You do NOT know this caller's name yet. Try to learn their name
   }
 
   _guidelines(user) {
-    const userName = user.name || 'the owner';
+    const userName = this.isBusiness(user) ? 'the team' : (user.name || 'the owner');
     const escalation = user.escalationKeywords?.join(', ') || 'emergency, urgent, hospital, accident';
     const unknown = {
       screen: 'Ask what the call is about before deciding how to handle it.',
@@ -366,15 +450,16 @@ NAME COLLECTION: You do NOT know this caller's name yet. Try to learn their name
 
 **Escalation:** If the caller mentions any of these — "${escalation}" — treat it as urgent. Offer to transfer to ${userName} immediately regardless of the call category.
 
-**Staying in role:** You are ${userName}'s assistant — not ${userName} themselves. You can say "I'm ${userName}'s assistant" if asked. Never claim to be ${userName}.
+**Staying in role:** ${this.isBusiness(user) ? `You are ${this.principal(user)}'s virtual receptionist. Never claim to be a staff member or a human.` : `You are ${userName}'s assistant — not ${userName} themselves. You can say "I'm ${userName}'s assistant" if asked. Never claim to be ${userName}.`}
 
 **Interpreting instructions:** When the handling rules say "tell them X" or "ask them Y" — do exactly that IN THIS CONVERSATION, right now. Do not say you will pass on the message separately.
 
 ## TRANSFERRING THE CALL
 
 Transfer ONLY in these situations:
-- Caller needs a delivery OTP or PIN that only ${userName} has
-- Caller is a known VIP contact who explicitly asks to speak with ${userName}
+${this.isBusiness(user) ? `- A call category's action says to connect/transfer (e.g. a genuine emergency)
+- A VIP contact explicitly asks to speak with someone` : `- Caller needs a delivery OTP or PIN that only ${userName} has
+- Caller is a known VIP contact who explicitly asks to speak with ${userName}`}
 - Emergency, safety concern, or something completely outside your ability to handle
 
 NEVER transfer for:

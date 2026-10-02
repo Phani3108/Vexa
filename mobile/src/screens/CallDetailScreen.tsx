@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Animated } from 'react-native';
+import { View, Text, ScrollView, Animated } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import CommonHeader from '../components/CommonHeader';
 import styles from '../styles/CallDetailScreen.styles';
@@ -25,10 +25,11 @@ const mockCallDetails: any = {
 */
 
 /** Format seconds to "1m 05s" */
-function formatDuration(seconds: number): string {
-  if (!seconds || seconds === 0) { return '0s'; }
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
+function formatDuration(seconds?: number): string {
+  if (!seconds || seconds <= 0) { return '0s'; }
+  const total = Math.round(seconds);
+  const m = Math.floor(total / 60);
+  const s = total % 60;
   if (m === 0) { return `${s}s`; }
   return `${m}m ${s.toString().padStart(2, '0')}s`;
 }
@@ -100,16 +101,20 @@ const CallDetailScreen = ({ navigation, route }: any) => {
 
   useEffect(() => {
     if (!callId) { setError('No call ID'); setLoading(false); return; }
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
     (async () => {
       try {
         const { call: data } = await api.getCallById(callId);
-        setCall(data);
+        if (!cancelled) {setCall(data ?? null);}
       } catch (err: any) {
-        setError(err.message || 'Failed to load call');
+        if (!cancelled) {setError(err.message || 'Failed to load call');}
       } finally {
-        setLoading(false);
+        if (!cancelled) {setLoading(false);}
       }
     })();
+    return () => { cancelled = true; };
   }, [callId]);
 
   if (loading) {
@@ -163,7 +168,7 @@ const CallDetailScreen = ({ navigation, route }: any) => {
 
   if (error || !call) {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
         <CommonHeader title="Call Details" onBackPress={() => navigation.goBack()} showBackButton showRightButton={false} />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
           <Text style={{ color: '#FF3B30' }}>{error || 'Call not found'}</Text>
@@ -203,9 +208,9 @@ const CallDetailScreen = ({ navigation, route }: any) => {
           <Icon name="account" size={28} color={colors.textTertiary} />
         </View>
         <View style={styles.callerInfo}>
-          <Text style={[styles.callerNumber, { color: colors.text }]}>{call.phoneNumber}</Text>
+          <Text style={[styles.callerNumber, { color: colors.textPrimary }]}>{call.phoneNumber || 'Unknown number'}</Text>
           <Text style={[styles.callerMeta, { color: colors.textTertiary }]}>
-            {call.direction.toUpperCase()} • {durationStr} • {formatCallTime(call.startedAt || call.createdAt)}
+            {(call.direction || 'incoming').toUpperCase()} • {durationStr} • {formatCallTime(call.startedAt || call.createdAt)}
           </Text>
         </View>
       </View>
