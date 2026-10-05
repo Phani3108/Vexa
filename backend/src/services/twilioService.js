@@ -10,18 +10,32 @@
  */
 
 import twilio from 'twilio';
-import dotenv from 'dotenv';
 
-dotenv.config();
-
-// Initialize Twilio client
-const twilioClient = twilio(
-  process.env.TWILIO_ACCOUNT_SID, 
-  process.env.TWILIO_AUTH_TOKEN
-);
+// Lazy client: importing this module must never throw when Twilio isn't configured
+let client = null;
+function twilioClientOrThrow() {
+  if (!client) {
+    if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN) {
+      throw new Error('Twilio is not configured');
+    }
+    client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+  }
+  return client;
+}
+const twilioClient = new Proxy({}, { get: (_, prop) => twilioClientOrThrow()[prop] });
 
 const TWILIO_PHONE_NUMBER = process.env.TWILIO_PHONE_NUMBER;
 const WEBHOOK_URL = process.env.WEBHOOK_URL;
+
+// Built with the TwiML builder so caller-controlled text (names, transcript
+// snippets in the whisper) is XML-escaped and can't inject TwiML verbs.
+function conferenceTwiml(conferenceName, { say, endOnExit }) {
+  const response = new twilio.twiml.VoiceResponse();
+  if (say) response.say(say);
+  const dial = response.dial();
+  dial.conference({ beep: 'false', startConferenceOnEnter: true, endConferenceOnExit: endOnExit }, conferenceName);
+  return response.toString();
+}
 
 /**
  * Initiate call takeover - User wants to join an active call
@@ -41,17 +55,7 @@ export const initiateCallTakeover = async (callSid, userPhoneNumber, callContext
     // Step 1: Update the existing call to join a conference
     // This moves the caller into a conference room
     await twilioClient.calls(callSid).update({
-      twiml: `<Response>
-        <Say>One moment, let me connect you with them now.</Say>
-        <Dial>
-          <Conference 
-            beep="false" 
-            startConferenceOnEnter="true" 
-            endConferenceOnExit="false"
-            waitUrl=""
-          >${conferenceName}</Conference>
-        </Dial>
-      </Response>`
+      twiml: conferenceTwiml(conferenceName, { say: 'One moment, let me connect you now.', endOnExit: false })
     });
     
     console.log(`✅ Moved caller to conference: ${conferenceName}`);
@@ -63,18 +67,11 @@ export const initiateCallTakeover = async (callSid, userPhoneNumber, callContext
     const userCall = await twilioClient.calls.create({
       to: userPhoneNumber,
       from: TWILIO_PHONE_NUMBER,
-      twiml: `<Response>
-        <Say>${whisperText}</Say>
-        <Dial>
-          <Conference 
-            beep="false" 
-            startConferenceOnEnter="true" 
-            endConferenceOnExit="true"
-          >${conferenceName}</Conference>
-        </Dial>
-      </Response>`,
-      statusCallback: `${WEBHOOK_URL}/voice/takeover-status`,
-      statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed']
+      twiml: conferenceTwiml(conferenceName, { say: whisperText, endOnExit: true }),
+      ...(WEBHOOK_URL ? {
+        statusCallback: `${WEBHOOK_URL}/voice/takeover-status`,
+        statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed']
+      } : {})
     });
     
     console.log(`✅ Called user: ${userCall.sid}`);
@@ -116,7 +113,7 @@ function generateWhisperSummary(callContext) {
   };
 
   const categoryDesc = callContext.detectedCategory
-    ? categoryLabels[callContext.detectedCategory] || 'a call'
+    ? categoryLabels[callContext.detectedCategory] || `a ${callContext.detectedCategory.split('.').pop().replace(/_/g, ' ')} call`
     : 'a call';
 
   // Pull the last few lines from the transcript

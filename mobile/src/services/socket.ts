@@ -1,228 +1,203 @@
 /**
  * Socket.io service — manages the real-time connection to the backend.
  *
- * Backend emits these events to `user:<userId>` rooms:
- *   call:started      — new call incoming
- *   call:transcript   — live transcript line
- *   call:intent       — detected caller intent / category
- *   call:ended        — call completed with summary
- *   call:takeover     — user joins call (conference bridge)
- *   call:takeover-initiated — takeover acknowledgement
- *   call:disconnecting      — call disconnect acknowledgement
+ * Auth: the access token is sent in the handshake (`io(url, { auth: { token } })`)
+ * and the server joins the user's `user:<userId>` room automatically. When the
+ * token is refreshed, call updateToken() to reconnect with the new one.
  *
- * The mobile app should:
- *   1. connect()
- *   2. joinUserRoom(userId)
- *   3. Subscribe to events with on()
+ * Backend emits:
+ *   call:started            — new call incoming
+ *   call:transcript         — completed transcript line
+ *   call:transcript:delta   — word-by-word AI streaming
+ *   call:transcript:clear   — drop a dangling streaming bubble (barge-in)
+ *   call:caller-name        — caller identified mid-call
+ *   call:intent             — detected caller intent
+ *   call:ended              — call completed with summary
+ *   call:takeover           — user bridged into the call
+ *
+ * Listeners registered via on() persist across reconnects and logout/login;
+ * the component that registers a listener is responsible for calling off().
  */
 
 import { io, Socket } from 'socket.io-client';
-import { BASE_URL } from './api';
+import { getBaseUrl } from '../config';
 import {
   SocketTranscriptEvent,
   SocketTranscriptDeltaEvent,
+  SocketTranscriptClearEvent,
   SocketCallStartedEvent,
   SocketCallEndedEvent,
   SocketCallIntentEvent,
   SocketCallTakeoverEvent,
+  SocketCallerNameEvent,
 } from '../types/api';
 
 type EventMap = {
   'call:started': SocketCallStartedEvent;
   'call:transcript': SocketTranscriptEvent;
   'call:transcript:delta': SocketTranscriptDeltaEvent;
-  'call:transcript:clear': { callId: string; timestamp: string };
+  'call:transcript:clear': SocketTranscriptClearEvent;
+  'call:caller-name': SocketCallerNameEvent;
   'call:intent': SocketCallIntentEvent;
   'call:ended': SocketCallEndedEvent;
   'call:takeover': SocketCallTakeoverEvent;
-  'call:takeover-initiated': { callId: string; status: string; message: string };
-  'call:disconnecting': { callId: string };
-  'call:caller-name': { callId: string; callerName: string; timestamp: string };
 };
+
+type Listener = { event: string; handler: (...args: any[]) => void };
 
 class SocketService {
   private socket: Socket | null = null;
-  private userId: string | null = null;
-  // pendingListeners: registered before the socket was ever created.
-  private pendingListeners: Array<{ event: string; handler: (...args: any[]) => void }> = [];
-  // activeListeners: persisted across socket recreations so they survive
-  // destroy-and-reconnect (e.g. user retries login after a cold-start error).
-  private activeListeners: Array<{ event: string; handler: (...args: any[]) => void }> = [];
-  private _onAnyHandlers: Array<(event: string, ...args: any[]) => void> = [];
+  private token: string | null = null;
+  private listeners: Listener[] = [];
+  private onAnyHandlers: Array<(event: string, ...args: any[]) => void> = [];
+  private authErrorHandler: (() => void) | null = null;
 
-  /** Connect to the backend Socket.io server */
-  connect() {
-    // If already connected, just ensure we're in the room
-    if (this.socket?.connected) {
-      console.log('[Socket] Already connected:', this.socket.id);
-      if (this.userId) {
-        this.joinUserRoom(this.userId);
+  /** Connect (or reconnect) with the given access token. */
+  connect(token: string) {
+    if (this.socket && this.token === token) {
+      if (!this.socket.connected && !this.socket.active) {
+        this.socket.connect();
       }
       return;
     }
 
-    // If socket exists but disconnected, destroy it fully before recreating
-    if (this.socket) {
-      console.log('[Socket] Destroying stale socket before reconnect');
-      this.socket.removeAllListeners();
-      this.socket.disconnect();
-      this.socket = null;
-    }
+    this.teardown();
+    this.token = token;
 
-    console.log('[Socket] Attempting connection to:', BASE_URL);
+    const url = getBaseUrl();
+    console.log('[Socket] Connecting to:', url);
 
-    this.socket = io(BASE_URL, {
-      // Try websocket first, fall back to polling if it fails
+    const socket = io(url, {
+      auth: { token },
       transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionAttempts: Infinity,
       reconnectionDelay: 2000,
       reconnectionDelayMax: 10000,
       timeout: 20000,
-      upgrade: true,
     });
+    this.socket = socket;
 
-    // Catch-all: log every event the raw socket receives
-    this.socket.onAny((event: string, ...args: any[]) => {
-      console.log(`[Socket] 📨 RAW EVENT: ${event}`, JSON.stringify(args).slice(0, 200));
-      for (const handler of this._onAnyHandlers) {
-        try { handler(event, ...args); } catch (e) { /* ignore */ }
+    socket.onAny((event: string, ...args: any[]) => {
+      for (const handler of this.onAnyHandlers) {
+        try {
+          handler(event, ...args);
+        } catch {
+          // debugging hooks must never break event delivery
+        }
       }
     });
 
-    // Re-attach all previously active listeners (survives socket destroy+recreate)
-    for (const { event, handler } of this.activeListeners) {
-      this.socket.on(event, handler);
-    }
-    if (this.activeListeners.length > 0) {
-      console.log(`[Socket] Re-attached ${this.activeListeners.length} active listener(s)`);
+    for (const { event, handler } of this.listeners) {
+      socket.on(event, handler);
     }
 
-    // Replay any listeners that were registered before connect() was ever called
-    for (const { event, handler } of this.pendingListeners) {
-      // Only add if not already in activeListeners
-      const alreadyActive = this.activeListeners.some(l => l.event === event && l.handler === handler);
-      if (!alreadyActive) {
-        this.socket.on(event, handler);
-        this.activeListeners.push({ event, handler });
-        console.log(`[Socket] Attached pending listener for "${event}"`);
-      }
-    }
-    this.pendingListeners = [];
-
-    this.socket.on('connect', () => {
-      console.log('[Socket] ✅ Connected:', this.socket?.id,
-        'Transport:', (this.socket as any)?.io?.engine?.transport?.name);
-      // Re-join user room on reconnect
-      if (this.userId) {
-        this.joinUserRoom(this.userId);
-      }
+    socket.on('connect', () => {
+      console.log('[Socket] Connected:', socket.id);
     });
 
-    this.socket.on('disconnect', (reason) => {
+    socket.on('disconnect', reason => {
       console.log('[Socket] Disconnected:', reason);
     });
 
-    this.socket.on('connect_error', (err) => {
+    socket.on('connect_error', err => {
       console.warn('[Socket] Connection error:', err.message);
+      // A middleware rejection (bad/expired token) stops auto-reconnect
+      // (socket.active === false). Let the auth layer refresh the token.
+      if (!socket.active && this.socket === socket) {
+        this.authErrorHandler?.();
+      }
     });
   }
 
-  /** Disconnect from the server */
-  disconnect() {
-    if (this.socket) {
-      this.socket.removeAllListeners();
-      this.socket.disconnect();
-      this.socket = null;
+  /** Reconnect with a refreshed token (no-op if not connected or unchanged). */
+  updateToken(token: string) {
+    if (!this.socket) {
+      return;
     }
-    this.userId = null;
-    // On explicit logout, wipe all listener state so a fresh login starts clean
-    this.activeListeners = [];
-    this.pendingListeners = [];
-    this._onAnyHandlers = [];
+    if (token === this.token) {
+      if (!this.socket.active) {
+        this.socket.connect();
+      }
+      return;
+    }
+    this.token = token;
+    this.socket.auth = { token };
+    this.socket.disconnect().connect();
   }
 
-  /** Join the user's personal room so we receive their call events */
-  joinUserRoom(userId: string) {
-    this.userId = userId;
-    this.socket?.emit('join:user', userId);
-    console.log('[Socket] Joined room for user:', userId);
+  /** Retry the connection with the current token (e.g. after a failed refresh due to network). */
+  reconnect() {
+    if (this.socket && !this.socket.connected) {
+      this.socket.connect();
+    }
   }
 
-  /** Request call takeover via Socket.io */
-  requestTakeover(callId: string, userId: string) {
-    this.socket?.emit('call:takeover', { callId, userId });
+  /** Disconnect on logout. Registered listeners are kept for the next session. */
+  disconnect() {
+    this.teardown();
+    this.token = null;
   }
 
-  /** Request call disconnect via Socket.io */
-  requestDisconnect(callId: string, userId: string) {
-    this.socket?.emit('call:disconnect', { callId, userId });
+  /** Called when the server rejects the handshake — typically an expired token. */
+  setAuthErrorHandler(handler: (() => void) | null) {
+    this.authErrorHandler = handler;
   }
 
   /** Subscribe to a specific event */
   on<K extends keyof EventMap>(event: K, handler: (data: EventMap[K]) => void) {
     const ev = event as string;
-    // Always persist in activeListeners so it survives socket destroy+recreate
-    if (!this.activeListeners.some(l => l.event === ev && l.handler === handler)) {
-      this.activeListeners.push({ event: ev, handler });
+    if (this.listeners.some(l => l.event === ev && l.handler === handler)) {
+      return;
     }
-    if (this.socket) {
-      this.socket.on(ev, handler);
-    } else {
-      // Socket not connected yet — queue for replay on connect()
-      if (!this.pendingListeners.some(l => l.event === ev && l.handler === handler)) {
-        this.pendingListeners.push({ event: ev, handler });
-        console.log(`[Socket] Queued listener for "${ev}" (socket not yet connected)`);
-      }
-    }
+    this.listeners.push({ event: ev, handler });
+    this.socket?.on(ev, handler);
   }
 
-  /** Unsubscribe from a specific event */
+  /** Unsubscribe from a specific event (all handlers for it if none given) */
   off<K extends keyof EventMap>(event: K, handler?: (data: EventMap[K]) => void) {
     const ev = event as string;
-    if (this.socket) {
-      if (handler) {
-        this.socket.off(ev, handler);
-      } else {
-        this.socket.off(ev);
-      }
-    }
-    // Remove from both queues so it doesn't get re-attached on reconnect
     if (handler) {
-      this.activeListeners = this.activeListeners.filter(
-        (p) => !(p.event === ev && p.handler === handler),
-      );
-      this.pendingListeners = this.pendingListeners.filter(
-        (p) => !(p.event === ev && p.handler === handler),
-      );
+      this.socket?.off(ev, handler);
+      this.listeners = this.listeners.filter(l => !(l.event === ev && l.handler === handler));
     } else {
-      this.activeListeners = this.activeListeners.filter((p) => p.event !== ev);
-      this.pendingListeners = this.pendingListeners.filter((p) => p.event !== ev);
+      for (const l of this.listeners) {
+        if (l.event === ev) {
+          this.socket?.off(ev, l.handler);
+        }
+      }
+      this.listeners = this.listeners.filter(l => l.event !== ev);
     }
   }
 
-  /** Check if currently connected */
   get isConnected(): boolean {
     return this.socket?.connected ?? false;
   }
 
   /** Register a catch-all listener for debugging */
   onAny(handler: (event: string, ...args: any[]) => void) {
-    this._onAnyHandlers.push(handler);
+    this.onAnyHandlers.push(handler);
   }
 
-  /** Remove a catch-all listener */
   offAny(handler: (event: string, ...args: any[]) => void) {
-    this._onAnyHandlers = this._onAnyHandlers.filter(h => h !== handler);
+    this.onAnyHandlers = this.onAnyHandlers.filter(h => h !== handler);
   }
 
-  /** Debug info about the current socket state */
-  get debugInfo(): { id: string | null; transport: string | null; userId: string | null } {
+  get debugInfo(): { id: string | null; transport: string | null; connected: boolean } {
     return {
       id: this.socket?.id ?? null,
       transport: (this.socket as any)?.io?.engine?.transport?.name ?? null,
-      userId: this.userId,
+      connected: this.isConnected,
     };
+  }
+
+  private teardown() {
+    if (this.socket) {
+      this.socket.removeAllListeners();
+      this.socket.offAny();
+      this.socket.disconnect();
+      this.socket = null;
+    }
   }
 }
 

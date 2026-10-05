@@ -4,9 +4,15 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import styles from '../styles/LiveTranscriptScreen.styles';
 import socketService from '../services/socket';
 import * as api from '../services/api';
-import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { SocketTranscriptEvent, SocketTranscriptDeltaEvent, SocketCallStartedEvent, SocketCallEndedEvent } from '../types/api';
+import {
+  SocketTranscriptEvent,
+  SocketTranscriptDeltaEvent,
+  SocketCallStartedEvent,
+  SocketCallEndedEvent,
+  SocketCallerNameEvent,
+  SocketCallTakeoverEvent,
+} from '../types/api';
 
 type SpeakerType = 'ai' | 'caller' | 'user' | 'system';
 
@@ -26,7 +32,6 @@ const SPEAKER_LABELS: Record<SpeakerType, string> = {
 
 const LiveTranscriptScreen = () => {
   const { colors, isDark } = useTheme();
-  const { phoneNumber: userPhone } = useAuth();
   const [isCallActive, setIsCallActive] = useState(false);
   const [callerPhone, setCallerPhone] = useState<string | null>(null);
   const [callerName, setCallerName] = useState<string | null>(null);
@@ -37,6 +42,9 @@ const LiveTranscriptScreen = () => {
   const [isTakenOver, setIsTakenOver] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
+  // Current call id for filtering socket events (a ref so listeners registered
+  // once don't read a stale value from their closure).
+  const callIdRef = useRef<string | null>(null);
 
   // ─── Mock data preserved as comments ─────────────────────────────────────
   /*
@@ -53,6 +61,7 @@ const LiveTranscriptScreen = () => {
   /** Register socket listeners for live call events */
   useEffect(() => {
     const onCallStarted = (data: SocketCallStartedEvent) => {
+      callIdRef.current = data.callId;
       setIsCallActive(true);
       setIsTakenOver(false);
       setCallerPhone(data.from);
@@ -62,7 +71,10 @@ const LiveTranscriptScreen = () => {
       setTranscript([]);
     };
 
-    const onTranscript = (data: SocketTranscriptEvent & { speaker: SpeakerType }) => {
+    const isOtherCall = (id: string) => callIdRef.current !== null && id !== callIdRef.current;
+
+    const onTranscript = (data: SocketTranscriptEvent) => {
+      if (isOtherCall(data.callId)) { return; }
       const speaker: SpeakerType = (data.speaker as SpeakerType) || 'caller';
       const isAI = speaker === 'ai';
       setTranscript(prev => {
@@ -85,6 +97,7 @@ const LiveTranscriptScreen = () => {
 
     // Word-by-word streaming (AI only)
     const onDelta = (data: SocketTranscriptDeltaEvent) => {
+      if (isOtherCall(data.callId)) { return; }
       setTranscript(prev => {
         if (prev.length > 0) {
           const last = prev[prev.length - 1];
@@ -102,18 +115,21 @@ const LiveTranscriptScreen = () => {
       });
     };
 
-    const onCallerName = (data: any) => {
+    const onCallerName = (data: SocketCallerNameEvent) => {
+      if (isOtherCall(data.callId)) { return; }
       if (data.callerName) {
         setCallerName(data.callerName);
       }
     };
 
-    const onCallEnded = (_data: SocketCallEndedEvent) => {
+    const onCallEnded = (data: SocketCallEndedEvent) => {
+      if (isOtherCall(data.callId)) { return; }
       setIsCallActive(false);
       setStatusText('Call ended');
     };
 
-    const onTakeover = (data: any) => {
+    const onTakeover = (data: SocketCallTakeoverEvent) => {
+      if (isOtherCall(data.callId)) { return; }
       setIsTakenOver(true);
       if (data.reason === 'ai_transfer') {
         setStatusText('AI transferred the call — you are now connected');
@@ -123,21 +139,19 @@ const LiveTranscriptScreen = () => {
     };
 
     socketService.on('call:started', onCallStarted);
-    socketService.on('call:transcript', onTranscript as any);
+    socketService.on('call:transcript', onTranscript);
     socketService.on('call:transcript:delta', onDelta);
     socketService.on('call:caller-name', onCallerName);
     socketService.on('call:ended', onCallEnded);
     socketService.on('call:takeover', onTakeover);
-    socketService.on('call:takeover-initiated', onTakeover);
 
     return () => {
       socketService.off('call:started', onCallStarted);
-      socketService.off('call:transcript', onTranscript as any);
+      socketService.off('call:transcript', onTranscript);
       socketService.off('call:transcript:delta', onDelta);
       socketService.off('call:caller-name', onCallerName);
       socketService.off('call:ended', onCallEnded);
       socketService.off('call:takeover', onTakeover);
-      socketService.off('call:takeover-initiated', onTakeover);
     };
   }, []);
 
@@ -149,13 +163,10 @@ const LiveTranscriptScreen = () => {
   /** Take over the live call — bridges the user's own phone into the conference */
   const handleTakeover = useCallback(async () => {
     if (!callSid) { return; }
-    if (!userPhone) {
-      Alert.alert('Error', 'Your phone number is not set. Please log in again.');
-      return;
-    }
     setTakingOver(true);
     try {
-      await api.takeoverCall(callSid, userPhone);
+      // Server dials the authenticated user's own phone.
+      await api.takeoverCall(callSid);
       setIsTakenOver(true);
       setStatusText('Connecting you in — your phone will ring shortly...');
     } catch (err: any) {
@@ -163,7 +174,7 @@ const LiveTranscriptScreen = () => {
     } finally {
       setTakingOver(false);
     }
-  }, [callSid, userPhone]);
+  }, [callSid]);
 
   /** End / disconnect the live call */
   const handleDisconnect = useCallback(async () => {

@@ -1,60 +1,19 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-
-# Virtual Environment
-venv/
-env/
-ENV/
-.venv
+node_modules/
 
 # Environment Variables
 .env
 .env.local
 .env.*.local
 
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-.DS_Store
+# Embedded dev database (mongodb-memory-server)
+.data/
 
 # Logs
 *.log
 logs/
 
-# Database
-*.db
-*.sqlite
-*.sqlite3
-
-# Testing
-.coverage
-htmlcov/
-.pytest_cache/
-.tox/
-
-# Project specific
-uploads/
-temp/
-tmp/
+# IDE / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store

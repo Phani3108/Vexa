@@ -1,0 +1,28 @@
+/** Screenshots of the bilingual call view, recording player and new settings. node demo/shoot-multilingual.mjs <outDir> <callId> */
+import { chromium } from 'playwright-core';
+const [OUT, CALL] = process.argv.slice(2);
+const B = 'http://localhost:3000';
+const EXE = process.env.CHROME || `${process.env.HOME}/Library/Caches/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-mac-arm64/chrome-headless-shell`;
+const j = (p, body) => fetch(B + p, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(r => r.json());
+const { devCode } = await j('/api/auth/otp/request', { phoneNumber: '+15550001077' });
+const v = await j('/api/auth/otp/verify', { phoneNumber: '+15550001077', code: devCode });
+const browser = await chromium.launch({ executablePath: EXE });
+const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, colorScheme: 'dark' });
+await ctx.addInitScript(([t, r]) => { localStorage.setItem('vexa.token', t); localStorage.setItem('vexa.refresh', r); }, [v.token, v.refreshToken]);
+const page = await ctx.newPage();
+const errors = []; page.on('pageerror', e => errors.push(e.message)); page.on('console', m => m.type() === 'error' && errors.push(m.text()));
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+await page.goto(`${B}/call/${CALL}`); await sleep(1500);
+await page.screenshot({ path: `${OUT}/1-summary.png`, fullPage: true });
+await page.getByText('Play recording').click(); await sleep(800);
+await page.getByText(/Show transcript/).click(); await sleep(500);
+await page.locator('.bubble.caller').nth(1).click(); await sleep(700);
+const t = await page.evaluate(() => { const a = document.querySelector('audio'); return a ? { t: a.currentTime, d: a.duration, paused: a.paused } : null; });
+console.log('audio after tapping Hindi line:', JSON.stringify(t));
+await page.screenshot({ path: `${OUT}/2-transcript-both.png`, fullPage: true });
+await page.selectOption('select[aria-label="Read transcript in"]', 'gu'); await sleep(2500);
+await page.screenshot({ path: `${OUT}/3-read-in-gujarati.png`, fullPage: true });
+await page.goto(`${B}/me/voice`); await sleep(900); await page.screenshot({ path: `${OUT}/4-voice.png` });
+await page.goto(`${B}/me/recording`); await sleep(900); await page.screenshot({ path: `${OUT}/5-recording.png` });
+console.log('errors:', errors);
+await browser.close();

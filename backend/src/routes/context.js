@@ -46,7 +46,7 @@ router.post('/outgoing-call', async (req, res) => {
 
     const { phoneNumber, callerName, summary, outcome, notes, timestamp } = req.body;
     
-    if (!phoneNumber) {
+    if (!phoneNumber || typeof phoneNumber !== 'string') {
       return res.status(400).json({ error: 'phoneNumber is required' });
     }
     
@@ -56,7 +56,7 @@ router.post('/outgoing-call', async (req, res) => {
     
     // Build outgoing call record
     const callResult = {
-      callId: `outgoing_${Date.now()}`,
+      callId: `outgoing_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       from: phoneNumber,
       to: process.env.TWILIO_PHONE_NUMBER || 'your-number',
       direction: 'outgoing',
@@ -69,8 +69,9 @@ router.post('/outgoing-call', async (req, res) => {
     
     // Build analysis from provided info
     const analysis = {
-      intent: outcome || 'outgoing_call',
-      summary: summary,
+      categoryId: 'outgoing_call',
+      categoryLabel: outcome ? `Outgoing — ${String(outcome).slice(0, 40)}` : 'Outgoing call',
+      summary: String(summary).slice(0, 1000),
       sentiment: 'neutral',
       callerName: callerName || null,
       notes: notes || null,
@@ -189,7 +190,7 @@ router.get('/user-profile', async (req, res) => {
   try {
     const uid = userId(req);
     if (!uid) return res.status(401).json({ error: 'Not authenticated' });
-    const profile = await userConfigService.getUserConfig(uid);
+    const profile = await userConfigService.getUser(uid);
     
     res.json(profile || {
       userId: uid,
@@ -237,8 +238,14 @@ router.put('/user-profile', async (req, res) => {
       return res.status(400).json({ error: 'name is required' });
     }
     
-    // Save
-    await userConfigService.saveUserConfig(uid, profile);
+    // Save — only owner-editable fields; greeting/tone map onto aiSettings
+    await userConfigService.updateEditable(uid, {
+      name: profile.name,
+      ...(profile.about !== undefined ? { about: profile.about } : {}),
+      ...(profile.greeting || profile.preferences?.tone
+        ? { aiSettings: { ...(profile.greeting ? { greeting: profile.greeting } : {}), ...(profile.preferences?.tone ? { tone: profile.preferences.tone } : {}) } }
+        : {})
+    });
     
     res.json({
       success: true,
@@ -267,8 +274,8 @@ router.get('/summary', async (req, res) => {
     if (!uid) return res.status(401).json({ error: 'Not authenticated' });
     
     const [userProfile, allCallsResult] = await Promise.all([
-      userConfigService.getUserConfig(uid),
-      callHistoryService.getAllCalls(uid)
+      userConfigService.getUser(uid),
+      callHistoryService.getAllCalls(uid, 200)
     ]);
     
     const allCalls = allCallsResult.calls || [];

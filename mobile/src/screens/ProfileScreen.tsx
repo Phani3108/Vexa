@@ -42,20 +42,21 @@ function getGreeting(): string {
 
 const ProfileScreen = ({ navigation }: any) => {
   const { userConfig, phoneNumber } = useAuth();
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const [recentCalls, setRecentCalls] = useState<CallListItem[]>([]);
   const [callsToday, setCallsToday] = useState(0);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
-  // Active call tracking for the widget
-  const [activeCall, setActiveCall] = useState<{
-    callId: string;
-    callerNumber: string;
-    callerName?: string;
-    isVIP?: boolean;
-    inPriorityTime?: boolean;
-  } | null>(null);
+  // Active call tracking for the widget — read from the shared live-call
+  // store so a call that started before this screen mounted still shows.
+  const [activeCall, setActiveCall] = useState<transcriptStore.ActiveCallMeta | null>(() => {
+    const snap = transcriptStore.getSnapshot();
+    return snap.ended ? null : snap.meta;
+  });
+  useEffect(() => {
+    return transcriptStore.subscribe(snap => setActiveCall(snap.ended ? null : snap.meta));
+  }, []);
 
   // Pulse animation for live indicator
   const pulseAnim = useRef(new Animated.Value(0.4)).current;
@@ -71,39 +72,15 @@ const ProfileScreen = ({ navigation }: any) => {
     return () => pulse.stop();
   }, [activeCall, pulseAnim]);
 
-  // Listen for call events
-  useEffect(() => {
-    const onStarted = (data: any) => {
-      setActiveCall({
-        callId: data.callId,
-        callerNumber: data.from,
-        callerName: data.callerName,
-        isVIP: data.isVIP || false,
-        inPriorityTime: data.inPriorityTime || data.suppressNotification || false,
-      });
-    };
-    const onEnded = () => setActiveCall(null);
-
-    socketService.on('call:started', onStarted);
-    socketService.on('call:ended', onEnded);
-    return () => {
-      socketService.off('call:started', onStarted);
-      socketService.off('call:ended', onEnded);
-    };
-  }, []);
-
   const fetchRecent = useCallback(async () => {
     try {
       setFetchError(null);
-      // Fetch 5 for the recent list, and up to 200 to count today's calls
-      const [recentRes, allRes] = await Promise.all([
-        api.getCalls(5, 0),
-        api.getCalls(200, 0),
-      ]);
-      setRecentCalls(recentRes.calls);
+      // One request: newest 200 calls → first 5 for the list, all for today's count
+      const { calls = [] } = await api.getCalls(200, 0);
+      setRecentCalls(calls.slice(0, 5));
       const today = new Date().toDateString();
       setCallsToday(
-        allRes.calls.filter(c => c.timestamp && new Date(c.timestamp).toDateString() === today).length,
+        calls.filter(c => c.timestamp && new Date(c.timestamp).toDateString() === today).length,
       );
     } catch (err: any) {
       setFetchError(err.message || 'Failed to load recent calls');
@@ -121,12 +98,17 @@ const ProfileScreen = ({ navigation }: any) => {
 
   // Also refresh when a call ends
   useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
     const onCallEnded = () => {
       // Small delay to let the backend finish saving the call
-      setTimeout(() => fetchRecent(), 1500);
+      if (timer) {clearTimeout(timer);}
+      timer = setTimeout(() => fetchRecent(), 1500);
     };
     socketService.on('call:ended', onCallEnded);
-    return () => { socketService.off('call:ended', onCallEnded); };
+    return () => {
+      if (timer) {clearTimeout(timer);}
+      socketService.off('call:ended', onCallEnded);
+    };
   }, [fetchRecent]);
 
   return (

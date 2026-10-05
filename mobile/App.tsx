@@ -1,17 +1,25 @@
 /**
- * AI Caller — React Native App
+ * Vexa — React Native App
  *
  * AuthProvider wraps the whole app so every screen can access user state.
- * SplashScreen now checks auth state and navigates accordingly.
- * A global socket listener auto-navigates to IncomingCallScreen on call:started.
+ * SplashScreen checks auth state and navigates accordingly.
+ *
+ * AppNavigator owns the global socket listeners: it is the single writer of
+ * the live-call store (services/transcriptStore) and auto-opens
+ * IncomingCallScreen on call:started. It also sends the user back to Login
+ * if the session is lost (e.g. refresh token rejected).
  */
 
-import React, { useEffect, useRef, useState } from 'react';
-import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native';
+import React, { useEffect, useRef } from 'react';
+import {
+  CommonActions,
+  NavigationContainer,
+  createNavigationContainerRef,
+} from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { StatusBar } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { AuthProvider } from './src/contexts/AuthContext';
+import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
 import {
   SplashScreen,
@@ -25,153 +33,204 @@ import {
   PriorityTimeScreen,
 } from './src/screens';
 import TabNavigator from './src/navigation/TabNavigator';
+import { RootStackParamList } from './src/navigation/AppNavigator';
 import socketService from './src/services/socket';
 import * as transcriptStore from './src/services/transcriptStore';
-import { SocketCallStartedEvent } from './src/types/api';
+import {
+  SocketCallStartedEvent,
+  SocketCallEndedEvent,
+  SocketCallerNameEvent,
+  SocketTranscriptClearEvent,
+  SocketTranscriptDeltaEvent,
+  SocketTranscriptEvent,
+} from './src/types/api';
 
-const Stack = createStackNavigator();
+const Stack = createStackNavigator<RootStackParamList>();
+const navigationRef = createNavigationContainerRef<RootStackParamList>();
 
-function App() {
-  const navigationRef = useRef<NavigationContainerRef<any>>(null);
-  const activeCallRef = useRef<string | null>(null);
+/** Keep the ended call's transcript around this long so IncomingCallScreen can show it. */
+const ENDED_CALL_RETENTION_MS = 6000;
 
-  // Track active call data so we can navigate back
-  const [activeCall, setActiveCall] = useState<{
-    callId: string;
-    callerNumber: string;
-    callerName?: string;
-    isVIP?: boolean;
-    inPriorityTime?: boolean;
-  } | null>(null);
+function AppNavigator() {
+  const { isLoggedIn, isLoading } = useAuth();
+  const wasLoggedIn = useRef(false);
 
-  // Global socket listener — auto-show IncomingCallScreen when a call arrives.
+  // If the session is lost while inside the app, go back to Login.
   useEffect(() => {
-    const navigateToIncoming = (
-      callId: string,
-      callerNumber: string,
-      callerName?: string,
-      isVIP?: boolean,
-      inPriorityTime?: boolean,
-    ) => {
-      if (activeCallRef.current === callId) return; // already showing
-      activeCallRef.current = callId;
-      transcriptStore.startCall(callId);
-      setActiveCall({ callId, callerNumber, callerName, isVIP, inPriorityTime });
-      console.log('[App] Navigating to IncomingCall for', callId);
+    if (isLoading) {
+      return;
+    }
+    if (wasLoggedIn.current && !isLoggedIn && navigationRef.isReady()) {
+      const current = navigationRef.getCurrentRoute()?.name;
+      if (current !== 'Login') {
+        navigationRef.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'Login' }] }));
+      }
+    }
+    wasLoggedIn.current = isLoggedIn;
+  }, [isLoggedIn, isLoading]);
 
+  // Global socket listeners — single writer of the live-call store.
+  useEffect(() => {
+    const timers = new Set<ReturnType<typeof setTimeout>>();
+    const later = (fn: () => void, ms: number) => {
+      const t = setTimeout(() => {
+        timers.delete(t);
+        fn();
+      }, ms);
+      timers.add(t);
+    };
+
+    const openIncoming = (callId: string) => {
+      const meta = transcriptStore.getSnapshot().meta;
+      if (!meta || meta.callId !== callId) {
+        return;
+      }
+      const params = {
+        callId,
+        callerNumber: meta.callerNumber,
+        callerName: meta.callerName || meta.callerNumber,
+        isVIP: meta.isVIP || false,
+        inPriorityTime: meta.inPriorityTime || false,
+      };
       const doNavigate = () => {
-        navigationRef.current?.navigate('IncomingCall', {
-          callId,
-          callerNumber,
-          callerName: callerName || callerNumber,
-          isVIP: isVIP || false,
-          inPriorityTime: inPriorityTime || false,
-        });
+        const current = navigationRef.getCurrentRoute();
+        // Don't stack a second IncomingCall for the same call, and don't
+        // interrupt Splash/Login (Onboarding/Main will pick it up from the store).
+        if (current?.name === 'Splash' || current?.name === 'Login') {
+          return;
+        }
+        if (current?.name === 'IncomingCall' && (current.params as any)?.callId === callId) {
+          return;
+        }
+        navigationRef.navigate('IncomingCall', params);
       };
 
-      // If the navigator isn't ready yet (e.g. still on Onboarding or Splash),
-      // wait until it is — the NavigationContainer fires onReady which sets
-      // navigationRef. Poll briefly so the modal isn't lost.
-      if (!navigationRef.current?.isReady()) {
-        const poll = setInterval(() => {
-          if (navigationRef.current?.isReady()) {
-            clearInterval(poll);
-            doNavigate();
-          }
-        }, 200);
-        setTimeout(() => clearInterval(poll), 10000); // safety: stop after 10s
-      } else {
+      if (navigationRef.isReady()) {
         doNavigate();
+        return;
       }
+      // Navigator not ready yet — poll briefly so the screen isn't lost.
+      let waited = 0;
+      const poll = () => {
+        if (navigationRef.isReady()) {
+          doNavigate();
+        } else if (waited < 10000) {
+          waited += 200;
+          later(poll, 200);
+        }
+      };
+      later(poll, 200);
     };
 
     const onCallStarted = (data: SocketCallStartedEvent) => {
-      console.log('[App] call:started received:', JSON.stringify(data));
-
+      transcriptStore.startCall({
+        callId: data.callId,
+        callerNumber: data.from,
+        callerName: data.callerName && data.callerName !== 'Unknown' ? data.callerName : undefined,
+        isVIP: data.isVIP || false,
+        inPriorityTime: data.inPriorityTime || data.suppressNotification || false,
+      });
       if (data.suppressNotification) {
-        // Priority/DND mode — AI handles the call silently.
-        // Still track it internally (for the call-in-progress banner / history)
-        // but do NOT navigate to IncomingCallScreen and do NOT show any notification.
-        console.log('[App] DND/Priority mode — suppressing notification for call', data.callId);
-        activeCallRef.current = data.callId;
-        transcriptStore.startCall(data.callId);
-        setActiveCall({
-          callId: data.callId,
-          callerNumber: data.from,
-          callerName: data.callerName,
-          isVIP: data.isVIP,
-          inPriorityTime: true,
-        });
+        // Priority/DND mode — AI handles the call silently. Track it (home
+        // widget / history) but don't pop the incoming-call screen.
         return;
       }
-
-      navigateToIncoming(data.callId, data.from, data.callerName, data.isVIP, data.inPriorityTime);
+      openIncoming(data.callId);
     };
 
-    // Fallback: if call:started was missed, first transcript opens the screen
-    // Also buffers the transcript into the store so it's shown when screen opens
-    const onTranscriptFallback = (data: any) => {
-      // Always buffer into store for any active call
-      const speaker: 'ai' | 'caller' = data.speaker === 'ai' ? 'ai' : 'caller';
-      if (activeCallRef.current === data.callId) {
-        transcriptStore.addTranscript(speaker, data.text);
-      } else if (!activeCallRef.current) {
-        // call:started was missed — open the screen now
-        console.log('[App] call:transcript fallback — opening screen for', data.callId);
-        navigateToIncoming(data.callId, 'Unknown', undefined, false);
-        // Store this transcript too (navigateToIncoming calls startCall)
-        transcriptStore.addTranscript(speaker, data.text);
+    /** call:started was missed (e.g. socket reconnected mid-call) — adopt the call. */
+    const adoptIfUnknown = (callId: string) => {
+      const snap = transcriptStore.getSnapshot();
+      if (snap.callId === callId) {
+        return;
+      }
+      if (snap.callId && !snap.ended) {
+        return; // a different call is in progress — ignore stray events
+      }
+      transcriptStore.startCall({ callId, callerNumber: 'Unknown' });
+      openIncoming(callId);
+    };
+
+    const onTranscript = (data: SocketTranscriptEvent) => {
+      adoptIfUnknown(data.callId);
+      transcriptStore.addTranscript(data.callId, data.speaker || 'caller', data.text);
+    };
+
+    const onDelta = (data: SocketTranscriptDeltaEvent) => {
+      adoptIfUnknown(data.callId);
+      transcriptStore.updateDelta(data.callId, data.fullText);
+    };
+
+    const onClear = (data: SocketTranscriptClearEvent) => {
+      transcriptStore.clearStreaming(data.callId);
+    };
+
+    const onCallerName = (data: SocketCallerNameEvent) => {
+      if (data.callerName) {
+        transcriptStore.setCallerName(data.callId, data.callerName);
       }
     };
 
-    const onCallEnded = () => {
-      activeCallRef.current = null;
-      setActiveCall(null);
-      // Don't clear store immediately — let IncomingCallScreen show "call ended" first
-      setTimeout(() => transcriptStore.endCall(), 6000);
+    const onCallEnded = (data: SocketCallEndedEvent) => {
+      transcriptStore.markEnded(data.callId);
+      // Keep lines briefly so IncomingCallScreen can show "call ended".
+      later(() => transcriptStore.clearCall(data.callId), ENDED_CALL_RETENTION_MS);
     };
 
     socketService.on('call:started', onCallStarted);
-    socketService.on('call:transcript', onTranscriptFallback);
+    socketService.on('call:transcript', onTranscript);
+    socketService.on('call:transcript:delta', onDelta);
+    socketService.on('call:transcript:clear', onClear);
+    socketService.on('call:caller-name', onCallerName);
     socketService.on('call:ended', onCallEnded);
-    console.log('[App] Socket listeners registered. Connected:', socketService.isConnected);
     return () => {
       socketService.off('call:started', onCallStarted);
-      socketService.off('call:transcript', onTranscriptFallback);
+      socketService.off('call:transcript', onTranscript);
+      socketService.off('call:transcript:delta', onDelta);
+      socketService.off('call:transcript:clear', onClear);
+      socketService.off('call:caller-name', onCallerName);
       socketService.off('call:ended', onCallEnded);
+      timers.forEach(clearTimeout);
+      timers.clear();
     };
   }, []);
 
   return (
+    <NavigationContainer ref={navigationRef}>
+      <Stack.Navigator initialRouteName="Splash" screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="Splash" component={SplashScreen} />
+        <Stack.Screen name="Login" component={LoginScreen} />
+        <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+        <Stack.Screen name="EditProfile" component={OnboardingScreen} />
+        <Stack.Screen name="Main" component={TabNavigator} />
+        <Stack.Screen name="CallDetail" component={CallDetailScreen} />
+        <Stack.Screen name="SetupForwarding" component={SetupForwardingScreen} />
+        <Stack.Screen name="DeliveryPreferences" component={DeliveryPreferencesScreen} />
+        <Stack.Screen name="VIPContacts" component={VIPContactsScreen} />
+        <Stack.Screen
+          name="IncomingCall"
+          component={IncomingCallScreen}
+          options={{
+            presentation: 'modal',
+            animationTypeForReplace: 'push',
+            gestureEnabled: false,
+          }}
+        />
+        <Stack.Screen name="PriorityTime" component={PriorityTimeScreen} />
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
+}
+
+function App() {
+  return (
     <ThemeProvider>
-    <AuthProvider>
-      <SafeAreaProvider>
-        <ThemedStatusBar />
-        <NavigationContainer ref={navigationRef}>
-          <Stack.Navigator initialRouteName="Splash" screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="Splash" component={SplashScreen} />
-            <Stack.Screen name="Login" component={LoginScreen} />
-            <Stack.Screen name="Onboarding" component={OnboardingScreen} />
-            <Stack.Screen name="EditProfile" component={OnboardingScreen} />
-            <Stack.Screen name="Main" component={TabNavigator} />
-            <Stack.Screen name="CallDetail" component={CallDetailScreen} />
-            <Stack.Screen name="SetupForwarding" component={SetupForwardingScreen} />
-            <Stack.Screen name="DeliveryPreferences" component={DeliveryPreferencesScreen} />
-            <Stack.Screen name="VIPContacts" component={VIPContactsScreen} />
-            <Stack.Screen
-              name="IncomingCall"
-              component={IncomingCallScreen}
-              options={{
-                presentation: 'modal',
-                animationTypeForReplace: 'push',
-                gestureEnabled: false,
-              }}
-            />
-            <Stack.Screen name="PriorityTime" component={PriorityTimeScreen} />
-          </Stack.Navigator>
-        </NavigationContainer>
-      </SafeAreaProvider>
-    </AuthProvider>
+      <AuthProvider>
+        <SafeAreaProvider>
+          <ThemedStatusBar />
+          <AppNavigator />
+        </SafeAreaProvider>
+      </AuthProvider>
     </ThemeProvider>
   );
 }

@@ -40,3 +40,10 @@ android/.gradle/
 # Temporary files
 /tmp/
 *.log
+
+# Local data (embedded MongoDB, call recordings)
+backend/.data/
+.data/
+
+# Claude Code local settings
+.claude/

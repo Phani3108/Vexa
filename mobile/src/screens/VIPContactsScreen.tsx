@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -42,14 +42,28 @@ function avatarColor(name: string): { bg: string; fg: string } {
 }
 
 /** Normalise a phone number to digits only for duplicate detection */
-function normalizePhone(phone: string): string {
-  return phone.replace(/\D/g, '');
+function normalizePhone(phone?: string): string {
+  return (phone || '').replace(/\D/g, '');
+}
+
+/**
+ * True if `normalized` matches a contact's number, tolerating a missing
+ * country code on either side. Empty numbers never match (previously an
+ * empty string matched everything via endsWith('')).
+ */
+function isSamePhoneInList(list: VIPContact[], normalized: string): boolean {
+  if (!normalized) {return false;}
+  return list.some(c => {
+    const existing = normalizePhone(c.phoneNumber);
+    if (!existing) {return false;}
+    return existing === normalized || normalized.endsWith(existing) || existing.endsWith(normalized);
+  });
 }
 
 const VIPContactsScreen = ({ navigation }: any) => {
   const { userConfig, refreshConfig } = useAuth();
   const { colors, isDark } = useTheme();
-  const contacts: VIPContact[] = userConfig?.vipContacts || [];
+  const contacts: VIPContact[] = useMemo(() => userConfig?.vipContacts || [], [userConfig?.vipContacts]);
 
   const [saving, setSaving] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
@@ -68,6 +82,16 @@ const VIPContactsScreen = ({ navigation }: any) => {
   const [blockedNumbers, setBlockedNumbers] = useState<string[]>(userConfig?.blockedNumbers || []);
   const [showAddBlocked, setShowAddBlocked] = useState(false);
   const [newBlockedPhone, setNewBlockedPhone] = useState('');
+
+  // Blocked numbers have their own endpoint — load the authoritative list
+  // instead of relying on the (possibly stale) cached userConfig.
+  useEffect(() => {
+    let cancelled = false;
+    api.getBlockedNumbers()
+      .then(res => { if (!cancelled) {setBlockedNumbers(res.blockedNumbers || []);} })
+      .catch(err => console.warn('[VIP] Failed to load blocked numbers', err?.message));
+    return () => { cancelled = true; };
+  }, []);
 
   /** Persist the full vipContacts list via PUT */
   const saveContacts = useCallback(async (updated: VIPContact[]) => {
@@ -182,12 +206,7 @@ const VIPContactsScreen = ({ navigation }: any) => {
     const normalizedNew = normalizePhone(phone);
 
     // Check for duplicates
-    const alreadyAdded = contacts.some(c => {
-      const normalizedExisting = normalizePhone(c.phoneNumber);
-      return normalizedExisting === normalizedNew ||
-        normalizedNew.endsWith(normalizedExisting) ||
-        normalizedExisting.endsWith(normalizedNew);
-    });
+    const alreadyAdded = isSamePhoneInList(contacts, normalizedNew);
 
     if (alreadyAdded) {
       Alert.alert('Already Added', `${contact.displayName} is already a VIP contact.`);
@@ -216,7 +235,7 @@ const VIPContactsScreen = ({ navigation }: any) => {
 
   const filteredContacts = phoneContacts.filter(c =>
     (c.displayName || '').toLowerCase().includes(contactSearch.toLowerCase()) ||
-    c.phoneNumbers.some(p => p.number.includes(contactSearch))
+    c.phoneNumbers.some(p => (p.number || '').includes(contactSearch))
   );
 
   // ── Blocked number handlers ───────────────────────────────────────────────
@@ -229,7 +248,7 @@ const VIPContactsScreen = ({ navigation }: any) => {
     setSaving(true);
     try {
       const result = await api.addBlockedNumber(newBlockedPhone.trim());
-      setBlockedNumbers(result.blockedNumbers);
+      setBlockedNumbers(result.blockedNumbers || []);
       setShowAddBlocked(false);
       setNewBlockedPhone('');
     } catch (err: any) {
@@ -248,7 +267,7 @@ const VIPContactsScreen = ({ navigation }: any) => {
           setSaving(true);
           try {
             const result = await api.removeBlockedNumber(phoneNumber);
-            setBlockedNumbers(result.blockedNumbers);
+            setBlockedNumbers(result.blockedNumbers || []);
           } catch (err: any) {
             Alert.alert('Error', err.message || 'Failed to unblock');
           } finally {
@@ -558,13 +577,7 @@ const VIPContactsScreen = ({ navigation }: any) => {
             renderItem={({ item }) => {
               const colour = avatarColor(item.displayName || '?');
               const primaryPhone = item.phoneNumbers[0]?.number || '';
-              const alreadyAdded = contacts.some(c => {
-                const normalizedExisting = normalizePhone(c.phoneNumber);
-                const normalizedNew = normalizePhone(primaryPhone);
-                return normalizedExisting === normalizedNew ||
-                  normalizedNew.endsWith(normalizedExisting) ||
-                  normalizedExisting.endsWith(normalizedNew);
-              });
+              const alreadyAdded = isSamePhoneInList(contacts, normalizePhone(primaryPhone));
               return (
                 <TouchableOpacity
                   style={{

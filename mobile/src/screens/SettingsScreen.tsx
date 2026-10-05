@@ -1,13 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Switch, Modal, FlatList } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { CommonActions } from '@react-navigation/native';
+import { CommonActions, useFocusEffect } from '@react-navigation/native';
 import styles from '../styles/SettingsScreen.styles';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import * as api from '../services/api';
+import { AISettings } from '../types/api';
 
-const VOICES = [
+const VOICES: { id: AISettings['voice']; label: string; desc: string }[] = [
   { id: 'alloy',   label: 'Alloy',   desc: 'Warm and balanced' },
   { id: 'echo',    label: 'Echo',    desc: 'Clear and composed' },
   { id: 'shimmer', label: 'Shimmer', desc: 'Bright and articulate' },
@@ -37,42 +38,49 @@ const SettingsScreen = ({ navigation }: any) => {
   const [tonePickerVisible, setTonePickerVisible] = useState(false);
   const [savingVoice, setSavingVoice] = useState(false);
 
-  useEffect(() => {
-    fetchPriorityTimeStatus();
-  }, []);
-
-  const fetchPriorityTimeStatus = async () => {
-    try {
-      const response = await api.getPriorityTime();
-      setQuickToggleActive(response.priorityTime?.quickToggleActive || false);
-      setDndEnabled(response.priorityTime?.enabled || false);
-    } catch (_err) {
-      setQuickToggleActive(false);
-      setDndEnabled(false);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Re-fetch on focus so changes made on the Priority Time screen show up.
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      (async () => {
+        try {
+          const response = await api.getPriorityTime();
+          if (cancelled) {return;}
+          setQuickToggleActive(response.priorityTime?.quickToggleActive || false);
+          setDndEnabled(response.priorityTime?.enabled || false);
+        } catch {
+          if (cancelled) {return;}
+          setQuickToggleActive(false);
+          setDndEnabled(false);
+        } finally {
+          if (!cancelled) {setLoading(false);}
+        }
+      })();
+      return () => { cancelled = true; };
+    }, []),
+  );
 
   const handleQuickToggle = async () => {
     try {
       setToggling(true);
       const response = await api.quickTogglePriorityTime();
       setQuickToggleActive(response.quickToggleActive);
-    } catch (_err) {
+    } catch {
       Alert.alert('Error', 'Could not toggle DND. Please try again.');
     } finally {
       setToggling(false);
     }
   };
 
-  const handleVoiceSelect = async (voiceId: string) => {
+  // PUT /api/users/config $sets aiSettings as a whole object, so always send
+  // the merged settings — otherwise picking a voice would wipe tone/greeting.
+  const handleVoiceSelect = async (voiceId: AISettings['voice']) => {
     try {
       setSavingVoice(true);
-      await api.updateUserConfig({ aiSettings: { voice: voiceId } });
+      await api.updateUserConfig({ aiSettings: { ...userConfig?.aiSettings, voice: voiceId } });
       await refreshConfig();
       setVoicePickerVisible(false);
-    } catch (_err) {
+    } catch {
       Alert.alert('Error', 'Could not update voice. Please try again.');
     } finally {
       setSavingVoice(false);
@@ -82,10 +90,10 @@ const SettingsScreen = ({ navigation }: any) => {
   const handleToneSelect = async (toneId: string) => {
     try {
       setSavingVoice(true);
-      await api.updateUserConfig({ aiSettings: { tone: toneId } });
+      await api.updateUserConfig({ aiSettings: { ...userConfig?.aiSettings, tone: toneId } });
       await refreshConfig();
       setTonePickerVisible(false);
-    } catch (_err) {
+    } catch {
       Alert.alert('Error', 'Could not update tone. Please try again.');
     } finally {
       setSavingVoice(false);

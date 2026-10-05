@@ -2,12 +2,12 @@
  * IncomingCallScreen — shown automatically when a call:started event fires.
  *
  * Displays caller info and live word-by-word transcripts.
- * Dismiss hides the screen but the call-in-progress banner in App.tsx
- * lets the user return at any time.
+ * Dismiss hides the screen but the call-in-progress widget on the home
+ * screen lets the user return at any time.
  *
- * Transcripts stream in real-time:
- *   - call:transcript       → completed utterance (caller or AI)
- *   - call:transcript:delta → word-by-word streaming as AI speaks
+ * Live data (transcript lines, word-by-word AI deltas, caller name, ended
+ * state) is read from services/transcriptStore, which App.tsx fills from the
+ * socket events.
  */
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
@@ -22,44 +22,56 @@ import {
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import styles from '../styles/IncomingCallScreen.styles';
 import { useTheme } from '../contexts/ThemeContext';
-import socketService from '../services/socket';
 import * as transcriptStore from '../services/transcriptStore';
-import {
-  SocketCallEndedEvent,
-  SocketTranscriptEvent,
-  SocketTranscriptDeltaEvent,
-} from '../types/api';
+import type { TranscriptLine } from '../services/transcriptStore';
+import type { IncomingCallParams } from '../navigation/AppNavigator';
+import type { LiveSpeaker } from '../types/api';
 
-interface RouteParams {
-  callId: string;
-  callerNumber: string;
-  callerName?: string;
-  isVIP?: boolean;
-  inPriorityTime?: boolean;
-}
-
-type TranscriptLine = {
-  id: string;
-  speaker: 'ai' | 'caller';
-  text: string;
-  isStreaming: boolean;
+const SPEAKER_LABELS: Record<LiveSpeaker, string> = {
+  ai: '🤖 AI',
+  caller: '📞 Caller',
+  user: '🙋 You',
+  system: 'ℹ️ Status',
 };
 
 const IncomingCallScreen = ({ route, navigation }: any) => {
-  const { callId, callerNumber, callerName, isVIP, inPriorityTime } = (route.params || {}) as RouteParams;
+  const { callId, callerNumber, callerName: initialCallerName, isVIP, inPriorityTime } =
+    (route.params || {}) as IncomingCallParams;
   const { colors, isDark } = useTheme();
 
-  // Initialize from the shared store so transcripts survive dismiss/re-open
-  const [transcript, setTranscript] = useState<TranscriptLine[]>(() => transcriptStore.getTranscripts());
-  const [callEnded, setCallEnded] = useState(false);
+  // Live state comes from the shared store (App.tsx is the only writer), so
+  // transcripts survive dismiss/re-open and are never double-counted.
+  const initial = transcriptStore.getSnapshot();
+  const isSameCall = initial.callId === callId;
+  const [transcript, setTranscript] = useState<TranscriptLine[]>(isSameCall ? initial.lines : []);
+  const [callEnded, setCallEnded] = useState(isSameCall ? initial.ended : false);
+  const [liveCallerName, setLiveCallerName] = useState<string | undefined>(
+    isSameCall ? initial.meta?.callerName : undefined,
+  );
   const scrollRef = useRef<ScrollView>(null);
+
+  useEffect(() => {
+    return transcriptStore.subscribe(snap => {
+      if (snap.callId === callId) {
+        setTranscript(snap.lines);
+        setCallEnded(snap.ended);
+        if (snap.meta?.callerName) {
+          setLiveCallerName(snap.meta.callerName);
+        }
+      } else {
+        // The store moved on (call cleared or a new call started) — keep the
+        // last transcript on screen but treat this call as over.
+        setCallEnded(true);
+      }
+    });
+  }, [callId]);
 
   // Pulse animation for the live indicator
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const pulseOpacity = useRef(new Animated.Value(0.6)).current;
 
   useEffect(() => {
-    if (callEnded) return;
+    if (callEnded) {return;}
     const pulse = Animated.loop(
       Animated.parallel([
         Animated.sequence([
@@ -76,119 +88,10 @@ const IncomingCallScreen = ({ route, navigation }: any) => {
     return () => pulse.stop();
   }, [callEnded, pulseAnim, pulseOpacity]);
 
-  // Socket listeners for transcripts
-  useEffect(() => {
-    const onTranscript = (data: SocketTranscriptEvent) => {
-      if (data.callId !== callId) return;
-      const speaker: 'ai' | 'caller' = data.speaker === 'ai' ? 'ai' : 'caller';
-      const isAI = speaker === 'ai';
-      // Sync to store so dismiss→reopen preserves history
-      transcriptStore.addTranscript(speaker, data.text);
-      setTranscript(prev => {
-        const last = prev.length > 0 ? prev[prev.length - 1] : null;
-        const lastIsStreamingAI = last?.speaker === 'ai' && last?.isStreaming;
-
-        if (isAI && lastIsStreamingAI) {
-          // Finalise the streaming AI bubble with the completed text
-          return [
-            ...prev.slice(0, -1),
-            { id: last!.id, speaker: 'ai', text: data.text, isStreaming: false },
-          ];
-        }
-
-        if (!isAI && lastIsStreamingAI) {
-          // Caller line arrived while AI is still streaming.
-          // Insert the caller line BEFORE the streaming AI bubble so the
-          // visual order matches the real conversation order.
-          return [
-            ...prev.slice(0, -1),
-            {
-              id: `complete-${Date.now()}-${Math.random()}`,
-              speaker,
-              text: data.text,
-              isStreaming: false,
-            },
-            last!,
-          ];
-        }
-
-        return [
-          ...prev,
-          {
-            id: `complete-${Date.now()}-${Math.random()}`,
-            speaker,
-            text: data.text,
-            isStreaming: false,
-          },
-        ];
-      });
-    };
-
-    const onDelta = (data: SocketTranscriptDeltaEvent) => {
-      if (data.callId !== callId) return;
-      // Sync to store so dismiss→reopen shows latest delta
-      transcriptStore.updateDelta(data.fullText);
-      setTranscript(prev => {
-        if (prev.length > 0) {
-          const last = prev[prev.length - 1];
-          if (last.speaker === 'ai' && last.isStreaming) {
-            return [...prev.slice(0, -1), { ...last, text: data.fullText }];
-          }
-        }
-        return [
-          ...prev,
-          {
-            id: `stream-${Date.now()}`,
-            speaker: 'ai' as const,
-            text: data.fullText,
-            isStreaming: true,
-          },
-        ];
-      });
-    };
-
-    const onEnded = (_data: SocketCallEndedEvent) => {
-      // Finalize any still-streaming AI bubble so it doesn't stay as a ghost
-      setTranscript(prev => {
-        if (prev.length > 0) {
-          const last = prev[prev.length - 1];
-          if (last.isStreaming) {
-            if (!last.text.trim()) return prev.slice(0, -1);
-            return [...prev.slice(0, -1), { ...last, isStreaming: false }];
-          }
-        }
-        return prev;
-      });
-      setCallEnded(true);
-    };
-
-    // Drop dangling streaming bubble when barge-in cancels a response
-    const onTranscriptClear = (data: any) => {
-      if (data.callId !== callId) return;
-      setTranscript(prev => {
-        if (prev.length > 0 && prev[prev.length - 1].isStreaming) {
-          return prev.slice(0, -1);
-        }
-        return prev;
-      });
-    };
-
-    socketService.on('call:transcript', onTranscript);
-    socketService.on('call:transcript:delta', onDelta);
-    socketService.on('call:transcript:clear', onTranscriptClear);
-    socketService.on('call:ended', onEnded);
-
-    return () => {
-      socketService.off('call:transcript', onTranscript);
-      socketService.off('call:transcript:delta', onDelta);
-      socketService.off('call:transcript:clear', onTranscriptClear);
-      socketService.off('call:ended', onEnded);
-    };
-  }, [callId]);
-
   // Auto-scroll on new transcript
   useEffect(() => {
-    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+    const t = setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+    return () => clearTimeout(t);
   }, [transcript]);
 
   // ── Auto-dismiss timer (5s after call ends, resets on interaction) ────
@@ -260,6 +163,9 @@ const IncomingCallScreen = ({ route, navigation }: any) => {
     resetDismissTimer();
   };
 
+  const callerName =
+    liveCallerName ||
+    (initialCallerName && initialCallerName !== callerNumber ? initialCallerName : undefined);
   const displayName = callerName || callerNumber || 'Unknown Caller';
 
   return (
@@ -293,7 +199,7 @@ const IncomingCallScreen = ({ route, navigation }: any) => {
         </View>
         <View style={styles.callerInfo}>
           <Text style={[styles.callerName, { color: colors.textPrimary }]} numberOfLines={1}>{displayName}</Text>
-          {callerNumber ? <Text style={[styles.callerNumber, { color: colors.textTertiary }]}>{callerNumber}</Text> : null}
+          {callerNumber && callerNumber !== displayName ? <Text style={[styles.callerNumber, { color: colors.textTertiary }]}>{callerNumber}</Text> : null}
         </View>
         <View style={{ alignItems: 'flex-end', gap: 4 }}>
           {isVIP && (
@@ -354,8 +260,8 @@ const IncomingCallScreen = ({ route, navigation }: any) => {
                     : [styles.bubbleCaller, { backgroundColor: isDark ? '#1A2E1A' : '#F0FDF4' }],
                 ]}
               >
-                <Text style={[styles.bubbleSpeaker, line.speaker === 'caller' && styles.bubbleSpeakerCaller]}>
-                  {line.speaker === 'ai' ? '🤖 AI' : '📞 Caller'}
+                <Text style={[styles.bubbleSpeaker, line.speaker !== 'ai' && styles.bubbleSpeakerCaller]}>
+                  {SPEAKER_LABELS[line.speaker] ?? SPEAKER_LABELS.caller}
                 </Text>
                 <Text
                   style={[

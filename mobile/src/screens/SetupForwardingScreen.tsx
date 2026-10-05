@@ -16,7 +16,7 @@ import { useTheme } from '../contexts/ThemeContext';
 
 const SetupForwardingScreen = ({ navigation }: any) => {
   const { userConfig } = useAuth();
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
 
   // Use twilioNumber from backend config instead of hardcoded value
   const aiNumber = userConfig?.twilioNumber || 'Not assigned yet';
@@ -36,7 +36,14 @@ const SetupForwardingScreen = ({ navigation }: any) => {
   };
 
   const handleOpenPhoneSettings = () => {
-    Linking.openURL('tel:');
+    // There is no public deep link to the Phone → Call Forwarding page; the
+    // dialer is the closest entry point. openURL rejects if unsupported
+    // (e.g. iPad / simulator), so fall back to the system settings.
+    Linking.openURL('tel:').catch(() =>
+      Linking.openSettings().catch(() =>
+        Alert.alert('Open Settings', 'Please open Settings → Phone → Call Forwarding manually.'),
+      ),
+    );
   };
 
   const handleSetupComplete = () => {

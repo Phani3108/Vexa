@@ -46,12 +46,58 @@ const deliveryAddressSchema = new mongoose.Schema({
   securityNotes: { type: String, default: '' }  // e.g. "Tell security you are delivering to Flat 304, Tower B"
 }, { _id: false });
 
+// Business hours — one entry per weekday (0 = Sunday … 6 = Saturday)
+const businessHoursSchema = new mongoose.Schema({
+  day:    { type: Number, min: 0, max: 6, required: true },
+  open:   { type: String, default: '09:00' },   // "HH:mm" 24-hour
+  close:  { type: String, default: '17:00' },
+  closed: { type: Boolean, default: false }
+}, { _id: false });
+
+const faqSchema = new mongoose.Schema({
+  question: { type: String, required: true },
+  answer:   { type: String, required: true }
+}, { _id: false });
+
+// SME profile — what the AI receptionist knows about the business
+const businessProfileSchema = new mongoose.Schema({
+  businessName: { type: String, default: '' },
+  industry:     { type: String, default: 'other' },     // key into templates.INDUSTRIES
+  description:  { type: String, default: '' },          // one-paragraph elevator pitch
+  website:      { type: String, default: '' },
+  email:        { type: String, default: '' },
+  bookingUrl:   { type: String, default: '' },
+  address:      { type: String, default: '' },
+  services:     [String],                               // "Haircut — $30", "AC repair"
+  faqs:         [faqSchema],
+  hours:        [businessHoursSchema],
+  timezone:     { type: String, default: 'America/New_York' },
+  currency:     { type: String, default: 'USD' },
+  directions:   { type: String, default: '' },          // how to find the shop, spoken to callers
+  // Products the receptionist can quote: stock and unit price are read live on calls
+  catalog: [new mongoose.Schema({
+    name:    { type: String, required: true },
+    aliases: [String],
+    stock:   { type: Number, default: 0 },
+    price:   { type: Number, default: 0 },
+    unit:    { type: String, default: '' }
+  }, { _id: false })],
+  afterHoursMessage: { type: String, default: '' },
+  afterHoursEmergencyTransfer: { type: Boolean, default: true },
+  // Number calls are transferred to (owner / front desk). Defaults to the account phone.
+  transferNumber: { type: String, default: '' }
+}, { _id: false });
+
 const userConfigSchema = new mongoose.Schema({
   userId: { type: String, required: true, unique: true },
+  accountType: { type: String, enum: ['personal', 'business'], default: 'business' },
+  onboardingCompleted: { type: Boolean, default: false },
   name: { type: String, default: 'User' },
   about: { type: String, default: 'A professional who receives many calls.' },
   phoneNumber: String,
   twilioNumber: String,
+
+  businessProfile: { type: businessProfileSchema, default: () => ({}) },
 
   // Physical delivery address — AI uses this to guide callers
   deliveryAddress: { type: deliveryAddressSchema, default: () => ({}) },
@@ -69,6 +115,23 @@ const userConfigSchema = new mongoose.Schema({
 
   // Core of the dynamic prompt system — add/edit categories freely
   callCategories: [categoryRuleSchema],
+
+  // Multi-turn call flows (see src/workflows). Stored as plain objects so the
+  // owner can edit steps freely; validated by routes/workflows.js.
+  workflows: { type: [mongoose.Schema.Types.Mixed], default: undefined },
+
+  // Call recording (live phone calls). Announced to callers by default.
+  recording: {
+    enabled: { type: Boolean, default: true },
+    announce: { type: Boolean, default: true },
+    retentionDays: { type: Number, default: 90, min: 1, max: 3650 }
+  },
+
+  // Shield mode: standard | focus | aggressive | silent  (until = auto-revert time)
+  shield: {
+    mode: { type: String, enum: ['standard', 'focus', 'aggressive', 'silent'], default: 'standard' },
+    until: Date
+  },
 
   vipContacts: [vipContactSchema],
   blockedNumbers: [String],
@@ -103,7 +166,7 @@ const userConfigSchema = new mongoose.Schema({
       excludeDates: [String]  // Array of dates to exclude (ISO format: "YYYY-MM-DD")
     },
     
-    timezone: { type: String, default: 'Asia/Kolkata' }, // User's timezone
+    timezone: { type: String, default: 'America/New_York' }, // User's timezone
     
     message: { 
       type: String, 
@@ -129,7 +192,8 @@ const userConfigSchema = new mongoose.Schema({
 
 }, { timestamps: true });
 
-userConfigSchema.index({ twilioNumber: 1 });
+// Sparse unique: two accounts can never claim the same Twilio number (call hijacking)
+userConfigSchema.index({ twilioNumber: 1 }, { unique: true, partialFilterExpression: { twilioNumber: { $type: 'string', $gt: '' } } });
 userConfigSchema.index({ phoneNumber: 1 });
 
 export const DEFAULT_CATEGORIES = [

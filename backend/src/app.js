@@ -1,131 +1,117 @@
+// Must be the first import: ESM evaluates imports before module code, so a
+// later dotenv.config() would run AFTER modules had already read process.env.
+import 'dotenv/config';
+
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
-import dotenv from 'dotenv';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
 import { createServer } from 'http';
 import { WebSocketServer } from 'ws';
 import { Server as SocketIOServer } from 'socket.io';
-import { connectToMongoDB, isMongoConnected } from './config/mongodb.js';
+import { connectToMongoDB, disconnectMongoDB, isMongoConnected } from './config/mongodb.js';
 import logger from './config/logger.js';
-
-// Load environment variables
-dotenv.config();
-
-// Connect to MongoDB
-connectToMongoDB();
+import { authenticate, verifyAccessToken } from './middleware/auth.js';
+import { llmAvailable, llmLabel } from './lib/llm.js';
+import { LANGUAGES } from './lib/language.js';
+import authRoutes from './routes/auth.js';
+import userRoutes, { demoDataEnabled } from './routes/users.js';
+import callRoutes from './routes/calls.js';
+import contextRoutes from './routes/context.js';
+import simulatorRoutes from './routes/simulator.js';
+import workflowRoutes from './routes/workflows.js';
+import { assistantRouter, bookingsRouter } from './routes/assistant.js';
+import { attachIO as attachSimulatorIO } from './services/simulatorService.js';
+import { callMediaRouter, mediaRouter, enforceRecordingRetention } from './routes/media.js';
+import voiceRoutes, { initVoiceRoutes, getVoiceAgent } from './routes/voice.js';
 
 const app = express();
 const server = createServer(app);
 const PORT = process.env.PORT || 3000;
+const isProd = process.env.NODE_ENV === 'production';
 
-// ============================================
-// Socket.io for Real-time Mobile App Communication
-// ============================================
+// Behind Render/Fly/ngrok the client IP comes from X-Forwarded-For
+app.set('trust proxy', 1);
+
 const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(',')
-  : ['http://localhost:3000', 'http://localhost:8081'];
+  ? process.env.ALLOWED_ORIGINS.split(',').map(s => s.trim())
+  : ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:8081'];
 
+// ============================================
+// Socket.io — real-time events for the dashboard and mobile app.
+// Clients authenticate with their JWT; the server decides which room they join.
+// (Previously any client could `join:user` any phone number and eavesdrop.)
+// ============================================
 const io = new SocketIOServer(server, {
-  cors: {
-    origin: process.env.NODE_ENV === 'production' ? ALLOWED_ORIGINS : '*',
-    methods: ['GET', 'POST']
+  cors: { origin: isProd ? ALLOWED_ORIGINS : '*', methods: ['GET', 'POST'] }
+});
+
+io.use((socket, next) => {
+  const token = socket.handshake.auth?.token
+    || socket.handshake.headers?.authorization?.replace(/^Bearer /, '');
+  try {
+    socket.data.userId = verifyAccessToken(token);
+    next();
+  } catch {
+    next(new Error('unauthorized'));
   }
 });
 
-// Socket.io connection handling
 io.on('connection', (socket) => {
-  logger.info(`📱 Mobile app connected: ${socket.id}`);
-  let userRoom = null;
-  
-  // User joins their personal room for call events
-  socket.on('join:user', (userId) => {
-    // Leave previous room if any
-    if (userRoom) socket.leave(userRoom);
-    userRoom = `user:${userId}`;
-    socket.join(userRoom);
-    logger.info(`   User ${userId} joined their room`);
-  });
-  
-  // Handle call takeover request from mobile app
-  socket.on('call:takeover', async (data) => {
-    const { callId, userId } = data;
-    logger.info(`📞 Takeover requested for call ${callId} by user ${userId}`);
-    
-    io.to(`user:${userId}`).emit('call:takeover-initiated', {
-      callId,
-      status: 'connecting',
-      message: 'Connecting you to the call...'
-    });
-  });
-  
-  // Handle call disconnect request
-  socket.on('call:disconnect', async (data) => {
-    const { callId, userId } = data;
-    logger.info(`📞 Disconnect requested for call ${callId}`);
-    
-    io.to(`user:${userId}`).emit('call:disconnecting', { callId });
-  });
-  
-  socket.on('disconnect', () => {
-    logger.info(`📱 Mobile app disconnected: ${socket.id}`);
-    // Room cleanup is automatic when socket disconnects
-  });
+  const { userId } = socket.data;
+  socket.join(`user:${userId}`);
+  logger.debug(`📱 Client connected: ${socket.id} (user ${userId})`);
+
+  // Legacy clients still emit this; room membership is already handled above.
+  socket.on('join:user', () => {});
+
+  socket.on('disconnect', () => logger.debug(`📱 Client disconnected: ${socket.id}`));
 });
 
-// Export io instance for use in other modules
 export { io };
 
+// ============================================
 // Middleware
-app.use(helmet({ contentSecurityPolicy: false })); // Security headers
+// ============================================
+app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' ? ALLOWED_ORIGINS : '*',
+  origin: isProd ? ALLOWED_ORIGINS : '*',
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Rate limiting
-const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 200,
+app.use('/api/', rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 600,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests, please try again later' },
-});
-app.use('/api/', apiLimiter);
-
-// Stricter rate limit for voice/outbound (prevents Twilio abuse)
-const voiceLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1 minute
+}));
+app.use('/voice/outbound-call', rateLimit({
+  windowMs: 60 * 1000,
   max: 10,
   message: { error: 'Too many call requests, please try again later' },
-});
-app.use('/voice/outbound-call', voiceLimiter);
+}));
 
 // ============================================
 // Voice Agent Configuration
+// OPENAI_ENDPOINT is optional: empty = api.openai.com, set = Azure OpenAI.
 // ============================================
 function loadVoiceConfig() {
-  const requiredVars = [
-    'OPENAI_API_KEY',
-    'OPENAI_ENDPOINT',
-    'TWILIO_ACCOUNT_SID',
-    'TWILIO_AUTH_TOKEN',
-    'TWILIO_PHONE_NUMBER'
-  ];
-
+  const requiredVars = ['OPENAI_API_KEY', 'TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN', 'TWILIO_PHONE_NUMBER'];
   const missingVars = requiredVars.filter(v => !process.env[v]);
-
   if (missingVars.length > 0) {
-    console.warn(`⚠️ Voice Agent disabled - missing: ${missingVars.join(', ')}`);
+    logger.warn(`⚠️  Live phone voice disabled — missing: ${missingVars.join(', ')} (app + test calls still work)`);
     return null;
   }
-
   return {
     OPENAI_API_KEY: process.env.OPENAI_API_KEY,
-    OPENAI_ENDPOINT: process.env.OPENAI_ENDPOINT,
+    OPENAI_ENDPOINT: process.env.OPENAI_ENDPOINT || '',
     OPENAI_DEPLOYMENT_NAME: process.env.OPENAI_DEPLOYMENT_NAME || 'gpt-realtime-mini',
     OPENAI_CHAT_DEPLOYMENT: process.env.OPENAI_CHAT_DEPLOYMENT || 'gpt-4.1-mini',
     TWILIO_ACCOUNT_SID: process.env.TWILIO_ACCOUNT_SID,
@@ -136,137 +122,130 @@ function loadVoiceConfig() {
 }
 
 const voiceConfig = loadVoiceConfig();
-let voiceAgent = null;
 
-// Basic health check route
 app.get('/health', (req, res) => {
-  res.json({
-    status: 'OK',
-    message: 'AI Caller Backend API is running',
+  const mongo = isMongoConnected();
+  res.status(mongo ? 200 : 503).json({
+    status: mongo ? 'OK' : 'DEGRADED',
     timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV,
     voiceEnabled: !!voiceConfig,
-    mongodb: isMongoConnected() ? 'connected' : 'disconnected',
+    aiEnabled: llmAvailable(),
+    ai: llmLabel(),
+    mongodb: mongo ? 'connected' : 'disconnected',
   });
 });
 
-// API Routes
-app.get('/api', (req, res) => {
+// Public capability flags the dashboard uses to show setup state
+app.get('/api/meta', (req, res) => {
   res.json({
-    message: 'AI Caller API v1.0',
-    endpoints: {
-      health: '/health',
-      auth: '/api/auth/*',
-      users: '/api/users/*',
-      calls: '/api/calls/*',
-      context: '/api/context/*',
-      voice: '/voice/*'
-    },
-    voiceEnabled: !!voiceConfig
+    name: 'Vexa',
+    voiceEnabled: !!voiceConfig,
+    aiEnabled: llmAvailable(),
+    aiProvider: llmLabel(),
+    smsEnabled: isProd || process.env.OTP_FORCE_SMS === 'true',
+    twilioNumber: process.env.TWILIO_PHONE_NUMBER || null,
+    webhookUrl: process.env.WEBHOOK_URL || null,
+    demoDataEnabled: demoDataEnabled(),
+    languages: LANGUAGES,
+    nluEnabled: llmAvailable() && process.env.NLU_DISABLED !== 'true',
   });
 });
 
-// Import route modules
-import authRoutes from './routes/auth.js';
-import userRoutes from './routes/users.js';
-import callRoutes from './routes/calls.js';
-import contextRoutes from './routes/context.js';
-import voiceRoutes, { initVoiceRoutes, getVoiceAgent } from './routes/voice.js';
-import { authenticate } from './middleware/auth.js';
-
-// Mount routes
+// ============================================
+// Routes
+// ============================================
 app.use('/api/auth', authRoutes);
-app.use('/api/users/setup', userRoutes);           // no auth — user doesn't exist yet
-app.use('/api/users', authenticate, userRoutes);   // everything else requires identity
-app.use('/api/calls', callRoutes);                 // auth handled inside router
-app.use('/api/context', contextRoutes);            // auth handled inside router
+app.use('/api/users', authenticate, userRoutes);
+app.use('/api/calls', callMediaRouter);
+app.use('/api/calls', callRoutes);
+app.use('/media', mediaRouter);
+app.use('/api/context', contextRoutes);
+app.use('/api/simulator', simulatorRoutes);
+app.use('/api/workflows', workflowRoutes);
+app.use('/api/assistant', assistantRouter);
+app.use('/api/bookings', bookingsRouter);
+attachSimulatorIO(io);
 
-// Initialize voice routes if config is available
 if (voiceConfig) {
-  voiceAgent = initVoiceRoutes(voiceConfig, io);  // Pass Socket.io instance
-  app.use('/voice', voiceRoutes);
-  console.log('✅ Voice agent routes mounted at /voice');
+  initVoiceRoutes(voiceConfig, io);
 }
+// Mounted even when disabled so owner endpoints return a clean 503 instead of 404
+app.use('/voice', voiceRoutes);
 
-// ============================================
-// WebSocket Server for Voice Media Streams
-// ============================================
 if (voiceConfig) {
   const wss = new WebSocketServer({ server, path: '/voice/media-stream' });
-  
   wss.on('connection', (ws, req) => {
-    console.log('🔌 New WebSocket connection for voice media stream');
-    
     const agent = getVoiceAgent();
-    if (agent) {
-      agent.handleMediaStream(ws, req);
-    } else {
-      console.error('❌ Voice agent not available');
-      ws.close();
-    }
+    if (agent) agent.handleMediaStream(ws, req);
+    else ws.close();
   });
-  
-  console.log('✅ WebSocket server ready at /voice/media-stream');
 }
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-  logger.error('Unhandled error:', err);
-  res.status(err.status || 500).json({
-    error: {
-      message: process.env.NODE_ENV === 'production'
-        ? 'Internal Server Error'
-        : (err.message || 'Internal Server Error'),
-      status: err.status || 500
-    }
+// ============================================
+// Web dashboard (built SPA) — served from the same origin in production
+// ============================================
+const here = path.dirname(fileURLToPath(import.meta.url));
+const webDist = path.resolve(process.env.WEB_DIST || path.join(here, '../../web/dist'));
+if (fs.existsSync(path.join(webDist, 'index.html'))) {
+  app.use(express.static(webDist, { index: false, maxAge: '1h' }));
+  app.get(/^\/(?!api|voice|health|socket\.io|media).*/, (req, res) => {
+    res.sendFile(path.join(webDist, 'index.html'));
   });
-});
+  logger.info(`🖥️  Serving web dashboard from ${webDist}`);
+}
 
-// 404 handler
+// 404 for API routes
 app.use((req, res) => {
-  res.status(404).json({
-    error: {
-      message: 'Route not found',
-      status: 404
-    }
+  res.status(404).json({ error: 'Route not found' });
+});
+
+// Error handler (Express 5 forwards async errors here)
+app.use((err, req, res, next) => {
+  const status = err.status || err.statusCode || 500;
+  if (status >= 500) logger.error(`Unhandled error on ${req.method} ${req.originalUrl}: ${err.stack || err.message}`);
+  res.status(status).json({
+    error: status < 500 || !isProd ? err.message : 'Internal Server Error'
   });
 });
 
-// Start server (use 'server' for WebSocket support)
-server.listen(PORT, () => {
-  console.log('\n' + '='.repeat(60));
-  console.log(`🚀 AI Caller Backend API`);
-  console.log('='.repeat(60));
-  console.log(`📍 Port: ${PORT}`);
-  console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🎤 Voice Agent: ${voiceConfig ? '✅ Enabled' : '❌ Disabled'}`);
-  console.log(`📱 Socket.io: ✅ Enabled (real-time mobile app events)`);
-  console.log('='.repeat(60));
-  console.log('\n🌐 HTTP Endpoints:');
-  console.log(`   Health:  http://localhost:${PORT}/health`);
-  console.log(`   API:     http://localhost:${PORT}/api`);
-  
-  console.log('\n📱 Socket.io Events:');
-  console.log('   call:started     - New call incoming');
-  console.log('   call:transcript  - Live transcript updates');
-  console.log('   call:intent      - Detected caller intent');
-  console.log('   call:ended       - Call completed with summary');
-  console.log('   call:takeover    - User joins call (Conference)');
-  
-  if (voiceConfig) {
-    console.log('\n📞 Voice Endpoints (Twilio Webhooks):');
-    console.log(`   Incoming: POST /voice/incoming-call`);
-    console.log(`   Status:   POST /voice/call-status`);
-    console.log(`   Stream:   WSS  /voice/media-stream`);
-    console.log('\n⚙️  Configure Twilio webhooks to your ngrok URL:');
-    console.log(`   ${process.env.WEBHOOK_URL || 'Set WEBHOOK_URL in .env'}/voice/incoming-call`);
+// ============================================
+// Start: connect the database first so early requests never hit a cold DB
+// ============================================
+async function start() {
+  const connected = await connectToMongoDB();
+  if (!connected && isProd) {
+    logger.error('Database connection failed — exiting');
+    process.exit(1);
   }
-  
-  console.log('\n📚 API Endpoints:');
-  console.log('   GET  /api/calls         - List all calls');
-  console.log('   GET  /api/calls/:id     - Get call details');
-  console.log('='.repeat(60));
-  console.log('\n✅ Server ready!\n');
-});
+
+  if (isMongoConnected()) {
+    enforceRecordingRetention().catch(err => logger.warn(`Retention check failed: ${err.message}`));
+    setInterval(() => enforceRecordingRetention().catch(() => {}), 6 * 3600 * 1000).unref();
+  }
+
+  server.listen(PORT, () => {
+    logger.info('='.repeat(56));
+    logger.info(`🚀 Vexa API on http://localhost:${PORT}`);
+    logger.info(`   Environment : ${process.env.NODE_ENV || 'development'}`);
+    logger.info(`   Database    : ${isMongoConnected() ? 'connected' : 'NOT connected'}`);
+    logger.info(`   AI (text)   : ${llmLabel()}`);
+    logger.info(`   Voice agent : ${voiceConfig ? 'enabled' : 'disabled'}`);
+    if (voiceConfig) logger.info(`   Twilio webhook: ${process.env.WEBHOOK_URL || '(set WEBHOOK_URL)'}/voice/incoming-call`);
+    logger.info('='.repeat(56));
+  });
+}
+
+async function shutdown(signal) {
+  logger.info(`${signal} received — shutting down`);
+  io.close();
+  server.close();
+  await disconnectMongoDB();
+  process.exit(0);
+}
+process.on('SIGINT', () => shutdown('SIGINT'));
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+
+if (process.env.NODE_ENV !== 'test') start();
 
 export default app;
+export { start, server };

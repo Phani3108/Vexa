@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Alert } from 'react-native';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import CommonHeader from '../components/CommonHeader';
 import styles from '../styles/DeliveryPreferencesScreen.styles';
 import * as api from '../services/api';
@@ -21,7 +20,7 @@ const [autoApproveList, setAutoApproveList] = useState([
 // ─────────────────────────────────────────────────────────────────────────────
 
 const DeliveryPreferencesScreen = ({ navigation }: any) => {
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const [categories, setCategories] = useState<CallCategory[]>([]);
   const [activeIdx, setActiveIdx] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -34,11 +33,12 @@ const DeliveryPreferencesScreen = ({ navigation }: any) => {
   /** Fetch categories from backend */
   const fetchCategories = useCallback(async () => {
     try {
-      const { categories: cats } = await api.getCategories();
+      const res = await api.getCategories();
+      const cats = res?.categories ?? [];
       setCategories(cats);
       if (cats.length > 0) {
-        setEditAction(cats[0].action);
-        setEditInstructions(cats[0].instructions);
+        setEditAction(cats[0].action || 'follow_instructions');
+        setEditInstructions(cats[0].instructions || '');
       }
     } catch (err: any) {
       Alert.alert('Error', err.message || 'Failed to load categories');
@@ -54,8 +54,8 @@ const DeliveryPreferencesScreen = ({ navigation }: any) => {
     setActiveIdx(idx);
     const cat = categories[idx];
     if (cat) {
-      setEditAction(cat.action);
-      setEditInstructions(cat.instructions);
+      setEditAction(cat.action || 'follow_instructions');
+      setEditInstructions(cat.instructions || '');
     }
   };
 
@@ -65,10 +65,12 @@ const DeliveryPreferencesScreen = ({ navigation }: any) => {
     if (!cat) { return; }
     setSaving(true);
     try {
-      await api.updateCategory(cat.id, { action: editAction as CallCategory['action'], instructions: editInstructions });
-      // Update local state
+      const res = await api.updateCategory(cat.id, { action: editAction as CallCategory['action'], instructions: editInstructions });
+      // Prefer the server's copy; fall back to patching local state
       setCategories(prev =>
-        prev.map((c, i) => (i === activeIdx ? { ...c, action: editAction as CallCategory['action'], instructions: editInstructions } : c)),
+        res?.categories?.length
+          ? res.categories
+          : prev.map((c, i) => (i === activeIdx ? { ...c, action: editAction as CallCategory['action'], instructions: editInstructions } : c)),
       );
       Alert.alert('Saved', `${cat.label} preferences updated`);
     } catch (err: any) {

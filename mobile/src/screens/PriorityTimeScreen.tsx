@@ -38,7 +38,7 @@ const DAYS_OF_WEEK = [
 ];
 
 export default function PriorityTimeScreen({ navigation }: any) {
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [quickToggling, setQuickToggling] = useState(false);
@@ -84,8 +84,9 @@ export default function PriorityTimeScreen({ navigation }: any) {
           '{userName} is currently unavailable due to important work and cannot take calls. They will be available after {endTime}. Please leave your details and they will get back to you.'
       );
       setEmergencyContacts(pt.emergencyContacts || []);
-    } catch (error) {
-      // Priority time endpoint may not exist yet — use defaults silently
+    } catch (error: any) {
+      // Keep defaults so the screen is usable, but log the failure
+      console.warn('[PriorityTime] Failed to load settings', error?.message);
     } finally {
       setLoading(false);
     }
@@ -98,7 +99,7 @@ export default function PriorityTimeScreen({ navigation }: any) {
       setQuickToggleActive(response.quickToggleActive);
       Alert.alert('Success', response.message);
     } catch (error: any) {
-      Alert.alert('Coming Soon', 'DND quick toggle will be available in a future update.');
+      Alert.alert('Error', error?.message || 'Could not toggle DND. Please try again.');
     } finally {
       setQuickToggling(false);
     }
@@ -243,7 +244,8 @@ export default function PriorityTimeScreen({ navigation }: any) {
     return message.replace('{userName}', userName).replace('{endTime}', endTime);
   };
 
-  const format12Hour = (time24: string): string => {
+  const format12Hour = (time24?: string): string => {
+    if (!time24 || !/^\d{1,2}:\d{2}$/.test(time24)) {return time24 || '';}
     const [h, m] = time24.split(':').map(Number);
     const period = h >= 12 ? 'PM' : 'AM';
     const hour12 = h === 0 ? 12 : h > 12 ? h - 12 : h;

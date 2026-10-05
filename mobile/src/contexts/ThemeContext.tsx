@@ -137,32 +137,30 @@ const STORAGE_KEY = '@aicaller_theme';
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const systemScheme = useColorScheme();
-  const [isDark, setIsDark] = useState(false);
-  const [loaded, setLoaded] = useState(false);
+  const [isDark, setIsDark] = useState(systemScheme === 'dark');
 
-  // Load saved preference
+  // Load saved preference; without one, follow the system scheme (and keep
+  // following it if it changes).
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       try {
         const saved = await AsyncStorage.getItem(STORAGE_KEY);
-        if (saved !== null) {
-          setIsDark(saved === 'dark');
-        } else {
-          // Default to system preference
-          setIsDark(systemScheme === 'dark');
-        }
+        if (cancelled) {return;}
+        setIsDark(saved !== null ? saved === 'dark' : systemScheme === 'dark');
       } catch {
-        setIsDark(false);
-      } finally {
-        setLoaded(true);
+        // storage unavailable — keep current value
       }
     })();
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [systemScheme]);
 
   const toggleTheme = useCallback(() => {
     setIsDark(prev => {
       const next = !prev;
-      AsyncStorage.setItem(STORAGE_KEY, next ? 'dark' : 'light');
+      AsyncStorage.setItem(STORAGE_KEY, next ? 'dark' : 'light').catch(() => {});
       return next;
     });
   }, []);
