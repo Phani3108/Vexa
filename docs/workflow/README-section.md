@@ -27,6 +27,12 @@
 | Pack refusal rules | Medical advice, allergen promises, fixed quotes, mark guarantees, treatment-safety calls, religion/caste/diet property filters | `packs/*.js` `guardrails.refuse`, `engine.js` `refusalFor`, model `restricted` label | On when the pack is installed |
 | Record privacy | Order, report or fee status told to the wrong person | `engine.js` `lookupRecord` | Shared only when the caller's phone (or name, if the record has no phone) matches |
 | Payment link limit | The AI asking for large payments on its own | `outcomes.js` `pay_link` | Above `payLinkAutoLimit` (₹5,000 default) the link waits for owner approval; simulated on test calls |
+| Vexa Link caps and anonymity | Runaway AI cost; strangers reading private records | `routes/link.js`, `linkService.js` | 10 starts/h and 30 msgs/min per IP; 40 msgs/chat; daily limit 50 (owner-set); no memory, recording or record read-outs |
+| Agent requests need approval | Another AI committing the business | `agentService.js` | Bookings/orders are requests; no records; `ask` → published info or "unknown"; 60/min per IP; daily cap 100 |
+| Family consent | Watching someone's calls without permission | `familyService.js` | Dependant creates the code and chooses what is shared; transcripts off by default; either side can end it |
+| Memory hygiene | Storing secrets or scam content | `memoryService.saveFromCall` | Nothing from spam/scam calls; OTP/PIN/card-like text dropped; owner-only |
+| Google sign-in verification | Forged sign-in tokens | `routes/auth.js` `/google` | Signature, audience, expiry and verified email checked; off unless `GOOGLE_CLIENT_ID` |
+| Server-only fields | Leaking push endpoints or device tokens | `routes/users.js` `publicConfig` | Stripped from every config response |
 
 ### Evals and quality gates
 
@@ -35,13 +41,14 @@
 | Indian-language understanding set (`backend/eval/nlu`) | Language, code-mixing, facts, yes/no, phone numbers across 8 languages (161 cases) | Every change in CI (offline, `--min 0.97`); `-- --mode claude` on demand | ≥ 97% offline (CI gate); ≥ 90% mixed-language target | Live · offline 99%, Claude 100% (157-case run) |
 | Held-out set (`holdout.jsonl`) | Same, 50 new phrasings never tuned against | Every change in CI (`--min 0.95`) | Should track the main set | Live · offline 98%, Claude 100% |
 | Pack + scam eval (`backend/eval/packs`) | 45 scripted calls across 7 packs (flow, outcome, actions, refusals, what must never be said) and 26 scam scripts plus lookalike genuine calls (precision, recall, leaks) | Every change in CI (offline, `--min 1`); `-- --mode claude` on demand | 100% and zero leaks (CI gate) | Live · offline 71/71, scam precision 1.0, recall 1.0, 0 leaks |
-| Backend unit tests | Flows, extractors, emergency, shields, Focus, sanitizer, recorder, Indian numbers/dates/yes-no, stream-token and log-redaction security, packs, orders, records, listings, refusals, scam shield, UPI links | `npm test` before release | All pass | Live · 62 tests passing, run in CI |
+| Backend unit tests | Flows, extractors, emergency, shields, Focus, sanitizer, recorder, Indian numbers/dates/yes-no, stream-token and log-redaction security, packs, orders, records, listings, refusals, scam shield, UPI links; memories, Ask Vexa parsing, link names, push subscriptions, interpreter fallback, agent tool schemas | `npm test` before release | All pass | Live · 69 tests passing, run in CI |
 | Mobile tests | App render, API client, transcript store | `jest` in `mobile/` | All pass | Partial · 9 tests |
 | Web app checks | Type safety and build | `tsc -b && vite build`, `oxlint` | No errors | Partial · no unit tests |
 | Runtime quality signals | Model used per turn, latency, tokens and cost by purpose, questions asked/skipped, risk, action status | Every call (saved on the call) | — | Live |
 | Per-flow stats | Runs, completed, transferred, average turns and questions (30 days) | `GET /api/workflows` | — | Live |
 | Speech eval on real Indian voices | Word error rate, language detection, facts from audio, reply latency | Planned (Phase 1B/1C) | ≥ 95% facts clean, ≥ 90% noisy, ≤ 1.5 s p95 | Planned |
 | CI pipeline | Backend tests, understanding gate, web lint and build, Docker build, dependency audit | GitHub Actions on every push and pull request (`.github/workflows/ci.yml`) | All jobs green | Live |
+| Live checks with Claude (manual, this release) | Vexa Link order → UPI button; memory quote and promise answered; Hindi⇄Telugu interpreter; family scam alert; agent-to-agent order; production Docker image with MongoDB | Before release | All pass | Partial · scripted, not in CI |
 
 ---
 
@@ -51,12 +58,12 @@ How an owner sets Vexa up, how every call is answered, understood and acted on, 
 
 ![Vexa — end-to-end workflow](workflow.png)
 
-<sub>Source of truth: Phani3108/Vexa, branch wave1 (commit 3568e5d, 29 Oct 2026) · Full readout with every table: [readout.html](readout.html) (open locally or download).</sub>
+<sub>Source of truth: Phani3108/Vexa, branch wave1-rest (commit a2aa584, 29 Oct 2026) · Full readout with every table: [readout.html](readout.html) (open locally or download).</sub>
 
 | | |
 |---|---|
-| **Scope** | UC1 Set up the assistant · UC2 Answer a call (live phone calls and in-app test calls) · UC3 After the call. Personal and Business modes share the same pipeline. · Wave 1: seven business packs and the scam shield (in-app test calls) |
-| **Source of truth** | github.com/Phani3108/Vexa · branch `wave1` · commit `3568e5d` · 29 Oct 2026 · backend/src, web/src, backend/.env.example, Dockerfile, docker-compose.yml, .github/workflows, backend/test, backend/eval |
+| **Scope** | UC1 Set up the assistant · UC2 Answer a call (live phone calls and in-app test calls) · UC3 After the call. Personal and Business modes share the same pipeline. · UC4 Beyond the phone line: Vexa Link, interpreter, agent API · Wave 1: packs, scam shield, memory, family guardian |
+| **Source of truth** | github.com/Phani3108/Vexa · branch `wave1-rest` · commit `a2aa584` · 29 Oct 2026 · backend/src, web/src, backend/.env.example, Dockerfile, docker-compose.yml, .github/workflows, backend/test, backend/eval |
 | **Planned items** | From ROADMAP.md (India-first plan): Indian speech engines and voices, Indian phone number, WhatsApp, UPI, calendar and CRM. Drawn as Not integrated. |
 | **Live status** | Text understanding, flows, analysis, translation and the app run end to end today. The live phone path (Twilio + OpenAI Realtime) is complete in code but has not been run on a real call: no Twilio or OpenAI keys are configured. |
 | **Prepared by** | Phani Marupaka with Claude Code · 29 Oct 2026 |
@@ -72,6 +79,7 @@ _Numbers match the badges in the diagram._
 3. The code is sent by Twilio Verify, or as a plain Twilio SMS. In development no SMS is sent and the code is shown on screen.
 4. Codes and accounts live in MongoDB. Expired codes delete themselves.
 5. Rate limits stop code guessing and SMS abuse, and production will not start with a weak signing secret.
+56. Where SMS codes aren't set up, owners sign in with Google; the server verifies Google's ID token for this app before issuing Vexa's own tokens.
 
 **UC1 · Configure flows, business and languages**
 
@@ -122,6 +130,8 @@ _Numbers match the badges in the diagram._
 34. Push notifications go to the owner's phone through Firebase, when it is configured.
 35. All live updates reach the owner's app over an authenticated Socket.io connection.
 36. Emergencies always override other settings and alert the owner while the call is still going.
+57. Alerts reach every device the owner has: the installed app or browser through Web Push (no Firebase needed), and the native app through FCM.
+58. If a parent has linked their son or daughter as a guardian, scam and emergency alerts on the parent's calls reach the guardian at the same moment.
 
 **UC3 · Save and analyse**
 
@@ -143,6 +153,26 @@ _Numbers match the badges in the diagram._
 49. Every change runs 47 backend tests, the understanding test gate, the web build and the Docker build in CI; 9 mobile tests also exist.
 54. For orders, Vexa texts a UPI payment link for the exact total; above the owner's limit the link waits for approval.
 55. Every change runs 71 scripted pack and scam calls in CI; any failure or leak blocks the release.
+59. Promises and quotes from the call are saved; when a promised time passes, the owner is asked whether it happened.
+60. The owner can ask in plain words about past calls; the answer comes only from saved notes and names the calls it used.
+
+**UC4 · Talk on a link or QR**
+
+61. A customer opens the business's Vexa Link or scans its QR code and talks by voice or text, in their language, without an app or a phone number.
+62. The conversation runs on the same flows as a call but anonymously: no caller memory, no recording, and no record read-outs.
+63. Understanding, translation, the scam shield and pack refusals all work exactly as on calls.
+64. An order ends with a UPI pay button for the exact total, opening the customer's UPI app.
+65. The conversation is saved like a call so the owner sees it in Activity.
+66. Per-visitor rate limits and the owner's daily limit keep AI costs predictable.
+
+**UC4 · Interpret and serve agents**
+
+67. Two people who don't share a language each speak their own on their own phone.
+68. Other people's AI assistants can query the business and send booking or order requests through published tools.
+69. Claude translates each message into the other person's language, keeping names, numbers and dates exact.
+70. For example, a customer's Claude assistant reads the manifest and places an exact-total order with a UPI link.
+71. Interpreter rooms live only in memory; agent requests are saved as calls and booking requests.
+72. Nothing an agent sends is confirmed without the owner; agents never see customer records.
 
 <details><summary><b>Data and history calls</b></summary>
 
@@ -162,6 +192,11 @@ What Vexa reads and writes about past calls, callers and the owner, and what is 
 | Calendar, CRM, WhatsApp, UPI, Indian telephony | Not integrated | — | Planned in ROADMAP.md. |
 | Pack data (`UserConfig.businessProfile`: catalog, records, listings, UPI ID; `packs`) | Read / written | Pack install; every pack call | Records are answered only to the phone number on them; sample data is optional. |
 | Scam evidence (`Call.analysis.scam`) | Written | Scam call ends | Type, label and the caller's phrases; call tagged spam, category "Scam blocked". |
+| Memories (`Memory`) | Written / read | End of call; Ask Vexa; reminder loop | Promise, quote, fact; status open/done/dismissed; owner-only queries |
+| Family links (`FamilyLink`) | Written / read | Invite, accept, alerts, digest | Hashed 6-digit code (24 h); what is shared and when consent was given |
+| Vexa Link sessions | In memory | During a web conversation (20 min) | Lost on restart; finished conversations are saved as calls |
+| Interpreter rooms | In memory | 2 hours | Never saved |
+| Push subscriptions (`UserConfig.pushSubscriptions`) | Written / read | Enable notifications; every alert | Not returned by `/api/users/config` |
 
 </details>
 
@@ -181,6 +216,10 @@ Claude is used for all text intelligence when `ANTHROPIC_API_KEY` is set (OpenAI
 | Speech to text | OpenAI `gpt-4o-mini-transcribe` (in Realtime) | Live calls | Caller transcript | `OPENAI_API_KEY` |
 | Voice (speech in, speech out) | OpenAI Realtime `OPENAI_DEPLOYMENT_NAME` (gpt-realtime-mini) · voice shimmer by default | Live calls | Speaks the engine's lines in the caller's language; free conversation only when no flow is active | `OPENAI_API_KEY`, `OPENAI_ENDPOINT` (Azure) |
 | Text fallback provider · `chatCompletion()` | OpenAI `OPENAI_CHAT_DEPLOYMENT` (gpt-4.1-mini) | Only if no Anthropic key | Same JSON outputs as above | `OPENAI_API_KEY` |
+| Memory answers · `memoryService.ask()` | Claude fast model · low effort · 1,200 tokens · 15 s | Owner asks about past calls (Ask Vexa) | Answer + calls used, only from saved memories and summaries; "not found" otherwise | Keyword search when no key |
+| Call memories · `ConversationAnalyzer` (`memories` field) | Claude main model (same post-call analysis call) | End of every call | Promises (with resolved due time), quotes, facts; never from spam/scam | Offline extractor `lib/memoryExtract.js` |
+| Interpreting · `interpret()` | Claude fast model · 1,200 tokens · 12 s | Every interpreter message | The speaker's words in the other language, names/numbers kept | Passes through untranslated offline |
+| Agent questions · `agentService` `ask` tool | Claude fast model · 600 tokens · 12 s | Only when the deterministic answer finds nothing | Answer from published info, or "unknown" | — |
 
 </details>
 
@@ -205,6 +244,10 @@ Claude is used for all text intelligence when `ANTHROPIC_API_KEY` is set (OpenAI
 | Vexa API (owner app) | `/api/auth/*`, `/api/users/*`, `/api/calls/*`, `/api/workflows/*`, `/api/assistant/*`, `/api/bookings/*`, `/api/simulator/*`, `/media/recordings/:token` | Everything the app does | JWT bearer; recording via signed link |
 | Socket.io | Events `call:transcript`, `call:language`, `call:handoff`, `call:urgent`, `call:analyzed`, `booking:requested` | Live updates to the owner | JWT in handshake |
 | UPI deep link (NPCI format) | `upi://pay?pa=…&am=…` sent inside a Twilio SMS | Payment link for an order total | None (no gateway); the owner's UPI ID |
+| Google Identity Services | `OAuth2Client.verifyIdToken` (Google's public keys) | Verify "Sign in with Google" | `GOOGLE_CLIENT_ID` (audience) |
+| Web Push services (FCM web, Apple, Mozilla) | `web-push` `sendNotification` to each subscription endpoint | Alerts on installed app / browser | VAPID keys (`VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`) |
+| Vexa Link (inbound, public) | `/api/public/link/:slug` start / message / end | Customers talk from a link or QR | None; IP rate limits + daily cap |
+| Agent API (inbound, public) | `GET /api/agent/v1/:slug`, `POST …/call` | Other AIs query and request | None; IP rate limit + daily cap; owner approval |
 
 </details>
 
@@ -220,6 +263,7 @@ Claude is used for all text intelligence when `ANTHROPIC_API_KEY` is set (OpenAI
 | Mobile app | React Native 0.84, React 19.2, React Navigation 7 (uses the same API) |
 | Deploy | Multi-stage Dockerfile (node:22-alpine) serving API + web; docker-compose with mongo:7 |
 | Demo and evals | playwright-core 1.63, macOS speech synthesis, Swift AVFoundation encoder; node:test; custom NLU eval runner |
+| Web reach | `web-push` 3.6 (VAPID), `google-auth-library` 10.6, `qrcode` 1.5 (web), installable PWA (manifest, service worker, PNG icons); Render blueprint `render.yaml`; MongoDB Atlas |
 
 </details>
 
@@ -247,14 +291,19 @@ Claude is used for all text intelligence when `ANTHROPIC_API_KEY` is set (OpenAI
 | `OTP_FORCE_SMS` | Send real codes in development | Off |
 | `STREAM_TOKEN_SECRET` | Signs the per-call audio stream token | Derived from `JWT_SECRET` |
 | `MIN_APP_VERSION` / `LATEST_APP_VERSION` | Android app forced / suggested update | Unset |
+| `GOOGLE_CLIENT_ID` | Shows "Continue with Google" and enables `/api/auth/google` | Unset (off) |
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` | Web Push notifications | Generated in `backend/.data` in development; off in production until set |
+| `PUBLIC_URL` (or Render's `RENDER_EXTERNAL_URL`) | Allowed origin and webhook base | Unset |
 
 </details>
 
 <details><summary><b>Known gaps (from the code)</b></summary>
 
 - The live phone path (Twilio + OpenAI Realtime) is complete in code but has not run on a real call; no keys are configured.
-- Active calls, test sessions and rate-limit counters live in memory: one server instance only, and a restart drops live calls.
 - Unused code and dependencies: `config/redis.js`, `pg`, `bcrypt`.
 - Per-turn replies take 2–9 s on Opus; a fast model (e.g. Haiku) is recommended for live calls.
+- Active calls, test sessions, Vexa Link sessions, interpreter rooms and rate-limit counters live in memory: one server instance only, and a restart drops them.
+- Hosting is configured (`render.yaml`, `docs/DEPLOY.md`) but needs the owner's Render, Atlas and Google accounts; demo v3 is scripted, not yet recorded.
+- Catalog, records and listings are entered in the app or loaded from a pack; CSV / Sheets import is not built yet.
 
 </details>
