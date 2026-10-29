@@ -497,12 +497,13 @@ export class WorkflowSession {
 
   // ── Slot filling ────────────────────────────────────────────────────────
 
-  fill(text, nluSlots = {}, opening = false, nluUsed = false) {
+  fill(text, nluSlots = {}, opening = false, nluUsed = false, skipTypes = []) {
     const filled = [];
     // Typed slots first, so an opening statement's free text can drop the
     // parts already captured elsewhere ("…install tomorrow morning" → timing)
     const slots = (this.active?.slots || []).slice().sort((a, b) => (a.type === 'text') - (b.type === 'text'));
     for (const slot of slots) {
+      if (skipTypes.includes(slot.type)) continue;
       // A cart keeps growing: "aur do lassi" adds, "make it 3 rotis" changes that line
       if (slot.type === 'order' && this.slots[slot.key]?.value) {
         const raw = nluSlots[slot.key] != null && nluSlots[slot.key] !== '' ? String(nluSlots[slot.key]) : text;
@@ -596,7 +597,10 @@ export class WorkflowSession {
     // active flow looks the item up itself and will say both
     const looksUp = (this.active?.steps || []).some(st => st.type === 'lookup' && st.source === 'catalog');
     const asksPrice = /\b(price|cost|how much|charges?|fees?|rate|kitna|kitne|kimat|keemat|dhara|vilai|evvalavu)\b/i.test(text);
+    const asksStock = /\b(do you have|have you got|in stock|available|availability|hai kya|milega|milta|dorukuthundi|undha|irukka|kidaikkuma)\b/i.test(text);
     for (const item of looksUp ? [] : this.mentionedItems(text).slice(0, 2)) {
+      if (item.stock === 0) parts.push(`Sorry, ${item.name} is out of stock right now.`);
+      else if (asksStock) parts.push(`Yes, we have ${item.name}${item.stock ? ` in stock` : ''}.`);
       if (item.note) parts.push(`${item.name}: ${item.note}`);
       if (asksPrice && item.price) parts.push(`${item.name} is ${item.priceMax ? `${this.money(item.price)} to ${this.money(item.priceMax)}` : this.money(item.price)}.`);
     }
@@ -869,8 +873,11 @@ export class WorkflowSession {
       return this.result(this.run(out));
     }
 
-    // 4) Side question? Answer from business info, then continue the flow
-    const answer = nlu?.answer || (isQuestion(clean) ? this.answerQuestion(clean) : null);
+    // 4) Side question? Answer from business info, then continue the flow — unless the flow is about
+    //    to look up the very item asked about ("thyroid test price?"): its lookup is the answer
+    const lookupAhead = (this.active?.steps || []).slice(this.pointer).some(st => st.type === 'lookup' && st.source === 'catalog');
+    const flowAnswers = lookupAhead && this.mentionedItems(clean).length > 0;
+    const answer = flowAnswers ? null : nlu?.answer || (isQuestion(clean) ? this.answerQuestion(clean) : null);
     if (answer) {
       out.say.push(answer);
       this.log('answered', { question: clean.slice(0, 120) });
@@ -878,7 +885,8 @@ export class WorkflowSession {
       // high-confidence facts inside it (a name, a number) are kept.
       const pending = this.asked;
       this.asked = null;
-      this.fill(clean, Object.fromEntries(Object.entries(nlu?.slots || {}).filter(([k]) => k !== pending)), opening && !pending);
+      // A question about an item ("how much is the biryani?") is not an order for it
+      this.fill(clean, Object.fromEntries(Object.entries(nlu?.slots || {}).filter(([k]) => k !== pending)), opening && !pending, false, ['order']);
       this.asked = pending;
       if (this.asked) this.attempts[this.asked] = Math.max(0, (this.attempts[this.asked] || 1) - 1);
       return this.result(this.run(out));

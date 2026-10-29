@@ -307,13 +307,13 @@ Each block follows the same template. Conversations are examples; real ones vary
 |---|---|---|---|---|
 | 1 | **Pack format + pack installer**; packs B4–B10 with seed data and eval sets | B4–B10 | Test calls + Vexa Link | Done |
 | 2 | **Scam classifier step + sensitive-data guard + `p_scam` flow + evidence alert** | P4 (P5, P10 later) | Test call | Done |
-| 3 | **Vexa Link** (public talk page + QR, rate-limited) | All 🌐 business packs, P12 | Real phone browser | — |
+| 3 | **Vexa Link** (public talk page + QR, rate-limited) | All 🌐 business packs, P12 | Real phone browser | Done |
 | 4 | **Pay link action (UPI)** + order/record lookup from CSV | B7, B11, B12 | Test call / Vexa Link | Done (CSV import to come) |
-| 5 | **Memory store + Ask Vexa questions + promise nudges** | P8 (P10 later) | App | — |
-| 6 | **Linked accounts (guardian)** + digest | P5 | Two accounts in the app | — |
-| 7 | **Two-way interpreter on Vexa Link** | P12 | Two phones | — |
-| 8 | **Callable agent API** | A1 | API call shown in the demo | — |
-| 9 | Installable app + web push + Google sign-in, then Render + Atlas | Real use | Real phone | — |
+| 5 | **Memory store + Ask Vexa questions + promise nudges** | P8 (P10 later) | App | Done |
+| 6 | **Linked accounts (guardian)** + digest | P5 | Two accounts in the app | Done |
+| 7 | **Two-way interpreter on Vexa Link** | P12 | Two phones | Done |
+| 8 | **Callable agent API** | A1 | API call shown in the demo | Done |
+| 9 | Installable app + web push + Google sign-in, then Render + Atlas | Real use | Real phone | Done in code; hosting needs accounts (DEPLOY.md) |
 | — | Waits for phone numbers / accounts | P6, P7, P9, P13, B13 real traffic; WhatsApp; Exotel | — | — |
 
 Infrastructure from LAUNCH_PLAN (L1 keys and tenancy, L5a caps, L7a privacy) continues alongside. L1 and L5a must land before strangers use Vexa Link.

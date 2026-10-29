@@ -25,7 +25,7 @@ export default {
       priority: 2,
       trigger: { categories: ['booking.appointment'], keywords: ['appointment', 'book', 'booking', 'haircut', 'hair cut', 'facial', 'colour', 'color', 'beard', 'massage', 'spa', 'slot', 'baal'] },
       slots: [
-        { key: 'service', label: 'Services', type: 'order', prompt: 'Sure! Which services would you like — for example a haircut, beard trim, colour or facial?' },
+        { key: 'service', label: 'Services', type: 'order', prompt: 'Which services would you like to book — for example a haircut, beard trim, colour or facial?' },
         { key: 'stylist', label: 'Stylist', type: 'choice', prompt: 'Any stylist you prefer — Rahul, Priya or Imran? Or whoever is free?', required: false, options: [
           { value: 'Rahul', synonyms: ['rahul'] }, { value: 'Priya', synonyms: ['priya'] }, { value: 'Imran', synonyms: ['imran'] },
           { value: 'any stylist', label: 'Any stylist', synonyms: ['anyone', 'any', 'whoever', 'no preference', 'koi bhi', 'evarina', 'yaaraavathu'] }

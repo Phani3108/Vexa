@@ -69,6 +69,9 @@ export async function applyOutcomes({ run, call, user, io }) {
   };
   const callerNumber = call.phoneNumber;
   const from = user.twilioNumber || process.env.TWILIO_PHONE_NUMBER;
+  // Who can be texted: the number the caller gave, else the caller ID (web / agent visitors have none)
+  const isPhone = n => /^\+\d{10,15}$/.test(String(n || ''));
+  const textTo = isPhone(run.slots?.callback) ? run.slots.callback : isPhone(callerNumber) ? callerNumber : null;
 
   for (const action of run.actions || []) {
     let result = { status: 'done' };
@@ -85,7 +88,7 @@ export async function applyOutcomes({ run, call, user, io }) {
             callId: call.callId,
             kind,
             customerName: s.name || null,
-            phoneNumber: callerNumber,
+            phoneNumber: textTo || callerNumber,
             service: action.params?.service || s.service || s.need || (kind !== 'new' ? `${kind === 'cancel' ? 'Cancel' : 'Move'} appointment (${s.current || 'unknown'})` : null),
             requestedTime: s.when || s.newTime || s.current || null,
             requestedAt: action.slotsIso || null
@@ -97,8 +100,10 @@ export async function applyOutcomes({ run, call, user, io }) {
         case 'send_sms': {
           if (call.isTest) {
             result = { status: 'simulated', detail: renderTemplate(action.params?.template, vars) };
+          } else if (!textTo) {
+            result = { status: 'skipped', detail: 'No phone number to text' };
           } else {
-            result = await sendSms({ to: run.slots?.callback || callerNumber, from, body: renderTemplate(action.params?.template, vars) });
+            result = await sendSms({ to: textTo, from, body: renderTemplate(action.params?.template, vars) });
             result.body = renderTemplate(action.params?.template, vars);
           }
           break;
@@ -133,8 +138,10 @@ export async function applyOutcomes({ run, call, user, io }) {
             result = { status: 'needs_approval', detail: `₹${amount.toLocaleString('en-IN')} is above your ₹${limit.toLocaleString('en-IN')} auto-send limit — approve it in the app`, link, amount, body };
           } else if (call.isTest) {
             result = { status: 'simulated', detail: body, link, amount };
+          } else if (!textTo) {
+            result = { status: 'done', detail: call.channel === 'link' ? 'Shown on the Vexa Link page' : 'No phone number to text', link, amount };
           } else {
-            result = { ...(await sendSms({ to: run.slots?.callback || callerNumber, from, body })), body, link, amount };
+            result = { ...(await sendSms({ to: textTo, from, body })), body, link, amount };
           }
           break;
         }

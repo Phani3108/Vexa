@@ -203,9 +203,38 @@ const userConfigSchema = new mongoose.Schema({
     token: String,
     platform: { type: String, enum: ['ios', 'android'] },
     addedAt: { type: Date, default: Date.now }
-  }]
+  }],
+
+  // Web Push (installed app / browser) — no Firebase account needed
+  pushSubscriptions: [{
+    _id: false,
+    endpoint: String,
+    keys: { p256dh: String, auth: String },
+    addedAt: { type: Date, default: Date.now }
+  }],
+
+  // Google sign-in (accounts created this way have no phone number until they add one)
+  googleSub: String,
+  email: String,
+
+  // Vexa Link: a public page where customers talk to this account's receptionist
+  link: {
+    enabled: { type: Boolean, default: false },
+    slug: String,
+    dailyLimit: { type: Number, default: 50, min: 1, max: 1000 }   // conversations per day
+  },
+
+  // Callable agent API: other people's AI assistants ask questions and request bookings/orders
+  agentApi: {
+    enabled: { type: Boolean, default: false },
+    enabledAt: Date,
+    dailyLimit: { type: Number, default: 100, min: 1, max: 2000 }   // bookings + orders per day
+  }
 
 }, { timestamps: true });
+
+userConfigSchema.index({ 'link.slug': 1 }, { unique: true, partialFilterExpression: { 'link.slug': { $type: 'string', $gt: '' } } });
+userConfigSchema.index({ googleSub: 1 }, { unique: true, partialFilterExpression: { googleSub: { $type: 'string', $gt: '' } } });
 
 // Sparse unique: two accounts can never claim the same Twilio number (call hijacking)
 userConfigSchema.index({ twilioNumber: 1 }, { unique: true, partialFilterExpression: { twilioNumber: { $type: 'string', $gt: '' } } });

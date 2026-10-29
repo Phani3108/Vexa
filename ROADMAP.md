@@ -27,8 +27,14 @@ Use cases ([docs/USE_CASES.md](docs/USE_CASES.md) build order), alongside the la
 |---|---|---|
 | 1 Business packs | 7 packs with flows, sample business, refusal rules and an eval set | **Done** (`wave1`) |
 | 2 Scam shield | Fraud scripts and OTP/PIN requests end the call; owner alerted with evidence | **Done** (`wave1`) |
-| 4 UPI payment links + record lookups | Exact-total UPI link by text; order/report/fee status | **Done** (CSV import still to come) |
-| 3, 5–9 | Vexa Link, memory, guardian, interpreter, callable API, installable app | Next: Vexa Link |
+| 3 Vexa Link | Public talk page + QR, anonymous, capped; UPI pay button | **Done** |
+| 4 UPI payment links + record lookups | Exact-total UPI link by text or on the page; order/report/fee status | **Done** (CSV import still to come) |
+| 5 Memory and promises | Quotes and promises saved from calls; Ask Vexa questions; due reminders | **Done** |
+| 6 Family guardian | Consent-based linked accounts; live scam/emergency alerts; digest | **Done** |
+| 7 Interpreter | Phone-to-phone, any 2 of 8 languages | **Done** |
+| 8 Callable agent API | MCP-style tools; requests wait for the owner | **Done** |
+| 9 Installable app + hosting | PWA install, Web Push, Google sign-in, Render + Atlas blueprint | **Done** in code; hosting needs your Render/Atlas/Google accounts ([DEPLOY.md](docs/DEPLOY.md)) |
+| Demo v3 | Real phones on the hosted app | Script ready ([DEMO_V3.md](docs/DEMO_V3.md)); needs recording |
 
 Earlier Indian-speech phase:
 

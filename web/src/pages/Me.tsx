@@ -1,13 +1,15 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { BookOpen, Boxes, Building2, CalendarCheck, ChevronRight, Clock, LogOut, Disc3, Mic2, Package, PhoneForwarded, ShieldBan, Star, Users } from 'lucide-react'
+import { Bell, BookOpen, Download, Bot, HeartHandshake, Languages, Boxes, Building2, QrCode, CalendarCheck, ChevronRight, Clock, LogOut, Disc3, Mic2, Package, PhoneForwarded, ShieldBan, Star, Users } from 'lucide-react'
 import { api } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import type { UserConfig } from '../lib/types'
 import { formatPhone, initials } from '../lib/format'
 import { LANG_SHORT } from '../lib/speech'
 import Sheet from '../components/Sheet'
-import { toast } from '../components/ui'
+import { Toggle, toast } from '../components/ui'
+import { disablePush, enablePush, pushState } from '../lib/push'
+import { canInstall, install, isInstalled, isIos, onInstallChange } from '../lib/install'
 
 function Row({ to, icon: Icon, label, hint }: { to: string; icon: typeof Clock; label: string; hint?: string }) {
   return (
@@ -16,6 +18,43 @@ function Row({ to, icon: Icon, label, hint }: { to: string; icon: typeof Clock; 
       <div className="grow"><h3>{label}</h3>{hint && <p className="xs muted truncate">{hint}</p>}</div>
       <ChevronRight size={17} className="chev" />
     </Link>
+  )
+}
+
+/** Notifications on this device: urgent calls, scams, reminders, family alerts (Web Push). */
+function NotifyRow() {
+  const [state, setState] = useState<'unsupported' | 'denied' | 'on' | 'off' | null>(null)
+  useEffect(() => { pushState().then(setState).catch(() => setState('unsupported')) }, [])
+  async function flip(on: boolean) {
+    try {
+      if (on) { await enablePush(); await api('/api/push/test', { method: 'POST' }); toast('Notifications on — a test was sent') } else { await disablePush(); toast('Notifications off on this device') }
+      setState(on ? 'on' : 'off')
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Could not change notifications')
+      setState(await pushState().catch(() => 'unsupported' as const))
+    }
+  }
+  const hint = state === 'unsupported' ? 'Not available here — install the app (Add to Home Screen)' : state === 'denied' ? 'Blocked in browser settings' : 'Urgent calls, scams, reminders, family alerts'
+  return (
+    <div className="list-row">
+      <span className="avatar" style={{ width: 36, height: 36, borderRadius: 11 }}><Bell size={17} /></span>
+      <div className="grow"><h3>Notifications on this device</h3><p className="xs muted truncate">{hint}</p></div>
+      {state && state !== 'unsupported' && state !== 'denied' && <Toggle checked={state === 'on'} onChange={flip} label="Notifications on this device" />}
+    </div>
+  )
+}
+
+/** Install the app on this phone (shown until it is installed). */
+function InstallRow() {
+  const [, force] = useState(0)
+  useEffect(() => onInstallChange(() => force(n => n + 1)), [])
+  if (isInstalled()) return null
+  if (!canInstall() && !isIos()) return null
+  return (
+    <button className="list-row" style={{ width: '100%', textAlign: 'left' }} onClick={() => (isIos() ? toast('Tap Share, then “Add to Home Screen”') : install())}>
+      <span className="avatar" style={{ width: 36, height: 36, borderRadius: 11 }}><Download size={17} /></span>
+      <div className="grow"><h3>Install Vexa on this phone</h3><p className="xs muted">Opens like an app, works with notifications</p></div>
+    </button>
   )
 }
 
@@ -43,7 +82,7 @@ export default function Me() {
         <span className="avatar lg">{initials(p.businessName || config.name || 'V')}</span>
         <div className="grow">
           <h2 className="truncate">{isBiz ? p.businessName || 'Your business' : config.name}</h2>
-          <p className="small muted">{formatPhone(config.phoneNumber)}</p>
+          <p className="small muted">{config.phoneNumber ? formatPhone(config.phoneNumber) : config.email || ''}</p>
           {isBiz && config.name !== 'User' && <p className="xs muted">{config.name}</p>}
         </div>
       </div>
@@ -59,6 +98,8 @@ export default function Me() {
       <div className="section">
         <div className="eyebrow" style={{ margin: '0 4px 8px' }}>Your receptionist</div>
         <div className="card tight">
+          <Row to="/link" icon={QrCode} label="Vexa Link & QR" hint={config.link?.enabled ? `On · /l/${config.link.slug}` : 'Let customers talk to Vexa from a link or QR code'} />
+          {isBiz && <Row to="/agent-api" icon={Bot} label="Agent API" hint={config.agentApi?.enabled ? 'On · AI assistants can book and order' : 'Let customers\' AI assistants book and order'} />}
           <Row to="/packs" icon={Boxes} label="Business packs" hint={config.packs?.length ? `Installed: ${config.packs.map(id => id[0].toUpperCase() + id.slice(1).replace(/_/g, ' ')).join(', ')}` : 'Clinic, salon, restaurant, kirana, home services, coaching, real estate'} />
           {isBiz ? (
             <>
@@ -79,6 +120,8 @@ export default function Me() {
       <div className="section">
         <div className="eyebrow" style={{ margin: '0 4px 8px' }}>People</div>
         <div className="card tight">
+          <Row to="/family" icon={HeartHandshake} label="Family" hint="Watch over a parent's calls, or let family watch over yours" />
+          <Row to="/interpret" icon={Languages} label="Interpreter" hint="Talk with anyone in 8 languages, phone to phone" />
           <Row to="/me/contacts?tab=callers" icon={Users} label="Callers Vexa remembers" />
           <Row to="/me/contacts?tab=vip" icon={Star} label="VIPs" hint={`${config.vipContacts?.length || 0} people`} />
           <Row to="/me/contacts?tab=blocked" icon={ShieldBan} label="Blocked numbers" hint={`${config.blockedNumbers?.length || 0} numbers`} />
@@ -89,6 +132,8 @@ export default function Me() {
         <div className="eyebrow" style={{ margin: '0 4px 8px' }}>Phone</div>
         <div className="card tight">
           <Row to="/me/phone" icon={PhoneForwarded} label="Phone setup" hint={meta?.voiceEnabled ? 'Live calls connected' : 'Connect your number to go live'} />
+          <NotifyRow />
+          <InstallRow />
         </div>
       </div>
 

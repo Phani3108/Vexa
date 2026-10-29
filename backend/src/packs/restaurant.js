@@ -26,7 +26,7 @@ export default {
       maxTurns: 14,
       trigger: { keywords: ['order', 'parcel', 'takeaway', 'take away', 'pack', 'home delivery', 'deliver', 'delivery', 'khana', 'food', 'menu'] },
       slots: [
-        { key: 'items', label: 'Order', type: 'order', prompt: 'Sure! What would you like to order?' },
+        { key: 'items', label: 'Order', type: 'order', prompt: 'What would you like to order?' },
         { key: 'mode', label: 'Pickup or delivery', type: 'choice', prompt: 'Is that for pickup or home delivery?', options: [
           { value: 'pickup', label: 'pickup', synonyms: ['pickup', 'pick up', 'collect', 'takeaway', 'take away', 'parcel', 'i will come', 'aake le', 'vachi teesukunta'] },
           { value: 'delivery', label: 'home delivery', synonyms: ['delivery', 'deliver', 'home delivery', 'bhej do', 'send it', 'ghar pe'] }

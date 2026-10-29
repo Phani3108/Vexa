@@ -4,11 +4,11 @@
   "meta": [
     {
       "k": "Scope",
-      "v": "UC1 Set up the assistant · UC2 Answer a call (live phone calls and in-app test calls) · UC3 After the call. Personal and Business modes share the same pipeline. · Wave 1: seven business packs and the scam shield (in-app test calls)"
+      "v": "UC1 Set up the assistant · UC2 Answer a call (live phone calls and in-app test calls) · UC3 After the call. Personal and Business modes share the same pipeline. · UC4 Beyond the phone line: Vexa Link, interpreter, agent API · Wave 1: packs, scam shield, memory, family guardian"
     },
     {
       "k": "Source of truth",
-      "v": "github.com/Phani3108/Vexa · branch `wave1` · commit `3568e5d` · 29 Oct 2026 · backend/src, web/src, backend/.env.example, Dockerfile, docker-compose.yml, .github/workflows, backend/test, backend/eval"
+      "v": "github.com/Phani3108/Vexa · branch `wave1-rest` · commit `a2aa584` · 29 Oct 2026 · backend/src, web/src, backend/.env.example, Dockerfile, docker-compose.yml, .github/workflows, backend/test, backend/eval"
     },
     {
       "k": "Planned items",
@@ -48,6 +48,14 @@
       "phases": [
         "p7",
         "p8"
+      ]
+    },
+    {
+      "id": "UC4",
+      "title": "Beyond the phone line",
+      "phases": [
+        "p9",
+        "p10"
       ]
     }
   ],
@@ -96,6 +104,19 @@
       "id": "p8",
       "title": "8 Act and follow up",
       "width": 280
+    },
+    {
+      "id": "g2",
+      "gap": true,
+      "text": "Outside the system: a customer scans the QR, or another AI reads the manifest"
+    },
+    {
+      "id": "p9",
+      "title": "9 Talk on a link or QR"
+    },
+    {
+      "id": "p10",
+      "title": "10 Interpret and serve agents"
     }
   ],
   "lanes": [
@@ -570,7 +591,7 @@
       "badge": 49,
       "tag": "Eval · release",
       "title": "Test suites",
-      "body": "62 backend tests and the offline understanding gate (≥ 97%, held-out ≥ 95%) run in GitHub Actions with the web build and Docker image. 9 mobile tests. **Partial:** no web unit tests yet."
+      "body": "69 backend tests and the offline understanding gate (≥ 97%, held-out ≥ 95%) run in GitHub Actions with the web build and Docker image. 9 mobile tests. **Partial:** no web unit tests yet."
     },
     {
       "phase": "p2",
@@ -625,10 +646,163 @@
       "tag": "Eval · CI gate",
       "title": "Pack + scam eval",
       "body": "71 scripted calls (`npm run eval:packs`): 45 across 7 packs, 26 scam scripts and lookalike genuine calls. Gate 100% with zero leaks; offline 71/71, scam precision and recall 1.0."
+    },
+    {
+      "phase": "p1",
+      "lane": "api",
+      "kind": "optional",
+      "badge": 56,
+      "tag": "Optional · Google",
+      "title": "Sign in with Google",
+      "body": "`POST /api/auth/google`: Google Identity Services ID token verified with `OAuth2Client.verifyIdToken` (audience `GOOGLE_CLIENT_ID`). Off unless the flag is set. Accounts keyed by Google subject."
+    },
+    {
+      "phase": "p6",
+      "lane": "api",
+      "kind": "api",
+      "badge": 57,
+      "tag": "Web Push · VAPID",
+      "title": "Alerts on every device",
+      "body": "`web-push` to the installed app / browser (no Firebase), alongside FCM: urgent calls, scams, promise reminders, family alerts. Dead subscriptions removed on 404/410."
+    },
+    {
+      "phase": "p6",
+      "lane": "svc",
+      "kind": "service",
+      "badge": 58,
+      "tag": "Service · familyService",
+      "title": "Family guardian alerts",
+      "body": "Scam and emergency on a dependant's call → every linked guardian (socket `family:alert` + push), only if the dependant shares alerts. Test calls send a marked test alert."
+    },
+    {
+      "phase": "p8",
+      "lane": "svc",
+      "kind": "service",
+      "badge": 59,
+      "tag": "Service · memoryService",
+      "title": "Memory and promises",
+      "body": "Promises, quotes and facts from the analysis saved to `Memory` (never from spam/scam; OTP/PIN-like text dropped). Reminder loop every 5 min: overdue promise → push."
+    },
+    {
+      "phase": "p8",
+      "lane": "ai",
+      "kind": "llm",
+      "badge": 60,
+      "tag": "Claude · fast model",
+      "title": "Ask about past calls",
+      "body": "`memoryService.ask()`: \"What did the AC guy quote?\" answered ONLY from saved memories and recent call summaries, with the calls used; keyword search offline."
+    },
+    {
+      "phase": "p9",
+      "lane": "ui",
+      "kind": "actor",
+      "badge": 61,
+      "tag": "Customer · any phone browser",
+      "title": "Opens the link or scans the QR",
+      "body": "`/l/:slug`: talk by voice (browser speech) or text in 8 languages; no app, no number. Orders end with a **Pay with UPI** button."
+    },
+    {
+      "phase": "p9",
+      "lane": "svc",
+      "kind": "service",
+      "badge": 62,
+      "tag": "Service · linkService",
+      "title": "Anonymous conversation",
+      "body": "Same flow engine as calls, channel `link`: no caller memory, no recording, records never read out. Saved as a call; owner sees it live and gets a summary push."
+    },
+    {
+      "phase": "p9",
+      "lane": "ai",
+      "kind": "llm",
+      "badge": 63,
+      "tag": "Claude · fast model",
+      "title": "Same understanding per turn",
+      "body": "`nlu.understand()` and reply translation exactly as on test calls; scam shield and pack refusals apply."
+    },
+    {
+      "phase": "p9",
+      "lane": "api",
+      "kind": "api",
+      "badge": 64,
+      "tag": "Deep link · NPCI",
+      "title": "UPI pay button",
+      "body": "`upi://pay?pa=…&am=…` built from the owner's UPI ID for the exact total, within the auto-send limit. No payment gateway."
+    },
+    {
+      "phase": "p9",
+      "lane": "data",
+      "kind": "platform",
+      "badge": 65,
+      "tag": "MongoDB · Call",
+      "title": "Saved as a call (channel link)",
+      "body": "`Call.channel = link`, phone shown as \"Vexa Link\"; live sessions in memory for 20 min (lost on restart)."
+    },
+    {
+      "phase": "p9",
+      "lane": "guard",
+      "kind": "guardrail",
+      "badge": 66,
+      "tag": "Guardrail · cost and abuse",
+      "title": "Caps and anonymity",
+      "body": "10 new chats/hour and 30 messages/min per IP; 40 messages per chat; owner's daily limit (default 50). Texts only to a number the visitor gave."
+    },
+    {
+      "phase": "p10",
+      "lane": "ui",
+      "kind": "actor",
+      "badge": 67,
+      "tag": "Two phones · interpreter",
+      "title": "Each speaks their own language",
+      "body": "Owner opens a room and shares `/i/:room`; guest joins without signing in. Each phone shows and speaks the other's words."
+    },
+    {
+      "phase": "p10",
+      "lane": "svc",
+      "kind": "service",
+      "badge": 68,
+      "tag": "Service · agentService",
+      "title": "Callable agent API",
+      "body": "`GET /api/agent/v1/:slug` manifest with MCP-style tools; `POST …/call`: business info, catalog search, ask, booking request, order (exact total + UPI link)."
+    },
+    {
+      "phase": "p10",
+      "lane": "ai",
+      "kind": "llm",
+      "badge": 69,
+      "tag": "Claude · fast model",
+      "title": "Interpreting",
+      "body": "`interpret()`: speaker's words into the other language, first person, names/numbers/dates kept. Metered per room; passes through untranslated offline."
+    },
+    {
+      "phase": "p10",
+      "lane": "api",
+      "kind": "api",
+      "badge": 70,
+      "tag": "Public API · agents",
+      "title": "Other AIs call in",
+      "body": "Customers' assistants (e.g. Claude with tools, see `demo/agent-to-agent.mjs`) read the manifest and call tools; 60/min per IP."
+    },
+    {
+      "phase": "p10",
+      "lane": "data",
+      "kind": "platform",
+      "badge": 71,
+      "tag": "In memory · rooms",
+      "title": "Interpreter rooms",
+      "body": "2 hours, 300 messages, never saved; agent bookings/orders saved as calls (channel `agent`) + `Booking` requests."
+    },
+    {
+      "phase": "p10",
+      "lane": "guard",
+      "kind": "guardrail",
+      "badge": 72,
+      "tag": "Guardrail · approval",
+      "title": "Requests, not commitments",
+      "body": "Agent bookings and orders wait for the owner; no customer records exposed; `ask` answers only from published info or \"unknown\"; daily cap (default 100)."
     }
   ],
   "footnote": "Flows decide; models only read and speak. Optional = needs a credential to switch on. In memory = lost on restart. Not integrated = planned, not in code.",
-  "source": "Source of truth: Phani3108/Vexa, branch wave1 (commit 3568e5d, 29 Oct 2026)",
+  "source": "Source of truth: Phani3108/Vexa, branch wave1-rest (commit a2aa584, 29 Oct 2026)",
   "steps": [
     {
       "group": "UC1 · Sign in",
@@ -652,6 +826,10 @@
         {
           "n": 5,
           "text": "Rate limits stop code guessing and SMS abuse, and production will not start with a weak signing secret."
+        },
+        {
+          "n": 56,
+          "text": "Where SMS codes aren't set up, owners sign in with Google; the server verifies Google's ID token for this app before issuing Vexa's own tokens."
         }
       ]
     },
@@ -817,6 +995,14 @@
         {
           "n": 36,
           "text": "Emergencies always override other settings and alert the owner while the call is still going."
+        },
+        {
+          "n": 57,
+          "text": "Alerts reach every device the owner has: the installed app or browser through Web Push (no Firebase needed), and the native app through FCM."
+        },
+        {
+          "n": 58,
+          "text": "If a parent has linked their son or daughter as a guardian, scam and emergency alerts on the parent's calls reach the guardian at the same moment."
         }
       ]
     },
@@ -887,6 +1073,72 @@
         {
           "n": 55,
           "text": "Every change runs 71 scripted pack and scam calls in CI; any failure or leak blocks the release."
+        },
+        {
+          "n": 59,
+          "text": "Promises and quotes from the call are saved; when a promised time passes, the owner is asked whether it happened."
+        },
+        {
+          "n": 60,
+          "text": "The owner can ask in plain words about past calls; the answer comes only from saved notes and names the calls it used."
+        }
+      ]
+    },
+    {
+      "group": "UC4 · Talk on a link or QR",
+      "items": [
+        {
+          "n": 61,
+          "text": "A customer opens the business's Vexa Link or scans its QR code and talks by voice or text, in their language, without an app or a phone number."
+        },
+        {
+          "n": 62,
+          "text": "The conversation runs on the same flows as a call but anonymously: no caller memory, no recording, and no record read-outs."
+        },
+        {
+          "n": 63,
+          "text": "Understanding, translation, the scam shield and pack refusals all work exactly as on calls."
+        },
+        {
+          "n": 64,
+          "text": "An order ends with a UPI pay button for the exact total, opening the customer's UPI app."
+        },
+        {
+          "n": 65,
+          "text": "The conversation is saved like a call so the owner sees it in Activity."
+        },
+        {
+          "n": 66,
+          "text": "Per-visitor rate limits and the owner's daily limit keep AI costs predictable."
+        }
+      ]
+    },
+    {
+      "group": "UC4 · Interpret and serve agents",
+      "items": [
+        {
+          "n": 67,
+          "text": "Two people who don't share a language each speak their own on their own phone."
+        },
+        {
+          "n": 68,
+          "text": "Other people's AI assistants can query the business and send booking or order requests through published tools."
+        },
+        {
+          "n": 69,
+          "text": "Claude translates each message into the other person's language, keeping names, numbers and dates exact."
+        },
+        {
+          "n": 70,
+          "text": "For example, a customer's Claude assistant reads the manifest and places an exact-total order with a UPI link."
+        },
+        {
+          "n": 71,
+          "text": "Interpreter rooms live only in memory; agent requests are saved as calls and booking requests."
+        },
+        {
+          "n": 72,
+          "text": "Nothing an agent sends is confirmed without the owner; agents never see customer records."
         }
       ]
     }
@@ -974,6 +1226,36 @@
             "Written",
             "Scam call ends",
             "Type, label and the caller's phrases; call tagged spam, category \"Scam blocked\"."
+          ],
+          [
+            "Memories (`Memory`)",
+            "Written / read",
+            "End of call; Ask Vexa; reminder loop",
+            "Promise, quote, fact; status open/done/dismissed; owner-only queries"
+          ],
+          [
+            "Family links (`FamilyLink`)",
+            "Written / read",
+            "Invite, accept, alerts, digest",
+            "Hashed 6-digit code (24 h); what is shared and when consent was given"
+          ],
+          [
+            "Vexa Link sessions",
+            "In memory",
+            "During a web conversation (20 min)",
+            "Lost on restart; finished conversations are saved as calls"
+          ],
+          [
+            "Interpreter rooms",
+            "In memory",
+            "2 hours",
+            "Never saved"
+          ],
+          [
+            "Push subscriptions (`UserConfig.pushSubscriptions`)",
+            "Written / read",
+            "Enable notifications; every alert",
+            "Not returned by `/api/users/config`"
           ]
         ]
       }
@@ -1059,6 +1341,34 @@
             "Only if no Anthropic key",
             "Same JSON outputs as above",
             "`OPENAI_API_KEY`"
+          ],
+          [
+            "Memory answers · `memoryService.ask()`",
+            "Claude fast model · low effort · 1,200 tokens · 15 s",
+            "Owner asks about past calls (Ask Vexa)",
+            "Answer + calls used, only from saved memories and summaries; \"not found\" otherwise",
+            "Keyword search when no key"
+          ],
+          [
+            "Call memories · `ConversationAnalyzer` (`memories` field)",
+            "Claude main model (same post-call analysis call)",
+            "End of every call",
+            "Promises (with resolved due time), quotes, facts; never from spam/scam",
+            "Offline extractor `lib/memoryExtract.js`"
+          ],
+          [
+            "Interpreting · `interpret()`",
+            "Claude fast model · 1,200 tokens · 12 s",
+            "Every interpreter message",
+            "The speaker's words in the other language, names/numbers kept",
+            "Passes through untranslated offline"
+          ],
+          [
+            "Agent questions · `agentService` `ask` tool",
+            "Claude fast model · 600 tokens · 12 s",
+            "Only when the deterministic answer finds nothing",
+            "Answer from published info, or \"unknown\"",
+            "—"
           ]
         ]
       }
@@ -1143,6 +1453,30 @@
             "`upi://pay?pa=…&am=…` sent inside a Twilio SMS",
             "Payment link for an order total",
             "None (no gateway); the owner's UPI ID"
+          ],
+          [
+            "Google Identity Services",
+            "`OAuth2Client.verifyIdToken` (Google's public keys)",
+            "Verify \"Sign in with Google\"",
+            "`GOOGLE_CLIENT_ID` (audience)"
+          ],
+          [
+            "Web Push services (FCM web, Apple, Mozilla)",
+            "`web-push` `sendNotification` to each subscription endpoint",
+            "Alerts on installed app / browser",
+            "VAPID keys (`VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`)"
+          ],
+          [
+            "Vexa Link (inbound, public)",
+            "`/api/public/link/:slug` start / message / end",
+            "Customers talk from a link or QR",
+            "None; IP rate limits + daily cap"
+          ],
+          [
+            "Agent API (inbound, public)",
+            "`GET /api/agent/v1/:slug`, `POST …/call`",
+            "Other AIs query and request",
+            "None; IP rate limit + daily cap; owner approval"
           ]
         ]
       }
@@ -1294,6 +1628,42 @@
             "The AI asking for large payments on its own",
             "`outcomes.js` `pay_link`",
             "Above `payLinkAutoLimit` (₹5,000 default) the link waits for owner approval; simulated on test calls"
+          ],
+          [
+            "Vexa Link caps and anonymity",
+            "Runaway AI cost; strangers reading private records",
+            "`routes/link.js`, `linkService.js`",
+            "10 starts/h and 30 msgs/min per IP; 40 msgs/chat; daily limit 50 (owner-set); no memory, recording or record read-outs"
+          ],
+          [
+            "Agent requests need approval",
+            "Another AI committing the business",
+            "`agentService.js`",
+            "Bookings/orders are requests; no records; `ask` → published info or \"unknown\"; 60/min per IP; daily cap 100"
+          ],
+          [
+            "Family consent",
+            "Watching someone's calls without permission",
+            "`familyService.js`",
+            "Dependant creates the code and chooses what is shared; transcripts off by default; either side can end it"
+          ],
+          [
+            "Memory hygiene",
+            "Storing secrets or scam content",
+            "`memoryService.saveFromCall`",
+            "Nothing from spam/scam calls; OTP/PIN/card-like text dropped; owner-only"
+          ],
+          [
+            "Google sign-in verification",
+            "Forged sign-in tokens",
+            "`routes/auth.js` `/google`",
+            "Signature, audience, expiry and verified email checked; off unless `GOOGLE_CLIENT_ID`"
+          ],
+          [
+            "Server-only fields",
+            "Leaking push endpoints or device tokens",
+            "`routes/users.js` `publicConfig`",
+            "Stripped from every config response"
           ]
         ]
       }
@@ -1332,10 +1702,10 @@
           ],
           [
             "Backend unit tests",
-            "Flows, extractors, emergency, shields, Focus, sanitizer, recorder, Indian numbers/dates/yes-no, stream-token and log-redaction security, packs, orders, records, listings, refusals, scam shield, UPI links",
+            "Flows, extractors, emergency, shields, Focus, sanitizer, recorder, Indian numbers/dates/yes-no, stream-token and log-redaction security, packs, orders, records, listings, refusals, scam shield, UPI links; memories, Ask Vexa parsing, link names, push subscriptions, interpreter fallback, agent tool schemas",
             "`npm test` before release",
             "All pass",
-            "Live · 62 tests passing, run in CI"
+            "Live · 69 tests passing, run in CI"
           ],
           [
             "Mobile tests",
@@ -1378,6 +1748,13 @@
             "GitHub Actions on every push and pull request (`.github/workflows/ci.yml`)",
             "All jobs green",
             "Live"
+          ],
+          [
+            "Live checks with Claude (manual, this release)",
+            "Vexa Link order → UPI button; memory quote and promise answered; Hindi⇄Telugu interpreter; family scam alert; agent-to-agent order; production Docker image with MongoDB",
+            "Before release",
+            "All pass",
+            "Partial · scripted, not in CI"
           ]
         ]
       }
@@ -1421,6 +1798,10 @@
           [
             "Demo and evals",
             "playwright-core 1.63, macOS speech synthesis, Swift AVFoundation encoder; node:test; custom NLU eval runner"
+          ],
+          [
+            "Web reach",
+            "`web-push` 3.6 (VAPID), `google-auth-library` 10.6, `qrcode` 1.5 (web), installable PWA (manifest, service worker, PNG icons); Render blueprint `render.yaml`; MongoDB Atlas"
           ]
         ]
       }
@@ -1533,6 +1914,21 @@
             "`MIN_APP_VERSION` / `LATEST_APP_VERSION`",
             "Android app forced / suggested update",
             "Unset"
+          ],
+          [
+            "`GOOGLE_CLIENT_ID`",
+            "Shows \"Continue with Google\" and enables `/api/auth/google`",
+            "Unset (off)"
+          ],
+          [
+            "`VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT`",
+            "Web Push notifications",
+            "Generated in `backend/.data` in development; off in production until set"
+          ],
+          [
+            "`PUBLIC_URL` (or Render's `RENDER_EXTERNAL_URL`)",
+            "Allowed origin and webhook base",
+            "Unset"
           ]
         ]
       }
@@ -1541,9 +1937,11 @@
       "title": "Known gaps (from the code)",
       "bullets": [
         "The live phone path (Twilio + OpenAI Realtime) is complete in code but has not run on a real call; no keys are configured.",
-        "Active calls, test sessions and rate-limit counters live in memory: one server instance only, and a restart drops live calls.",
         "Unused code and dependencies: `config/redis.js`, `pg`, `bcrypt`.",
-        "Per-turn replies take 2–9 s on Opus; a fast model (e.g. Haiku) is recommended for live calls."
+        "Per-turn replies take 2–9 s on Opus; a fast model (e.g. Haiku) is recommended for live calls.",
+        "Active calls, test sessions, Vexa Link sessions, interpreter rooms and rate-limit counters live in memory: one server instance only, and a restart drops them.",
+        "Hosting is configured (`render.yaml`, `docs/DEPLOY.md`) but needs the owner's Render, Atlas and Google accounts; demo v3 is scripted, not yet recorded.",
+        "Catalog, records and listings are entered in the app or loaded from a pack; CSV / Sheets import is not built yet."
       ]
     }
   ]

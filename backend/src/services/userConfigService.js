@@ -45,13 +45,25 @@ class UserConfigService {
     if (existing) {
       return { ...existing, isNewUser: false };
     }
+    return this._createAccount({ userId, phoneNumber }, data);
+  }
+
+  /** Google sign-in: the account is keyed by Google's stable subject id; a phone number can be added later. */
+  async setupGoogleUser({ sub, email, name }, data = {}) {
+    if (!this.isAvailable()) throw new Error('Database not connected');
+    const existing = await UserConfig.findOne({ googleSub: sub }).lean();
+    if (existing) return { ...existing, isNewUser: false };
+    return this._createAccount({ userId: `g_${sub}`, googleSub: sub, email: email || undefined }, { ...data, name: data.name || name });
+  }
+
+  async _createAccount(identity, data = {}) {
+    const { userId } = identity;
 
     const accountType = data.accountType === 'personal' ? 'personal' : 'business';
     const template = accountType === 'business' ? buildIndustryTemplate(data.industry) : null;
 
     const doc = {
-      userId,
-      phoneNumber,
+      ...identity,
       accountType,
       name: (typeof data.name === 'string' && data.name.trim()) || 'User',
       about: data.about || (accountType === 'business' ? '' : 'A professional who receives many calls.'),

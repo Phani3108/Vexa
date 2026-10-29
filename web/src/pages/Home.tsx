@@ -8,6 +8,7 @@ import type { Booking, Brief, UserConfig } from '../lib/types'
 import { formatPhone, initials, relativeTime } from '../lib/format'
 import Orb from '../components/Orb'
 import Sheet from '../components/Sheet'
+import Promises from '../components/Promises'
 import { PageLoader, RiskBadge, toast } from '../components/ui'
 
 const SHIELDS = [
@@ -174,11 +175,13 @@ export default function Home() {
         </div>
       )}
 
+      <Promises version={version} />
+
       <div className="section">
         <div className="section-head"><h2>Quick actions</h2></div>
         <div className="choice-grid">
           <Link to="/test" className="choice"><PhoneCall size={20} color="var(--live)" />Test call<span className="sub">Call your receptionist — type or talk</span></Link>
-          <button className="choice" onClick={openAsk}><MessageSquareText size={20} color="var(--accent)" />Ask Vexa<span className="sub">“Tell Dana her parts arrived”</span></button>
+          <button className="choice" onClick={openAsk}><MessageSquareText size={20} color="var(--accent)" />Ask Vexa<span className="sub">“What did the electrician quote?”</span></button>
         </div>
         {s.calls === 0 && meta?.demoDataEnabled && (
           <button className="btn block" style={{ marginTop: 12 }} onClick={seed} disabled={seeding}><Database size={16} /> {seeding ? 'Loading…' : 'Load sample calls'}</button>
