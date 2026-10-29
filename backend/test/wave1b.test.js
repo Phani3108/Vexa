@@ -85,6 +85,16 @@ test('a price question is answered but never put in the cart', () => {
   assert.equal(k.asked, 'items');
 });
 
+test('the AI cannot route a question about something we sell into a flow that cannot sell it', () => {
+  const user = { name: 'Phani', callCategories: [], escalationKeywords: ['emergency'], ...packUpdate({}, PACKS.kirana, { sampleData: true }) };
+  user.businessProfile.timezone = 'UTC';
+  const s = new WorkflowSession({ user, callerNumber: '+919876500000', now: () => NOW, businessHours: { configured: true, open: true } });
+  const r = s.turn('LED bulb hai kya? Kitne ka hai?', { used: true, intent: 'info_request', slots: {} });
+  assert.equal(s.active.id, 'home_order');
+  assert.ok(!r.end, 'the conversation carries on');
+  assert.equal(r.asked, 'items');
+});
+
 test('daily AI budget: owner limit capped by the server; a blocked ledger never reaches the model', async () => {
   const { budgetFor, MAX_DAILY_USD, DEFAULT_DAILY_USD } = await import('../src/services/quotaService.js');
   assert.equal(budgetFor({}), DEFAULT_DAILY_USD);

@@ -13,7 +13,7 @@ export default {
     {
       id: 'home_order',
       name: 'Home delivery order',
-      description: 'Several items, exact total, delivery address, then a UPI payment link (or cash on delivery).',
+      description: 'Stock and price questions ("LED bulb hai kya?"), then several items, exact total, delivery address and a UPI payment link (or cash on delivery).',
       icon: 'truck',
       priority: 2,
       maxTurns: 14,

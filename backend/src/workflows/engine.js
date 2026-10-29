@@ -450,19 +450,21 @@ export class WorkflowSession {
   }
 
   route(text, hintId = null) {
+    const catalogHit = this.mentionsCatalogItem(text);
+    const sellsFrom = f => f.steps?.some(st => st.type === 'lookup' && st.source === 'catalog') || f.slots?.some(sl => sl.type === 'order');
     if (hintId) {
       const hinted = this.flows.find(f => f.id === hintId);
-      if (hinted) return hinted;
+      // The AI's pick stands, except that naming something we sell never lands in a flow that can't sell it
+      if (hinted && !(catalogHit && !sellsFrom(hinted) && this.flows.some(sellsFrom))) return hinted;
     }
     const category = this.categoryFor(text);
-    const catalogHit = this.mentionsCatalogItem(text);
     let best = null;
     for (const f of this.flows) {
       if (f.trigger?.isDefault) continue;
       let s = phraseScore(text, [...(f.trigger?.keywords || []), ...(LOCAL_TRIGGERS[f.id] || [])]);
       if (category && f.trigger?.categories?.includes(category)) s += 12;
       // Naming something we sell ("LED bulb hai kya?") is a product question in any language
-      if (catalogHit && (f.steps?.some(st => st.type === 'lookup' && st.source === 'catalog') || f.slots?.some(sl => sl.type === 'order'))) s += 8;
+      if (catalogHit && sellsFrom(f)) s += 8;
       if (s > 0 && f.pack) s += 6;   // an installed pack's flow beats the generic built-in it specialises
       if (s > 0 && (!best || s > best.s || (s === best.s && (f.priority || 5) < (best.f.priority || 5)))) best = { f, s };
     }
