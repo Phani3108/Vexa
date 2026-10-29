@@ -47,3 +47,5 @@ backend/.data/
 
 # Claude Code local settings
 .claude/
+.env.production
+demo/build-v3/

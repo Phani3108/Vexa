@@ -43,10 +43,10 @@ function getClient() {
  */
 export async function claudeJson({ system, user, schema, effort = 'low', maxTokens = 4096, timeoutMs = 15000, purposeModel = 'main' }) {
   const model = claudeModel(purposeModel);
-  // Server-side fallbacks and `effort` are supported on the current Opus/Sonnet/Fable
-  // generation; Haiku 4.5 rejects `effort`, so it is omitted there.
-  const modern = /^claude-(opus-5|sonnet-5|fable-5)/.test(model);
-  const fallbacks = modern && process.env.ANTHROPIC_FALLBACKS !== 'off';
+  // `effort` is supported on the current generation including Haiku 5.5 (Haiku 4.5 rejects it).
+  // Server-side refusal fallbacks exist for Opus/Sonnet/Fable only — not for Haiku 5.5.
+  const modern = /^claude-(opus-5|sonnet-5|fable-5|haiku-5)/.test(model);
+  const fallbacks = /^claude-(opus-5|sonnet-5|fable-5)/.test(model) && process.env.ANTHROPIC_FALLBACKS !== 'off';
   const started = Date.now();
   const response = await getClient().beta.messages.create({
     model,

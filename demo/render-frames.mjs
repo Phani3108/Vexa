@@ -2,14 +2,15 @@
 import fs from 'fs';
 import { chromium } from 'playwright-core';
 const EXE = `${process.env.HOME}/Library/Caches/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-mac-arm64/chrome-headless-shell`;
-const tl = JSON.parse(fs.readFileSync(new URL('./build/timeline.json', import.meta.url)));
-const dir = new URL('./build/frames/', import.meta.url);
+const BUILD = process.env.DEMO_BUILD || 'build';
+const tl = JSON.parse(fs.readFileSync(new URL(`./${BUILD}/timeline.json`, import.meta.url)));
+const dir = new URL(`./${BUILD}/frames/`, import.meta.url);
 fs.mkdirSync(dir, { recursive: true });
 const fps = tl.fps;
 const total = Math.ceil(tl.duration * fps);
 const b = await chromium.launch({ executablePath: EXE, args: ['--allow-file-access-from-files'] });
 const p = await b.newPage({ viewport: { width: 1920, height: 1080 } });
-await p.goto(new URL('./player/index.html', import.meta.url).href, { waitUntil: 'networkidle' });
+await p.goto(`${new URL('./player/index.html', import.meta.url).href}?build=${BUILD}`, { waitUntil: 'networkidle' });
 const t0 = Date.now();
 for (let i = 0; i < total; i++) {
   await p.evaluate(t => window.render(t), i / fps);

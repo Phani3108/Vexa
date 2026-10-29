@@ -11,6 +11,7 @@
 
 import { claudeConfigured, claudeJson, claudeModel, describeClaudeError } from './claude.js';
 import { chatCompletion, isChatConfigured } from './openai.js';
+import { currentLedger } from './usage.js';
 
 export function llmProvider() {
   if (claudeConfigured()) return 'anthropic';
@@ -19,7 +20,8 @@ export function llmProvider() {
 }
 
 export function llmAvailable() {
-  return llmProvider() !== null;
+  // AI_KILL_SWITCH=true turns every model call off at once; Vexa runs on its offline rules
+  return process.env.AI_KILL_SWITCH !== 'true' && llmProvider() !== null;
 }
 
 export function llmLabel() {
@@ -34,6 +36,9 @@ export function llmLabel() {
  * `schema` is enforced by Claude; for OpenAI it's described in the prompt (json mode).
  */
 export async function structuredJson({ system, user, schema, effort = 'low', maxTokens = 4096, timeoutMs = 15000, purposeModel = 'main' }) {
+  // Over the account's daily AI budget (or kill switch on): callers fall back to the offline engine
+  if (currentLedger()?.blocked) throw new Error('Daily AI budget reached — using offline rules');
+  if (process.env.AI_KILL_SWITCH === 'true') throw new Error('AI is switched off (AI_KILL_SWITCH)');
   const provider = llmProvider();
   if (provider === 'anthropic') {
     try {

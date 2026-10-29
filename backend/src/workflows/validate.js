@@ -2,10 +2,11 @@
  * Validation for owner-edited workflows — a broken flow must never reach a live call.
  */
 
-const SLOT_TYPES = ['text', 'name', 'phone', 'email', 'datetime', 'yesno', 'number', 'choice', 'company', 'address', 'amount'];
+const SLOT_TYPES = ['text', 'name', 'phone', 'email', 'datetime', 'yesno', 'number', 'choice', 'company', 'address', 'amount', 'order'];
+const LOOKUP_SOURCES = ['catalog', 'records', 'listings'];
 const STEP_TYPES = ['collect', 'confirm', 'say', 'branch', 'action', 'transfer', 'end', 'goto', 'lookup'];
-const ACTIONS = ['create_lead', 'book_request', 'send_sms', 'notify_owner', 'tag_spam'];
-const CONDS = ['business_open', 'is_vip', 'focus_mode', 'has_booking_url', 'transfer_allowed', 'item_in_stock'];
+const ACTIONS = ['create_lead', 'book_request', 'send_sms', 'notify_owner', 'tag_spam', 'pay_link'];
+const CONDS = ['business_open', 'is_vip', 'focus_mode', 'has_booking_url', 'transfer_allowed', 'item_in_stock', 'order_has_items', 'record_found', 'has_matches', 'has_upi'];
 
 export function validateWorkflow(w) {
   const errors = [];
@@ -41,6 +42,11 @@ export function validateWorkflow(w) {
       for (const c of conds) if (!CONDS.includes(c.cond)) errors.push(`branch "${st.id}" uses unknown condition "${c.cond}"`);
     }
     if (st.type === 'goto' && !stepIds.has(st.to)) errors.push(`goto "${st.id}" targets missing step "${st.to}"`);
+    if (st.type === 'lookup') {
+      if (!LOOKUP_SOURCES.includes(st.source)) errors.push(`lookup "${st.id}" has unknown source "${st.source}"`);
+      if (st.source === 'records' && st.by && !slotKeys.has(st.by)) errors.push(`lookup "${st.id}" looks up by unknown slot "${st.by}"`);
+      for (const k of Object.values(st.match || {})) if (!slotKeys.has(k)) errors.push(`lookup "${st.id}" matches on unknown slot "${k}"`);
+    }
     if (st.type === 'confirm') for (const k of st.recollect || []) if (!slotKeys.has(k)) errors.push(`confirm "${st.id}" recollects unknown slot "${k}"`);
     if (st.type === 'end' || st.type === 'transfer') terminal = true;
   }
@@ -71,7 +77,12 @@ export function sanitizeWorkflow(w) {
       ...(s.reprompt ? { reprompt: clip(s.reprompt, 300) } : {}),
       ...(s.required === false ? { required: false } : {}),
       ...(s.prefill ? { prefill: s.prefill } : {}),
-      ...(s.options ? { options: s.options.slice(0, 10) } : {})
+      ...(s.options ? { options: s.options.slice(0, 10) } : {}),
+      // Extraction hints: the opening statement can fill it; numbers with a unit ("2BHK", "table for 4"); only when asked
+      ...(s.opening === true ? { opening: true } : {}),
+      ...(typeof s.unit === 'string' && /^[\p{L}\p{N} |'-]{1,80}$/u.test(s.unit) ? { unit: s.unit } : {}),
+      ...(typeof s.unitBefore === 'string' && /^[\p{L}\p{N} |'-]{1,80}$/u.test(s.unitBefore) ? { unitBefore: s.unitBefore } : {}),
+      ...(s.onlyWhenAsked === true ? { onlyWhenAsked: true } : {})
     })),
     steps: w.steps.map(st => ({ ...st, ...(st.text ? { text: clip(st.text, 500) } : {}) }))
   };

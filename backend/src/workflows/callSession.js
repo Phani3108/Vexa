@@ -17,6 +17,9 @@ import { applyOutcomes, leadFromRun } from './outcomes.js';
 import ConversationAnalyzer from '../voice/ConversationAnalyzer.js';
 import PromptGenerator from '../voice/PromptGenerator.js';
 import callHistoryService from '../services/callHistoryService.js';
+import memoryService from '../services/memoryService.js';
+import familyService from '../services/familyService.js';
+import quota from '../services/quotaService.js';
 import userConfigService from '../services/userConfigService.js';
 import pushService from '../services/pushNotificationService.js';
 import Call from '../models/mongodb/Call.js';
@@ -27,15 +30,30 @@ import { newLedger, withLedger, summarize } from '../lib/usage.js';
 import { translateText, translateLines } from '../lib/translate.js';
 import { analyzeLanguage, detectLanguage, normalizeLanguage } from '../lib/language.js';
 
-export async function openCallSession({ user, callerNumber, isTest = false, io = null, callId = null }) {
-  const callerCtx = await callHistoryService.getCallerContext(callerNumber, user.userId);
+/**
+ * @param channel 'phone' | 'test' | 'link' (Vexa Link web chat) | 'agent' (another AI over the API).
+ *   Web and agent visitors have no verified number: no caller memory, no recording.
+ */
+export async function openCallSession({ user, callerNumber, isTest = false, io = null, callId = null, channel = isTest ? 'test' : 'phone' }) {
+  const anonymous = channel === 'link' || channel === 'agent';
+  if (anonymous) callerNumber = null;
+  const callerCtx = anonymous ? null : await callHistoryService.getCallerContext(callerNumber, user.userId);
   const vipContact = findByPhone(user.vipContacts, callerNumber);
   const priorityTimeInfo = userConfigService.isInPriorityTime(user, callerNumber);
   const businessHours = user.accountType !== 'personal' ? userConfigService.businessHoursStatus(user) : null;
   const risk = scoreRisk({ callerNumber, callerCtx, user });
   const shield = userConfigService.effectiveShield(user);
 
-  const onAction = (action) => {
+  const onAction = (action, engine) => {
+    // Scam shield: the owner hears about it while the scammer is still on the line
+    if (action.type === 'notify_owner' && action.params?.kind === 'scam') {
+      const scam = engine?.scam || {};
+      io?.to(`user:${user.userId}`).emit('call:scam', { callId, type: scam.type, label: scam.label, phrases: scam.phrases || [] });
+      if (!isTest) pushService.sendScamAlertNotification(user.userId, { callId, callerNumber, label: scam.label, phrase: scam.phrases?.[0] }).catch(() => {});
+      // Family hears about it too — a test call sends a marked test alert, so the setup can be checked
+      familyService.alert(user, { kind: 'scam', callId, label: scam.label, phrase: scam.phrases?.[0], test: isTest }).catch(() => {});
+      return;
+    }
     // Urgent alerts can't wait for the call to end
     if (action.type === 'notify_owner' && action.params?.urgent) {
       io?.to(`user:${user.userId}`).emit('call:urgent', { callId, slots: action.slots, workflow: action.workflow });
@@ -46,6 +64,7 @@ export async function openCallSession({ user, callerNumber, isTest = false, io =
           callerNumber,
           reason: action.slots?.problem || 'Emergency call'
         }).catch(() => {});
+        familyService.alert(user, { kind: 'emergency', callId, detail: action.slots?.problem ? `Caller says: ${String(action.slots.problem).slice(0, 100)}` : null }).catch(() => {});
       }
     }
   };
@@ -67,10 +86,13 @@ export async function openCallSession({ user, callerNumber, isTest = false, io =
     : PromptGenerator.generateInitialGreeting(user, callerCtx);
   const greeting = engine.greeting(baseGreeting);
   const ledger = newLedger();
+  // Over today's AI budget: this call runs on the offline rules (flows still work)
+  if (!(await quota.allowed(user))) ledger.blocked = true;
 
   // Recording notice (live calls are recorded unless the owner turned it off)
-  const recording = !isTest && user.recording?.enabled !== false;
+  const recording = !isTest && !anonymous && user.recording?.enabled !== false;
   if (recording && user.recording?.announce !== false) greeting.say = `${greeting.say} This call may be recorded.`;
+  if (channel === 'link') greeting.say = `${greeting.say} You're chatting with an AI assistant.`;
 
   // Opening language = the owner's default; switches as soon as the caller speaks another one
   const language = normalizeLanguage(user.aiSettings?.language) || 'en';
@@ -78,7 +100,7 @@ export async function openCallSession({ user, callerNumber, isTest = false, io =
   if (language !== 'en') greeting.say = await withLedger(ledger, 'translation', () => translateText(greeting.say, language));
   greeting.language = language;
 
-  const session = { engine, callerCtx, vipContact, priorityTimeInfo, businessHours, risk, shield, greeting, whispers: [], ledger, io, callId, user, callerNumber, isTest, language, languages: new Set([language]), recording };
+  const session = { engine, callerCtx, vipContact, priorityTimeInfo, businessHours, risk, shield, greeting, whispers: [], ledger, io, callId, user, callerNumber, isTest, channel, language, languages: new Set([language]), recording };
 
   // A trusted contact calling while you're in Focus: your app asks whether to pick up
   if (vipContact && priorityTimeInfo?.inPriorityTime) {
@@ -155,6 +177,7 @@ export async function takeTurn(session, text, { nluTimeout, translate = true, tr
     e.log('slots', { filled: ['email'], values: { email: em.display } });
     return { ...e.result(e.run({ say: ['Got it, thank you.'] })), aiAssisted: false };
   }
+  if (!session.ledger.blocked && !(await quota.allowed(session.user))) session.ledger.blocked = true;   // budget ran out mid-call
   const nlu = await withLedger(session.ledger, 'understanding', () => understand(e, text, { timeout: nluTimeout }));
   const result = session.engine.turn(text, nlu);
 
@@ -267,7 +290,7 @@ export async function finalizeCallSession({ session, user, callResult, io = null
 
   const analyzer = new ConversationAnalyzer(process.env);
   const englishView = lines.map(l => ({ ...l, text: l.textEn || l.text }));
-  const analysis = await withLedger(session.ledger, 'post-call analysis', () => analyzer.analyze(englishView, { categories: user.callCategories || [], accountType: user.accountType }));
+  const analysis = await withLedger(session.ledger, 'post-call analysis', () => analyzer.analyze(englishView, { categories: user.callCategories || [], accountType: user.accountType, now: callResult.startTime || new Date(), timezone: user.businessProfile?.timezone || user.priorityTime?.timezone }));
 
   // The flow's collected facts are authoritative; the analyzer fills gaps.
   const lead = leadFromRun(run, callResult.from);
@@ -283,6 +306,14 @@ export async function finalizeCallSession({ session, user, callResult, io = null
     if (/emergency/.test(run.workflowId)) analysis.urgency = 'critical';
     if (analysis.isSpam) { analysis.actionRequired = false; if (analysis.lead) analysis.lead.isLead = false; }
   }
+  // Scam shield evidence: what kind of scam and the caller's own words
+  if (run.scam) {
+    analysis.isSpam = true;
+    analysis.scam = { type: run.scam.type, label: run.scam.label, phrases: run.scam.phrases || [] };
+    analysis.categoryLabel = 'Scam blocked';
+    analysis.actionRequired = false;
+    if (analysis.lead) analysis.lead.isLead = false;
+  }
 
   // Summary in the caller's language too, so the owner can read it either way
   if (callLanguage && analysis.summary) {
@@ -290,8 +321,10 @@ export async function finalizeCallSession({ session, user, callResult, io = null
   }
   const languages = [...new Set(['en', ...lines.map(l => l.lang).filter(Boolean)])];
 
-  const saved = await callHistoryService.saveCall({ ...callResult, transcripts: lines, languages, workflowRun: run, whispers: session.whispers, aiUsage: summarize(session.ledger) }, analysis);
+  const saved = await callHistoryService.saveCall({ channel: session.channel, ...callResult, transcripts: lines, languages, workflowRun: run, whispers: session.whispers, aiUsage: summarize(session.ledger) }, analysis);
   if (!saved) return null;
+  const spend = summarize(session.ledger);
+  quota.record(user.userId, { costUsd: spend.costUsd, requests: spend.requests, conversation: true, purpose: session.channel || 'phone', user }).catch(() => {});
 
   const results = await applyOutcomes({ run, call: saved, user, io });
   await Call.updateOne({ _id: saved._id }, { $set: { 'workflowRun.actions': results } });
@@ -307,6 +340,8 @@ export async function finalizeCallSession({ session, user, callResult, io = null
   }
 
   const final = await Call.findById(saved._id).lean();
+  // Promises, quotes and facts the owner can ask about later (never from spam or scam calls)
+  if (!run.scam && !analysis.isSpam) await memoryService.saveFromCall(final, analysis.memories).catch(err => console.error('Memory save failed:', err.message));
   io?.to(`user:${user.userId}`).emit('call:analyzed', {
     callId: final.callId,
     summary: final.analysis?.summary,

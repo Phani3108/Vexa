@@ -42,6 +42,8 @@ export function CallRow({ c }: { c: CallListItem }) {
           {c.workflow?.status === 'transferred' && <span className="badge live">Transferred</span>}
           <FollowUpBadge status={c.followUp} />
           {c.isTest && <span className="badge">Test</span>}
+          {c.channel === 'link' && <span className="badge accent">Vexa Link</span>}
+          {c.channel === 'agent' && <span className="badge accent">AI agent</span>}
           <span className="xs muted mono">{formatDuration(c.duration)}</span>
         </div>
       </div>

@@ -51,6 +51,11 @@ bookingsRouter.patch('/:id', async (req, res) => {
   if (!['confirmed', 'declined', 'cancelled', 'requested'].includes(status)) return res.status(400).json({ error: 'Invalid status' });
   const booking = await Booking.findOne({ _id: req.params.id, userId: req.userId }).catch(() => null);
   if (!booking) return res.status(404).json({ error: 'Booking not found' });
+  // Allowed moves (same status = edit the time or note): a cancelled booking stays cancelled
+  const NEXT = { requested: ['confirmed', 'declined', 'cancelled'], confirmed: ['cancelled'], declined: ['requested'], cancelled: [] };
+  if (status !== booking.status && !NEXT[booking.status]?.includes(status)) {
+    return res.status(409).json({ error: `A ${booking.status} booking can't be changed to ${status}` });
+  }
 
   booking.status = status;
   if (confirmedTime) booking.confirmedTime = String(confirmedTime).slice(0, 80);

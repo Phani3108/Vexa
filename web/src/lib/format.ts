@@ -53,3 +53,11 @@ export const VOICES = [
   { id: 'echo', label: 'Echo', hint: 'Deep' },
   { id: 'verse', label: 'Verse', hint: 'Expressive' },
 ]
+
+/** "Mon, 11:00 am" for a future time; "3h ago" once it has passed. */
+export function dueTime(iso?: string | null): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (d.getTime() <= Date.now()) return relativeTime(iso)
+  return d.toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' })
+}

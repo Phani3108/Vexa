@@ -25,7 +25,7 @@ const COMMAND_SCHEMA = strictObject({
   actions: {
     type: 'array',
     items: strictObject({
-      type: { type: 'string', enum: ['brief', 'shield', 'block', 'unblock', 'vip_add', 'always_transfer', 'note', 'flow_toggle'] },
+      type: { type: 'string', enum: ['brief', 'ask', 'shield', 'block', 'unblock', 'vip_add', 'always_transfer', 'note', 'flow_toggle'] },
       mode: { anyOf: [{ type: 'string', enum: ['focus', 'aggressive', 'silent', 'standard'] }, { type: 'null' }] },
       until: nullableString,
       who: nullableString,
@@ -42,6 +42,8 @@ const COMMAND_SCHEMA = strictObject({
 import { extractPhone } from '../workflows/extractors.js';
 import { defaultWorkflows } from '../workflows/templates.js';
 import { phonesMatch } from '../lib/phone.js';
+import memoryService from './memoryService.js';
+import quota from './quotaService.js';
 
 const escapeRx = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -179,10 +181,13 @@ export function parseOffline(text, now = new Date(), tz = null) {
     return [{ type: 'vip_add', name: m[1].replace(/\+?[\d\s()-]{10,}/, '').trim(), phone }];
   }
 
-  if ((m = t.match(/\b(?:always\s+)?(?:put|transfer|connect|send)\s+(.+?)\s+(?:straight\s+)?(?:through|to me)\b/i)) || (m = t.match(/\bwhen\s+(.+?)\s+calls?,?\s+(?:put|transfer|connect)\b/i))) {
+  if ((m = t.match(/\bwhen\s+(.+?)\s+calls?,?\s+(?:put|transfer|connect)\b/i)) || (m = t.match(/\b(?:always\s+)?(?:put|transfer|connect|send)\s+(.+?)\s+(?:straight\s+)?(?:through|to me)\b/i))) {
     const off = /\b(stop|don'?t|never|no longer)\b/i.test(t);
     return [{ type: 'always_transfer', who: m[1].replace(/^(stop|don'?t|never)\s+/i, ''), phone, on: !off }];
   }
+
+  // A question about past calls ("what did the electrician quote?", "when is the bank calling back?")
+  if (/^(what|when|who|which|where|how much|how many|did|has|have|was|is there)\b/.test(lower) || /\?\s*$/.test(t)) return [{ type: 'ask', text: t }];
 
   return [];
 }
@@ -197,7 +202,8 @@ async function parseWithModel(text, tz) {
       schema: COMMAND_SCHEMA,
       system: `Convert the owner's instruction for their AI phone receptionist into actions. ${timeContext(tz)}
 Action types:
-- brief: the owner wants a recap of recent calls.
+- brief: the owner wants a recap of recent calls ("what did I miss?").
+- ask: the owner asks about something said on a past call ("what did the electrician quote?", "when is the bank calling back?", "did Ravi pay?"). Put the question in "text".
 - shield: change call-screening mode. "focus" = do not disturb: the owner is busy (meeting, surgery, driving, sleeping, "don't bother me") — nobody is put through except emergencies. "silent" = calls handled as normal but no notifications. "aggressive" = spam shield. "standard" = back to normal. "until" is an ISO 8601 time WITH the owner's UTC offset, or null.
 - block / unblock: a caller by name ("who") or number ("phone", E.164).
 - vip_add: add "name" with "phone" (E.164) as a VIP.
@@ -221,9 +227,14 @@ Fill unused fields with null. If nothing matches, return an empty actions array.
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function resolvePerson(userId, user, who, phone) {
+  // "Tell +91 98765 12345 …" — the person IS a number (the model sometimes puts it in "who")
+  const whoIsNumber = !!(who && extractPhone(String(who)));
+  if (!phone && whoIsNumber) phone = extractPhone(String(who)).value;
   if (phone) {
     const caller = await Caller.findOne({ userId, phoneNumber: phone }).lean();
-    return { phoneNumber: phone, name: caller?.callerName || who };
+    const known = caller?.callerName && caller.callerName !== 'Unknown' ? caller.callerName : null;
+    const named = who && !whoIsNumber ? String(who) : null;
+    return { phoneNumber: phone, name: known || named || phone, unnamed: !known && !named };
   }
   const name = String(who || '').replace(/^(the|my)\s+/i, '').trim();
   if (!name) return null;
@@ -256,7 +267,7 @@ export async function runCommand(userId, text) {
   const user = await userConfigService.getUser(userId);
   if (!user) throw Object.assign(new Error('User not found'), { status: 404 });
 
-  const modelActions = await parseWithModel(text, user.businessProfile?.timezone);
+  const modelActions = await quota.metered(user, 'ask-vexa', () => parseWithModel(text, user.businessProfile?.timezone));
   const actions = modelActions?.length ? modelActions : parseOffline(text, new Date(), user.businessProfile?.timezone);
   if (!actions.length) {
     return {
@@ -279,6 +290,13 @@ export async function runCommand(userId, text) {
         done.push({ type: 'brief' });
         break;
 
+      case 'ask': {
+        const r = await memoryService.ask(userId, a.text || text);
+        replies.push(r.answer + (r.followUp ? ` ${r.followUp}` : ''));
+        done.push({ type: 'ask', found: r.found, callIds: r.callIds });
+        break;
+      }
+
       case 'shield': {
         const mode = ['focus', 'aggressive', 'silent', 'standard'].includes(a.mode) ? a.mode : 'standard';
         let until = a.until && !isNaN(new Date(a.until)) ? new Date(a.until) : null;
@@ -294,7 +312,7 @@ export async function runCommand(userId, text) {
       case 'block':
       case 'unblock': {
         const person = await resolvePerson(userId, user, a.who, a.phone);
-        if (!person) { replies.push(`I couldn’t find “${a.who}”. Try their number.`); break; }
+        if (!person) { replies.push(`I couldn’t find “${a.who}”. Try their number, e.g. +91 98765 43210.`); break; }
         if (a.type === 'block') {
           if (!userConfigService.isBlocked(user, person.phoneNumber)) await userConfigService.addBlockedNumber(userId, person.phoneNumber).catch(() => {});
           replies.push(`Blocked ${person.name !== person.phoneNumber ? `${person.name} (${person.phoneNumber})` : person.phoneNumber}. Their calls will be rejected before I answer.`);
@@ -307,7 +325,7 @@ export async function runCommand(userId, text) {
       }
 
       case 'vip_add': {
-        if (!a.phone) { replies.push(`What’s ${a.name}’s number? Say “Add ${a.name} as VIP +1 555 123 4567”.`); break; }
+        if (!a.phone) { replies.push(`What’s ${a.name}’s number? Say “Add ${a.name} as VIP +91 98765 43210”.`); break; }
         const vips = (user.vipContacts || []).filter(v => !phonesMatch(v.phoneNumber, a.phone));
         await userConfigService.updateUser(userId, { vipContacts: [...vips, { name: a.name, phoneNumber: a.phone, relationship: '', notes: '' }] });
         replies.push(`${a.name} is now a VIP — warm greeting and an offer to put them through.`);
@@ -326,13 +344,13 @@ export async function runCommand(userId, text) {
 
       case 'note': {
         const person = await resolvePerson(userId, user, a.who, a.phone);
-        if (!person) { replies.push(`I don’t have a number for “${a.who}” yet. Add their number: “Tell ${a.who} +1 555… ${a.text}”.`); break; }
+        if (!person) { replies.push(`I don’t have a number for “${a.who}” yet. Add their number: “Tell ${a.who} +91 98765 43210 ${a.text}”.`); break; }
         await Caller.findOneAndUpdate(
           { userId, phoneNumber: person.phoneNumber },
-          { $push: { instructions: { text: String(a.text).slice(0, 300), once: a.once !== false, createdAt: new Date() } }, $setOnInsert: { callerName: person.name } },
+          { $push: { instructions: { text: String(a.text).slice(0, 300), once: a.once !== false, createdAt: new Date() } }, ...(person.unnamed ? {} : { $setOnInsert: { callerName: person.name } }) },
           { upsert: true }
         );
-        replies.push(`Got it. Next time ${person.name} calls, I’ll tell them: “${a.text}”.${person.ambiguous ? ' (I matched the most recent caller with that name.)' : ''}`);
+        replies.push(`Got it. Next time ${person.name} calls, I’ll tell them: “${String(a.text).replace(/[.!]+$/, '')}.”${person.ambiguous ? ' (I matched the most recent caller with that name.)' : ''}`);
         done.push({ type: 'note', phoneNumber: person.phoneNumber, text: a.text });
         break;
       }

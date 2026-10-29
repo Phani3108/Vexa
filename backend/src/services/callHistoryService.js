@@ -97,7 +97,10 @@ class CallHistoryService {
     }
 
     try {
-      const phoneNumber = callResult.from || callResult.phoneNumber || 'unknown';
+      const channel = callResult.channel || (callResult.isTest ? 'test' : 'phone');
+      const anonymous = channel === 'link' || channel === 'agent';   // web visitors and other AIs: no verified number
+      const phoneNumber = callResult.from || callResult.phoneNumber || (channel === 'link' ? 'Vexa Link' : channel === 'agent' ? 'Agent API' : 'unknown');
+      const reachable = !anonymous && phoneNumber !== 'unknown';
       const lead = analysis?.lead || {};
       const needsFollowUp = !!(analysis?.actionRequired || lead.isLead) && !analysis?.isSpam;
 
@@ -109,6 +112,7 @@ class CallHistoryService {
         status: callResult.status || 'completed',
         duration: callResult.duration || 0,
         isTest: !!callResult.isTest,
+        channel,
         transcript: (callResult.transcripts || [])
           .filter(t => t.text && t.text.trim().length > 0)
           .map(t => ({
@@ -135,10 +139,11 @@ class CallHistoryService {
           actionItems: Array.isArray(analysis.actionItems) ? analysis.actionItems : [],
           isSpam: !!analysis.isSpam,
           ...(analysis.summaryLocal ? { summaryLocal: analysis.summaryLocal } : {}),
+          ...(analysis.scam ? { scam: analysis.scam } : {}),
           lead: {
             isLead: !!lead.isLead,
             name: lead.name || analysis.callerName || null,
-            callbackNumber: lead.callbackNumber || (phoneNumber !== 'unknown' ? phoneNumber : null),
+            callbackNumber: lead.callbackNumber || (reachable ? phoneNumber : null),
             need: lead.need || null,
             preferredTime: lead.preferredTime || null,
             value: ['low', 'medium', 'high'].includes(lead.value) ? lead.value : null
@@ -155,7 +160,7 @@ class CallHistoryService {
       console.log(`💾 Saved call: ${phoneNumber} (${call.callId})`);
 
       // Test calls never pollute the caller memory used by the live agent
-      if (!callResult.isTest && phoneNumber !== 'unknown') {
+      if (!callResult.isTest && reachable) {
         await this._updateCallerProfile(userId, phoneNumber, analysis);
       }
       return call;
@@ -203,6 +208,7 @@ class CallHistoryService {
       status: c.status,
       duration: c.duration,
       isTest: !!c.isTest,
+      channel: c.channel || (c.isTest ? 'test' : 'phone'),
       categoryId: c.analysis?.categoryId,
       categoryLabel: c.analysis?.categoryLabel,
       summary: c.analysis?.summary,

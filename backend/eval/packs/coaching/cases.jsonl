@@ -1,0 +1,6 @@
+{"id": "coach-demo", "pack": "coaching", "turns": ["I want admission for class 10 maths", "yes", "Saturday 5pm", "Ananya"], "expect": {"flow": "admissions", "status": "completed", "actions": ["book_request"], "say": ["₹2,500", "Batches"]}}
+{"id": "coach-no-demo", "pack": "coaching", "turns": ["what are the fees for spoken english?", "no"], "expect": {"flow": "admissions", "status": "completed", "actions": ["create_lead"], "say": ["₹1,500"]}}
+{"id": "coach-guarantee", "pack": "coaching", "turns": ["do you guarantee 95% marks?"], "expect": {"refused": "result_guarantee", "notSay": ["we guarantee"]}}
+{"id": "coach-fee-status", "pack": "coaching", "turns": ["how much fee is pending for S1024"], "expect": {"flow": "fee_status", "status": "completed", "say": ["₹2,500"]}}
+{"id": "coach-fee-stranger", "pack": "coaching", "caller": "+919833333333", "turns": ["fee status S1024"], "expect": {"flow": "fee_status", "notSay": ["due by"]}}
+{"id": "coach-neet", "pack": "coaching", "turns": ["NEET crash course kab se start hai?", "no"], "expect": {"flow": "admissions", "say": ["first Monday"]}}

@@ -18,6 +18,8 @@ export const PRICING = {
   'claude-opus-5': { input: 5, output: 25, cacheRead: 0.5, cacheWrite: 6.25 },
   'claude-opus-4-8': { input: 5, output: 25, cacheRead: 0.5, cacheWrite: 6.25 },
   'claude-sonnet-5-5': { input: 2, output: 10, cacheRead: 0.2, cacheWrite: 2.5 },
+  // Haiku 5.5: prompts of 100K tokens or fewer (every Vexa prompt); longer prompts are billed at 5x
+  'claude-haiku-5-5': { input: 0.1, output: 0.5, cacheRead: 0.01, cacheWrite: 0.125 },
   'claude-haiku-4-5': { input: 1, output: 5, cacheRead: 0.1, cacheWrite: 1.25 },
   'claude-fable-5-1': { input: 10, output: 50, cacheRead: 0.25, cacheWrite: 12.5 }
 };
@@ -47,6 +49,11 @@ export function newLedger() {
 export function withLedger(ledger, purpose, fn) {
   if (!ledger) return fn();
   return store.run({ ledger, purpose }, fn);
+}
+
+/** The ledger the current code runs under (null outside any call). */
+export function currentLedger() {
+  return store.getStore()?.ledger || null;
 }
 
 /** Called by the Claude client after every response. */

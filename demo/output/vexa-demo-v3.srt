@@ -1,0 +1,583 @@
+1
+00:00:00,600 --> 00:00:06,605
+Narrator: This is Vexa, version three. Since the last demo, Vexa learned the trades of seven kinds
+
+2
+00:00:06,605 --> 00:00:11,722
+Narrator: of Indian businesses, left the phone line, and started protecting families.
+
+3
+00:00:12,172 --> 00:00:17,220
+Narrator: Everything you will see ran live on a local Vexa server with real Claude calls and
+
+4
+00:00:17,220 --> 00:00:21,836
+Narrator: real costs. Customers and screens are real app pages, driven automatically;
+
+5
+00:00:21,836 --> 00:00:24,668
+Narrator: the voices are synthesized for this recording.
+
+6
+00:00:26,418 --> 00:00:33,286
+Narrator: Business packs. Clinic, salon, restaurant, kirana, home services, coaching and real estate:
+
+7
+00:00:33,286 --> 00:00:39,777
+Narrator: each pack brings its own call flows, a sample business, and rules about what Vexa must
+
+8
+00:00:39,777 --> 00:00:40,457
+Narrator: never do.
+
+9
+00:00:42,607 --> 00:00:46,152
+Narrator: Phani runs Sri Lakshmi Kirana and Hardware in Kondapur.
+
+10
+00:00:46,152 --> 00:00:51,114
+Narrator: One tap installs the kirana pack, with a sample catalog to try it right away.
+
+11
+00:00:53,264 --> 00:00:58,260
+Narrator: Now his receptionist takes home delivery orders and tells customers where their order is.
+
+12
+00:01:00,410 --> 00:01:04,889
+Narrator: Vexa Link. Dr. Rao’s clinic turns it on and gets a link and a QR code
+
+13
+00:01:04,889 --> 00:01:11,055
+Narrator: for the counter, the door, or WhatsApp. Customers talk to the receptionist from their own phone
+
+14
+00:01:11,055 --> 00:01:14,041
+Narrator: browser, by voice or text, in eight languages.
+
+15
+00:01:14,041 --> 00:01:16,248
+Narrator: No phone number and no app needed.
+
+16
+00:01:18,398 --> 00:01:22,581
+Narrator: A customer scans the QR code. This is what opens on her phone.
+
+17
+00:01:24,831 --> 00:01:27,406
+Narrator: She asks in Tamil about a thyroid test:
+
+18
+00:01:27,406 --> 00:01:30,377
+Narrator: does she need to fast, and what does it cost.
+
+19
+00:01:30,377 --> 00:01:33,480
+Narrator: Then she asks which tablet to take for a fever.
+
+20
+00:01:35,530 --> 00:01:40,401
+Vexa: Thanks for calling Sunrise Diagnostics and Clinic! This is the virtual receptionist.
+
+21
+00:01:40,401 --> 00:01:44,054
+Vexa: How can I help you today? You're chatting with an AI assistant.
+
+22
+00:01:44,404 --> 00:01:47,674
+Customer · Tamil: Is fasting needed for the thyroid test? How much?
+
+23
+00:01:49,024 --> 00:01:53,259
+Vexa · Tamil: Thyroid profile is ₹500. No fasting is needed;
+
+24
+00:01:53,259 --> 00:02:00,348
+Vexa · Tamil: come before taking your thyroid tablet. Would you like me to book it — at the
+
+25
+00:02:00,348 --> 00:02:03,846
+Vexa · Tamil: centre or with home sample collection?
+
+26
+00:02:04,196 --> 00:02:06,475
+Customer · Tamil: Which tablet can I take for fever?
+
+27
+00:02:07,825 --> 00:02:13,398
+Vexa · Tamil: I'm sorry, I can't give medical advice on the phone — the doctor will help you
+
+28
+00:02:13,398 --> 00:02:18,756
+Vexa · Tamil: with that at your appointment. Would you like me to book it — at the centre
+
+29
+00:02:18,756 --> 00:02:20,971
+Vexa · Tamil: or with home sample collection?
+
+30
+00:02:21,321 --> 00:02:24,191
+Customer · Tamil: No, not now. Thank you very much!
+
+31
+00:02:25,541 --> 00:02:29,886
+Vexa · Tamil: Before you go — could I get your name so we can follow up?
+
+32
+00:02:30,636 --> 00:02:38,000
+Narrator: Call summary: Caller asked about thyroid test pricing and fasting requirements (told ₹500, no fasting needed)
+
+33
+00:02:38,000 --> 00:02:40,770
+Narrator: and asked which tablet to take for fever;
+
+34
+00:02:40,770 --> 00:02:45,905
+Narrator: the AI declined to give medical advice. The caller declined to book for now.
+
+35
+00:02:49,005 --> 00:02:52,554
+Narrator: The price and the fasting rule come from the clinic’s own list.
+
+36
+00:02:52,554 --> 00:02:55,202
+Narrator: And the clinic pack never gives medical advice:
+
+37
+00:02:55,202 --> 00:02:57,513
+Narrator: it offers a doctor’s appointment instead.
+
+38
+00:02:59,763 --> 00:03:04,483
+Narrator: A restaurant. A customer orders in Hindi, with everything in one sentence.
+
+39
+00:03:04,483 --> 00:03:08,566
+Narrator: Vexa reads the order back with an exact total before placing it.
+
+40
+00:03:10,616 --> 00:03:14,907
+Vexa: Thanks for calling Spice Route Kitchen! This is the virtual receptionist.
+
+41
+00:03:14,907 --> 00:03:16,377
+Vexa: How can I help you today?
+
+42
+00:03:16,727 --> 00:03:21,772
+Customer · Hindi: I want 2 chicken biryani and 3 butter naan, pickup at 8 o'clock, name Ravi
+
+43
+00:03:23,122 --> 00:03:30,972
+Vexa · Hindi: So that's 2 Chicken biryani, 3 Butter naan — ₹820 in total, for pickup 8pm, for
+
+44
+00:03:30,972 --> 00:03:33,954
+Vexa · Hindi: Ravi. Shall I place the order?
+
+45
+00:03:34,304 --> 00:03:35,658
+Customer · Hindi: Yes, okay
+
+46
+00:03:37,008 --> 00:03:45,764
+Vexa · Hindi: Order placed, Ravi! ₹820, ready 8pm. You can pay at the counter or on delivery.
+
+47
+00:03:45,764 --> 00:03:49,201
+Vexa · Hindi: I'm disconnecting the call now.
+
+48
+00:03:49,951 --> 00:03:57,185
+Narrator: Call summary: Ravi placed a takeout order for 2 chicken biryani and 3 butter naan (₹820
+
+49
+00:03:57,185 --> 00:03:59,762
+Narrator: total) for pickup at 8pm today.
+
+50
+00:04:02,962 --> 00:04:08,170
+Narrator: Back to Phani’s kirana. A customer opens his Vexa Link and orders in Hindi for home
+
+51
+00:04:08,170 --> 00:04:08,735
+Narrator: delivery.
+
+52
+00:04:10,785 --> 00:04:13,730
+Vexa: Thanks for calling Sri Lakshmi Kirana and Hardware!
+
+53
+00:04:13,730 --> 00:04:17,137
+Vexa: This is the virtual receptionist. How can I help you today?
+
+54
+00:04:17,137 --> 00:04:19,274
+Vexa: You're chatting with an AI assistant.
+
+55
+00:04:19,624 --> 00:04:22,651
+Customer · Hindi: Brother, please send 2 kilos of toor dal and 1 sugar.
+
+56
+00:04:24,001 --> 00:04:27,595
+Vexa · Hindi: What's the delivery address?
+
+57
+00:04:27,945 --> 00:04:31,643
+Customer: Flat 302, Green Park, Kondapur
+
+58
+00:04:32,993 --> 00:04:34,897
+Vexa: Could I get your name, please?
+
+59
+00:04:35,247 --> 00:04:35,940
+Customer: Ravi
+
+60
+00:04:37,290 --> 00:04:43,940
+Vexa: That's 2 Toor dal (1 kg), 1 Sugar (1 kg) — ₹368 in total, delivered to
+
+61
+00:04:43,940 --> 00:04:49,259
+Vexa: Flat 302, Green Park, Kondapur. Shall I place the order?
+
+62
+00:04:49,609 --> 00:04:50,208
+Customer · Hindi: yes
+
+63
+00:04:51,558 --> 00:04:59,582
+Vexa · Hindi: Order placed, Ravi! I've texted a UPI payment link for ₹368 — or pay cash on
+
+64
+00:04:59,582 --> 00:05:04,333
+Vexa · Hindi: delivery. It will reach you within two hours.
+
+65
+00:05:04,333 --> 00:05:07,606
+Vexa · Hindi: I'm disconnecting the call now.
+
+66
+00:05:08,356 --> 00:05:14,771
+Narrator: Call summary: Ravi placed a delivery order for 2 kg toor dal and 1 kg sugar
+
+67
+00:05:14,771 --> 00:05:21,699
+Narrator: (₹368) to Flat 302, Green Park, Kondapur. The AI sent a UPI payment link (cash on
+
+68
+00:05:21,699 --> 00:05:27,003
+Narrator: delivery also offered) and promised delivery within two hours.
+
+69
+00:05:30,103 --> 00:05:33,758
+Narrator: The order ends with a pay button for the exact total.
+
+70
+00:05:33,758 --> 00:05:38,448
+Narrator: On the customer’s phone, one tap opens GPay, PhonePe or any UPI app.
+
+71
+00:05:38,448 --> 00:05:42,999
+Narrator: No payment gateway; the money goes straight to the shop’s UPI I D.
+
+72
+00:05:45,249 --> 00:05:51,026
+Narrator: Phani’s mother, Lakshmi Amma, uses Vexa too. She linked her son as her guardian with a
+
+73
+00:05:51,026 --> 00:05:53,780
+Narrator: one time code, and chose what he can see.
+
+74
+00:05:54,230 --> 00:05:58,403
+Narrator: Now a caller says he is from the Mumbai police, that there is a case in
+
+75
+00:05:58,403 --> 00:06:01,989
+Narrator: her name, and that she must join a video call or be arrested.
+
+76
+00:06:01,989 --> 00:06:03,869
+Narrator: This is the digital arrest scam.
+
+77
+00:06:05,919 --> 00:06:10,306
+Vexa: Hello! You've reached Lakshmi's assistant. May I know who's calling please?
+
+78
+00:06:10,656 --> 00:06:15,693
+Caller · Hindi: Mother, I am speaking from Mumbai police. An FIR has been registered in your name.
+
+79
+00:06:15,693 --> 00:06:19,071
+Caller · Hindi: Come on a video call right now or you will be arrested.
+
+80
+00:06:20,421 --> 00:06:26,538
+Vexa · Hindi: We never share personal details, OTPs or bank information over the phone.
+
+81
+00:06:26,538 --> 00:06:31,565
+Vexa · Hindi: If this is an official matter, please send a written notice.
+
+82
+00:06:31,565 --> 00:06:34,163
+Vexa · Hindi: I'm disconnecting the call now.
+
+83
+00:06:34,913 --> 00:06:39,892
+Narrator: Call summary: A caller claiming to be from Mumbai police said an FIR was registered and
+
+84
+00:06:39,892 --> 00:06:42,468
+Narrator: demanded a video call under threat of arrest.
+
+85
+00:06:42,468 --> 00:06:46,989
+Narrator: This matches the known 'digital arrest' scam, and the AI disconnected the call.
+
+86
+00:06:50,089 --> 00:06:53,280
+Narrator: Vexa shares nothing and ends the call in one turn.
+
+87
+00:06:53,280 --> 00:06:57,556
+Narrator: Amma’s phone shows the evidence, and the 1930 cyber crime helpline.
+
+88
+00:06:57,556 --> 00:07:02,597
+Narrator: Her son’s phone gets the alert at the same moment, with the caller’s own words.
+
+89
+00:07:02,597 --> 00:07:05,788
+Narrator: This one was a test call, and it is marked as one.
+
+90
+00:07:08,338 --> 00:07:11,935
+Narrator: A supplier calls Phani’s shop about the air conditioner:
+
+91
+00:07:11,935 --> 00:07:13,926
+Narrator: a price, and a visit on Monday.
+
+92
+00:07:15,976 --> 00:07:19,013
+Vexa: Thanks for calling Sri Lakshmi Kirana and Hardware!
+
+93
+00:07:19,013 --> 00:07:22,526
+Vexa: This is the virtual receptionist. How can I help you today?
+
+94
+00:07:22,876 --> 00:07:26,063
+Arjun (CoolFix): Hi, this is Arjun from CoolFix, about the shop AC.
+
+95
+00:07:26,063 --> 00:07:30,651
+Arjun (CoolFix): The gas refill will cost 1800 rupees, and I will come on Monday at 11 am
+
+96
+00:07:30,651 --> 00:07:31,225
+Arjun (CoolFix): to do it.
+
+97
+00:07:32,575 --> 00:07:34,163
+Vexa: How can we help you today?
+
+98
+00:07:34,513 --> 00:07:36,788
+Arjun (CoolFix): Just tell Phani about the AC gas refill.
+
+99
+00:07:38,138 --> 00:07:40,068
+Vexa: When is a good time for a callback?
+
+100
+00:07:40,418 --> 00:07:42,084
+Arjun (CoolFix): Anytime today after 4 pm.
+
+101
+00:07:43,434 --> 00:07:47,576
+Vexa: Thanks Arjun, I have passed that on and you will get a call back today 4pm.
+
+102
+00:07:47,576 --> 00:07:49,288
+Vexa: I'm disconnecting the call now.
+
+103
+00:07:50,038 --> 00:07:54,209
+Narrator: Call summary: Arjun from CoolFix called about the shop AC:
+
+104
+00:07:54,209 --> 00:07:59,244
+Narrator: the gas refill will cost ₹1800 and he plans to come Monday at 11 am to
+
+105
+00:07:59,244 --> 00:08:04,494
+Narrator: do it. He asked that Phani be told and wants a callback today after 4 pm.
+
+106
+00:08:07,594 --> 00:08:12,873
+Narrator: Vexa remembers the quote and the promise. When Monday 11 A M passes, Phani gets a
+
+107
+00:08:12,873 --> 00:08:15,155
+Narrator: reminder asking whether Arjun came.
+
+108
+00:08:17,305 --> 00:08:21,232
+Narrator: Days later, Phani just asks: what did the AC guy quote?
+
+109
+00:08:21,232 --> 00:08:25,017
+Narrator: Vexa answers from its notes, and only from its notes.
+
+110
+00:08:25,017 --> 00:08:30,659
+Narrator: Asked about a fridge quote, it says: No, none of your notes mention a quote for
+
+111
+00:08:30,659 --> 00:08:31,587
+Narrator: a new fridge.
+
+112
+00:08:33,737 --> 00:08:38,001
+Narrator: The interpreter. Phani speaks Telugu; his new tenant speaks Hindi.
+
+113
+00:08:38,001 --> 00:08:42,782
+Narrator: Each speaks on their own phone, and hears the other in their own language.
+
+114
+00:08:43,232 --> 00:08:47,640
+Phani · Telugu: The rent is 15,000 rupees a month, and it has to be paid by the 5th
+
+115
+00:08:47,640 --> 00:08:48,626
+Phani · Telugu: of every month.
+
+116
+00:08:49,076 --> 00:08:53,372
+Vexa → Hindi: The rent is 15,000 rupees a month, and it has to be paid by the 5th
+
+117
+00:08:53,372 --> 00:08:54,334
+Vexa → Hindi: of every month.
+
+118
+00:08:54,784 --> 00:08:57,529
+Tenant · Hindi: Okay. How much advance will I have to pay?
+
+119
+00:08:57,529 --> 00:08:59,556
+Tenant · Hindi: And is the water bill separate?
+
+120
+00:09:00,006 --> 00:09:02,275
+Vexa → Telugu: Okay. How much advance will I have to pay?
+
+121
+00:09:02,275 --> 00:09:03,950
+Vexa → Telugu: And is the water bill separate?
+
+122
+00:09:04,400 --> 00:09:08,203
+Phani · Telugu: Two months' advance. The water bill is included in the rent.
+
+123
+00:09:08,653 --> 00:09:12,885
+Vexa → Hindi: Two months' advance. The water bill is included in the rent.
+
+124
+00:09:15,435 --> 00:09:20,300
+Narrator: More and more customers will send their own AI assistant instead of calling.
+
+125
+00:09:20,300 --> 00:09:23,181
+Narrator: Here, Claude acts for a customer named Priya.
+
+126
+00:09:23,181 --> 00:09:29,070
+Narrator: It reads the shop’s published tools, checks the catalog, places the order, and gets back the
+
+127
+00:09:29,070 --> 00:09:30,798
+Narrator: exact total and a UPI link.
+
+128
+00:09:31,248 --> 00:09:35,353
+Narrator: Milk is out of stock, so the assistant leaves it out and says so.
+
+129
+00:09:35,353 --> 00:09:40,028
+Narrator: The order is only a request: it waits in Phani’s inbox for him to confirm.
+
+130
+00:09:43,978 --> 00:09:49,660
+Narrator: In Activity, the agent’s order sits next to the Vexa Link order and the supplier’s message,
+
+131
+00:09:49,660 --> 00:09:51,783
+Narrator: each tagged by where it came from.
+
+132
+00:09:53,933 --> 00:09:59,662
+Narrator: Every account has a daily AI budget. Phani can see what each kind of conversation cost
+
+133
+00:09:59,662 --> 00:10:05,524
+Narrator: today. Over the limit, Vexa keeps answering on its offline rules, so no customer is ever
+
+134
+00:10:05,524 --> 00:10:06,057
+Narrator: cut off.
+
+135
+00:10:08,207 --> 00:10:13,611
+Narrator: Owners bring their own catalog, order list or property listings, from a file or a Google
+
+136
+00:10:13,611 --> 00:10:16,436
+Narrator: Sheet, with a preview before anything changes.
+
+137
+00:10:18,586 --> 00:10:25,381
+Narrator: And it is their data: download everything, or delete the account, including recordings, in one step.
+
+138
+00:10:27,631 --> 00:10:32,832
+Narrator: None of this is trusted on looks. Every change runs a pack and scam evaluation of
+
+139
+00:10:32,832 --> 00:10:39,381
+Narrator: seventy one scripted calls, with zero leaks allowed, an understanding test in eight languages, and the
+
+140
+00:10:39,381 --> 00:10:43,040
+Narrator: unit tests. If any of them fails, the change cannot ship.
+
+141
+00:10:46,590 --> 00:10:52,389
+Narrator: What it cost: these 5 conversations plus the interpreter came to about 24 cents for the
+
+142
+00:10:52,389 --> 00:10:59,120
+Narrator: businesses, roughly 4.8 cents per conversation. The customer’s own assistant is paid by the customer.
+
+143
+00:11:02,670 --> 00:11:08,814
+Narrator: Next: put it on the internet, then real Indian phone numbers, an Android call screener, and
+
+144
+00:11:08,814 --> 00:11:10,501
+Narrator: calls Vexa makes for you.
+
+145
+00:11:10,951 --> 00:11:15,504
+Narrator: Vexa: every call and every chat answered, in your customer’s language.
+
+146
+00:11:15,504 --> 00:11:19,732
+Narrator: Families protected. And you are only interrupted when it matters.

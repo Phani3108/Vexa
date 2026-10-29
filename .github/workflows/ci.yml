@@ -31,8 +31,10 @@ jobs:
         run: |
           node eval/nlu/run.mjs --min 0.97
           node eval/nlu/run.mjs --file holdout.jsonl --min 0.95
-      - name: Dependency audit (production, high severity)
-        run: npm audit --omit=dev --audit-level=high || echo "::warning::npm audit reported high-severity issues"
+      - name: Business pack + scam shield eval (offline) — release gate, zero leaks
+        run: node eval/packs/run.mjs --min 1
+      - name: Dependency audit (production) — release gate on high and critical
+        run: npm audit --omit=dev --audit-level=high
 
   web:
     name: Web app type-check, lint and build
@@ -50,6 +52,8 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run build
+      - name: Dependency audit (production) — release gate on high and critical
+        run: npm audit --omit=dev --audit-level=high
 
   docker:
     name: Docker image builds
