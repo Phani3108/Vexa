@@ -77,7 +77,12 @@ export function sanitizeWorkflow(w) {
       ...(s.reprompt ? { reprompt: clip(s.reprompt, 300) } : {}),
       ...(s.required === false ? { required: false } : {}),
       ...(s.prefill ? { prefill: s.prefill } : {}),
-      ...(s.options ? { options: s.options.slice(0, 10) } : {})
+      ...(s.options ? { options: s.options.slice(0, 10) } : {}),
+      // Extraction hints: the opening statement can fill it; numbers with a unit ("2BHK", "table for 4"); only when asked
+      ...(s.opening === true ? { opening: true } : {}),
+      ...(typeof s.unit === 'string' && /^[\p{L}\p{N} |'-]{1,80}$/u.test(s.unit) ? { unit: s.unit } : {}),
+      ...(typeof s.unitBefore === 'string' && /^[\p{L}\p{N} |'-]{1,80}$/u.test(s.unitBefore) ? { unitBefore: s.unitBefore } : {}),
+      ...(s.onlyWhenAsked === true ? { onlyWhenAsked: true } : {})
     })),
     steps: w.steps.map(st => ({ ...st, ...(st.text ? { text: clip(st.text, 500) } : {}) }))
   };

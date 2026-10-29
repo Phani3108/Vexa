@@ -507,6 +507,7 @@ export class WorkflowSession {
     const slots = (this.active?.slots || []).slice().sort((a, b) => (a.type === 'text') - (b.type === 'text'));
     for (const slot of slots) {
       if (skipTypes.includes(slot.type)) continue;
+      if (slot.onlyWhenAsked && this.asked !== slot.key) continue;
       // A cart keeps growing: "aur do lassi" adds, "make it 3 rotis" changes that line
       if (slot.type === 'order' && this.slots[slot.key]?.value) {
         const raw = nluSlots[slot.key] != null && nluSlots[slot.key] !== '' ? String(nluSlots[slot.key]) : text;

@@ -113,3 +113,18 @@ test('CSV import: quotes, loose headers, lakh/crore prices, per-row errors, Goog
   assert.deepEqual(l.preview.map(x => x.price), [8400000, 16500000]);
   await assert.rejects(importData('nobody', { kind: 'records', csv: 'Customer,Status\nRavi,ready' }), /Missing column: id/);
 });
+
+test('editing a flow keeps extraction hints; a callback time is only taken when asked', async () => {
+  const { sanitizeWorkflow } = await import('../src/workflows/validate.js');
+  const { PACKS } = await import('../src/packs/index.js');
+  const booking = PACKS.restaurant.flows.find(f => f.id === 'booking');
+  const clean = sanitizeWorkflow(booking);
+  assert.equal(clean.slots[0].unitBefore, booking.slots[0].unitBefore);
+  assert.equal(sanitizeWorkflow({ ...booking, slots: [{ ...booking.slots[0], unit: 'x)|(.*' }] }).slots[0].unit, undefined, 'unsafe regex text is dropped');
+  const { defaultWorkflows } = await import('../src/workflows/templates.js');
+  const user = { accountType: 'business', name: 'Owner', businessProfile: { businessName: 'Shop', timezone: 'UTC' }, callCategories: [], workflows: defaultWorkflows('business') };
+  const s = new WorkflowSession({ user, callerNumber: '+919876500000', now: () => NOW, businessHours: { configured: true, open: true } });
+  s.activate(s.flows.find(f => f.id === 'general_message'), 'test');
+  s.turn('This is Arjun from CoolFix, I will come on Monday at 11 am for the AC gas refill');
+  assert.equal(s.slots.callbackTime, undefined, '"Monday 11 am" is when he comes, not when to call back');
+});

@@ -229,7 +229,8 @@ const BUSINESS = [
     slots: [
       { key: 'reason', label: 'Reason', type: 'text', prompt: 'How can we help you today?' },
       NAME,
-      { key: 'callbackTime', label: 'Best time', type: 'datetime', prompt: 'When is a good time for a callback?' }
+      // Only the answer to "when should we call you back?" — not a date the caller mentions ("I'll come Monday")
+      { key: 'callbackTime', label: 'Best time to call back', type: 'datetime', prompt: 'When is a good time for a callback?', onlyWhenAsked: true }
     ],
     steps: [
       { id: 's1', type: 'collect', slot: 'reason' },
