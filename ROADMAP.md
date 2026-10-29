@@ -7,7 +7,7 @@ Small businesses miss a large share of their inbound calls, and most callers who
 
 ## Commercial launch plan (current)
 
-Full plan: [docs/LAUNCH_PLAN.md](docs/LAUNCH_PLAN.md). It covers the Android APK, managed and bring-your-own keys, Indian numbers, billing, compliance, use-case waves, the 10-year bets and the next demo.
+Full plan: [docs/LAUNCH_PLAN.md](docs/LAUNCH_PLAN.md). Use cases, designed in depth: [docs/USE_CASES.md](docs/USE_CASES.md). It covers the Android APK, managed and bring-your-own keys, Indian numbers, billing, compliance, use-case waves, the 10-year bets and the next demo.
 
 | Phase | Outcome | Status |
 |---|---|---|

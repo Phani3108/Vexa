@@ -70,6 +70,8 @@ Design validated against the code (file:line). Sizes: S ≈ days, M ≈ 1–2 we
 
 ## Part B: Use cases, organised by the human need
 
+> Deep designs for every use case (conversations, guardrails, evals, demo moments, build order): [USE_CASES.md](USE_CASES.md).
+
 Vexa's job is **"your agent for every call, in and out."** Seven lasting human needs:
 1. Protect my attention
 2. Protect me from harm
