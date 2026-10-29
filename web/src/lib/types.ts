@@ -91,7 +91,7 @@ export interface UserConfig {
   businessProfile: BusinessProfile
   packs?: string[]
   link?: { enabled?: boolean; slug?: string; dailyLimit?: number }
-  agentApi?: { enabled: boolean; keyLast4: string | null; createdAt: string | null }
+  agentApi?: { enabled: boolean; dailyLimit: number }
   pushDevices?: number
   email?: string
   aiSettings: { voice?: string; tone?: string; greeting?: string; language?: string }

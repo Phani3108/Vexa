@@ -23,11 +23,11 @@ function resolveUserId(req) {
   return req.user?.userId || null;
 }
 
-/** The owner's config minus server-only secrets (agent key hash, push endpoints, device tokens). */
+/** The owner's config minus server-only data (push endpoints, device tokens, Google subject). */
 function publicConfig(c) {
   if (!c) return c;
   const { deviceTokens, pushSubscriptions, agentApi, googleSub, ...rest } = c;
-  return { ...rest, pushDevices: (pushSubscriptions?.length || 0) + (deviceTokens?.length || 0), agentApi: { enabled: !!agentApi?.enabled, keyLast4: agentApi?.keyLast4 || null, createdAt: agentApi?.createdAt || null } };
+  return { ...rest, pushDevices: (pushSubscriptions?.length || 0) + (deviceTokens?.length || 0), agentApi: { enabled: !!agentApi?.enabled, dailyLimit: agentApi?.dailyLimit || 100 } };
 }
 
 // ── Config ───────────────────────────────────────────────────────────────────

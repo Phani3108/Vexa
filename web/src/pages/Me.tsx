@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Bell, BookOpen, HeartHandshake, Languages, Boxes, Building2, QrCode, CalendarCheck, ChevronRight, Clock, LogOut, Disc3, Mic2, Package, PhoneForwarded, ShieldBan, Star, Users } from 'lucide-react'
+import { Bell, BookOpen, Bot, HeartHandshake, Languages, Boxes, Building2, QrCode, CalendarCheck, ChevronRight, Clock, LogOut, Disc3, Mic2, Package, PhoneForwarded, ShieldBan, Star, Users } from 'lucide-react'
 import { api } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import type { UserConfig } from '../lib/types'
@@ -84,6 +84,7 @@ export default function Me() {
         <div className="eyebrow" style={{ margin: '0 4px 8px' }}>Your receptionist</div>
         <div className="card tight">
           <Row to="/link" icon={QrCode} label="Vexa Link & QR" hint={config.link?.enabled ? `On · /l/${config.link.slug}` : 'Let customers talk to Vexa from a link or QR code'} />
+          {isBiz && <Row to="/agent-api" icon={Bot} label="Agent API" hint={config.agentApi?.enabled ? 'On · AI assistants can book and order' : 'Let customers\' AI assistants book and order'} />}
           <Row to="/packs" icon={Boxes} label="Business packs" hint={config.packs?.length ? `Installed: ${config.packs.map(id => id[0].toUpperCase() + id.slice(1).replace(/_/g, ' ')).join(', ')}` : 'Clinic, salon, restaurant, kirana, home services, coaching, real estate'} />
           {isBiz ? (
             <>

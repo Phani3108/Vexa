@@ -224,12 +224,11 @@ const userConfigSchema = new mongoose.Schema({
     dailyLimit: { type: Number, default: 50, min: 1, max: 1000 }   // conversations per day
   },
 
-  // Callable agent API: other AIs ask this receptionist structured questions
+  // Callable agent API: other people's AI assistants ask questions and request bookings/orders
   agentApi: {
     enabled: { type: Boolean, default: false },
-    keyHash: String,
-    keyLast4: String,
-    createdAt: Date
+    enabledAt: Date,
+    dailyLimit: { type: Number, default: 100, min: 1, max: 2000 }   // bookings + orders per day
   }
 
 }, { timestamps: true });
