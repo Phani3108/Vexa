@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Bell, BookOpen, Download, Bot, FileDown, Gauge, Trash2, HeartHandshake, Languages, Boxes, Building2, QrCode, CalendarCheck, ChevronRight, Clock, LogOut, Disc3, Mic2, Package, PhoneForwarded, ShieldBan, Star, Users } from 'lucide-react'
+import { Bell, BookOpen, Download, Bot, FileDown, FileUp, Gauge, Trash2, HeartHandshake, Languages, Boxes, Building2, QrCode, CalendarCheck, ChevronRight, Clock, LogOut, Disc3, Mic2, Package, PhoneForwarded, ShieldBan, Star, Users } from 'lucide-react'
 import { api, session } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import type { UserConfig } from '../lib/types'
@@ -142,6 +142,7 @@ export default function Me() {
               <Row to="/me/business" icon={Building2} label="Business info" hint={p.address || 'Name, address, links, transfer number'} />
               <Row to="/me/knowledge" icon={BookOpen} label="Services & FAQs" hint={`${p.services?.length || 0} services · ${p.faqs?.length || 0} FAQs`} />
               <Row to="/me/products" icon={Package} label="Products & stock" hint={`${p.catalog?.length || 0} items · prices quoted live on calls`} />
+              <Row to="/import" icon={FileUp} label="Import from CSV or Google Sheets" hint="Catalog, order / report list, property listings" />
               <Row to="/me/hours" icon={Clock} label="Opening hours" hint={p.timezone} />
               <Row to="/bookings" icon={CalendarCheck} label="Bookings" hint="Approve requests from callers" />
             </>

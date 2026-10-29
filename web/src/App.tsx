@@ -25,6 +25,7 @@ import FamilyMember from './pages/FamilyMember'
 import Interpreter, { InterpreterGuest } from './pages/Interpreter'
 import AgentApi from './pages/AgentApi'
 import UsagePage from './pages/Usage'
+import Import from './pages/Import'
 
 /** Phone-sized app; on desktop it sits in a device frame. */
 function Stage({ children }: { children: ReactNode }) {
@@ -112,6 +113,7 @@ export default function App() {
           <Route path="/interpret" element={full(<Interpreter />)} />
           <Route path="/agent-api" element={full(<AgentApi />)} />
           <Route path="/usage" element={full(<UsagePage />)} />
+          <Route path="/import" element={full(<Import />)} />
           <Route path="/onboarding" element={<Onboarding />} />
           <Route path="/login" element={<Navigate to="/" replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />

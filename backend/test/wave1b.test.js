@@ -96,3 +96,20 @@ test('daily AI budget: owner limit capped by the server; a blocked ledger never 
   await assert.rejects(withLedger(ledger, 'test', () => structuredJson({ system: 's', user: 'u', schema: {} })), /budget/);
   assert.equal(ledger.requests.length, 0);
 });
+
+test('CSV import: quotes, loose headers, lakh/crore prices, per-row errors, Google Sheets only', async () => {
+  const { parseCsv, sheetCsvUrl } = await import('../src/services/importService.js');
+  assert.deepEqual(parseCsv('a,b\r\n"x, y","he said ""hi"""\n\n1,2'), [['a', 'b'], ['x, y', 'he said "hi"'], ['1', '2']]);
+  assert.equal(sheetCsvUrl('https://docs.google.com/spreadsheets/d/1AbCdEfGhIjKlMnOpQrStUvWxYz012345/edit#gid=42'), 'https://docs.google.com/spreadsheets/d/1AbCdEfGhIjKlMnOpQrStUvWxYz012345/export?format=csv&gid=42');
+  for (const bad of ['http://docs.google.com/spreadsheets/d/1AbCdEfGhIjKlMnOpQrStUvWxYz012345', 'https://evil.example/spreadsheets/d/1AbCdEfGhIjKlMnOpQrStUvWxYz012345', 'https://docs.google.com.evil.example/x', 'file:///etc/passwd']) assert.equal(sheetCsvUrl(bad), null, bad);
+  const { importData } = await import('../src/services/importService.js');
+  const r = await importData('nobody', { kind: 'catalog', dryRun: true, csv: 'Item,MRP,Qty,Also called\nLED bulb,99,120,bulb;batti\nFan,"2,450",,pankha\n,10,1,\nDal,abc,1,' });
+  assert.equal(r.wouldImport, 2);
+  assert.deepEqual(r.preview[0], { name: 'LED bulb', price: 99, stock: 120, aliases: ['led bulb', 'bulb', 'batti'] });
+  assert.equal(r.preview[1].price, 2450);
+  assert.equal(r.preview[1].stock, undefined, 'empty stock = not tracked');
+  assert.deepEqual(r.errors.map(e => e.row), [4, 5]);
+  const l = await importData('nobody', { kind: 'listings', dryRun: true, csv: 'Project,Locality,Bedrooms,Price\nPalm Grove,Gachibowli,2,84 lakh\nOrchid,Kokapet,3,1.65 cr' });
+  assert.deepEqual(l.preview.map(x => x.price), [8400000, 16500000]);
+  await assert.rejects(importData('nobody', { kind: 'records', csv: 'Customer,Status\nRavi,ready' }), /Missing column: id/);
+});
