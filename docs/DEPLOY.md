@@ -44,11 +44,17 @@ Without SMS login codes, this is how you and your beta users sign in.
    - **Authorized JavaScript origins:** your Render URL from step 4, e.g. `https://vexa.onrender.com`, plus `http://localhost:5173` for local testing.
 5. Copy the **Client ID** (it ends in `.apps.googleusercontent.com`). This is not a secret.
 
-## 3. Notification keys (on your laptop)
+## 3. Notification keys (already made)
+A key pair has been generated for you in `backend/.data/vapid-production.json`. That file is git-ignored and readable only by you. Open it and copy both values when Render asks for them, and keep the private key secret.
+
+To make a new pair instead, run `npx web-push generate-vapid-keys`.
+
+### Check everything before you deploy
+Create `backend/.env.production` (also git-ignored) with `MONGODB_URI`, `ANTHROPIC_API_KEY`, `ANTHROPIC_FAST_MODEL=claude-haiku-5-5`, `GOOGLE_CLIENT_ID` and `VAPID_SUBJECT`, then run:
 ```bash
-npx web-push generate-vapid-keys
+cd backend && npm run check:deploy -- --env .env.production
 ```
-This prints a public key and a private key. Keep the private key secret.
+The check connects to Atlas, makes one tiny call to each Claude model, checks the Google client ID format, and confirms the notification keys belong together. It never prints a secret; it tells you exactly what to fix.
 
 ## 4. Render (free web service)
 1. Push this repo to GitHub. It already contains `render.yaml`.
