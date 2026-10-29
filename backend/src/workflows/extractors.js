@@ -9,10 +9,16 @@
  */
 
 import { NAME_INTRO } from '../voice/ConversationAnalyzer.js';
+import {
+  L, R, alt, wordRx, normalizeDigits, parseIndianNumber, parseClock, yesNo, spokenDigits,
+  DAY_WORDS, PERIOD_WORDS, HOUR_MARKERS, CLOCK_PREFIXES, CLOCK_WORDS, WEEKDAY_WORDS, ASAP_WORDS, WANT_WORDS,
+  NAME_INTRO_INDIC, NAME_TRAILING, MAIN_SPEAKING
+} from '../lib/indic.js';
+import { detectLanguage } from '../lib/language.js';
 
 const NOT_A_NAME = /\b(tomorrow|today|tonight|morning|afternoon|evening|monday|tuesday|wednesday|thursday|friday|saturday|sunday|yes|yeah|yep|yup|nah|right|correct|that|that's|no|nope|okay|ok|sure|thanks|thank|hello|hi|hey|calling|about|need|want|looking|interested|from|the|a|my|it|is|i|im|just|well|um|uh|hmm+|huh|what|sorry|pardon|hello|who|why)\b/i;
-const YES = /^(yes|yeah|yep|yup|sure|correct|right|that'?s right|exactly|absolutely|definitely|of course|please do|go ahead|ok(ay)?|affirmative|haan|ha|ji haan)\b/i;
-const NO = /^(no|nope|nah|not really|incorrect|wrong|that'?s wrong|negative|don'?t|do not|nahi|nahin)\b/i;
+const NATIVE_NAME_INTRO = /(?:मेरा नाम|मेरा नाव|माझे नाव|माझं नाव|माझे नाव|నా పేరు|నాపేరు|என் பெயர்|என் பேரு|என் பேர்|എന്റെ പേര്|મારું નામ|મારુ નામ)\s+([\p{L}\p{M}]+(?:\s+[\p{L}\p{M}]+)?)/u;
+const NATIVE_NAME_TRAILING = /\s+(है|हूँ|हूं|आहे|છે|అండి|గారు)$/u;
 const WEEKDAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
 function cap(s) {
@@ -22,9 +28,21 @@ function cap(s) {
 export function extractName(text, asked) {
   const intro = text.match(NAME_INTRO);
   if (intro && !NOT_A_NAME.test(intro[1].split(' ')[0])) return { value: intro[1], display: intro[1] };
+  // "mera naam Ravi hai", "na peru Suresh", "my good name is…", "main Priya bol rahi hoon"
+  const indic = text.match(NAME_INTRO_INDIC) || text.match(MAIN_SPEAKING);
+  if (indic) {
+    const v = cap(indic[1].replace(NAME_TRAILING, '').trim());
+    if (v && !NOT_A_NAME.test(v.split(' ')[0])) return { value: v, display: v };
+  }
+  // Native script ("मेरा नाम अमित है", "నా పేరు రవి"): kept as spoken; the model transliterates when available
+  const native = text.match(NATIVE_NAME_INTRO);
+  if (native) {
+    const v = native[1].replace(NATIVE_NAME_TRAILING, '').trim();
+    if (v) return { value: v, display: v };
+  }
   // "…it's Marco by the way": a capitalised word after "it's" (not a day/month/filler)
-  const itsCap = text.match(/\b[Ii]t'?s\s+([A-Z][a-z]+)\b/);
-  if (itsCap && !NOT_A_NAME.test(itsCap[1]) && !/^(January|February|March|April|May|June|July|August|September|October|November|December|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)$/.test(itsCap[1])) {
+  const itsCap = text.match(/\b[Ii]t'?s\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\b/);
+  if (itsCap && !NOT_A_NAME.test(itsCap[1].split(' ')[0]) && !/^(January|February|March|April|May|June|July|August|September|October|November|December|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)$/.test(itsCap[1].split(' ')[0])) {
     return { value: itsCap[1], display: itsCap[1] };
   }
   const its = text.match(/\b(?:it'?s|name is)\s+([A-Za-z][a-z]+(?:\s+[A-Z][a-z]+)?)\b/);
@@ -40,12 +58,23 @@ export function extractName(text, asked) {
   return null;
 }
 
-export function extractPhone(text) {
-  const m = text.replace(/[^\d+]/g, ' ').match(/\+?\d[\d ]{8,16}\d/);
+/**
+ * Phone numbers, typed or spoken: "98490 01234", "nine eight four nine…", "double nine…",
+ * "+91…", "0 98490…". Ten digits get the account's country code (India by default).
+ */
+export function extractPhone(text, { defaultCountry = process.env.DEFAULT_COUNTRY_CODE || '+91' } = {}) {
+  const m = spokenDigits(text).replace(/[^\d+]/g, ' ').match(/\+?\d[\d ]{8,16}\d/);
   if (!m) return null;
-  const digits = m[0].replace(/\D/g, '');
+  const plus = m[0].startsWith('+');
+  let digits = m[0].replace(/\D/g, '');
   if (digits.length < 10 || digits.length > 15) return null;
-  const e164 = digits.length === 10 ? `+1${digits}` : `+${digits}`;
+  const cc = defaultCountry.replace(/\D/g, '');
+  let e164;
+  if (plus) e164 = `+${digits}`;
+  else if (digits.length === 10) e164 = `+${cc}${digits}`;
+  else if (digits.length === 11 && digits.startsWith('0')) e164 = `+${cc}${digits.slice(1)}`;  // trunk prefix
+  else if (digits.length === 10 + cc.length && digits.startsWith(cc)) e164 = `+${digits}`;
+  else e164 = `+${digits}`;
   return { value: e164, display: e164 };
 }
 
@@ -55,28 +84,60 @@ export function extractEmail(text) {
   return m ? { value: m[0].toLowerCase(), display: m[0].toLowerCase() } : null;
 }
 
+/** Yes/no in any supported language ("haan ji", "avunu", "illa", "nako", "हाँ"). */
 export function extractYesNo(text) {
-  const t = text.trim().toLowerCase();
-  if (YES.test(t)) return { value: true, display: 'Yes' };
-  if (NO.test(t)) return { value: false, display: 'No' };
-  return null;
+  const v = yesNo(text);
+  return v === true ? { value: true, display: 'Yes' } : v === false ? { value: false, display: 'No' } : null;
+}
+
+const DAY_AFTER_RX = wordRx(DAY_WORDS.dayAfter);
+const TOMORROW_RX = wordRx(DAY_WORDS.tomorrow);
+const TODAY_RX = wordRx(DAY_WORDS.today);
+const WEEKDAY_RX = WEEKDAY_WORDS.map(words => wordRx(words));
+const PERIODS = Object.entries(PERIOD_WORDS).map(([name, words]) => [name, wordRx(words)]);
+const ASAP_RX = wordRx(ASAP_WORDS);
+const CLOCK = `(?:(${alt(CLOCK_PREFIXES)})\\s+)?(\\d{1,2}(?::\\d{2})?|${alt(CLOCK_WORDS)})`;
+const MARKED_TIME_RX = new RegExp(`${L}${CLOCK}\\s*(?:${alt(HOUR_MARKERS)})${R}`, 'iu');
+const PERIOD_THEN_NUMBER_RX = new RegExp(`${L}(?:${alt(Object.values(PERIOD_WORDS).flat())})\\s+(?:(?:at|ko|ki|around|about|approx|approximately|lagbhag|kareeb|takriban)\\s+)?${CLOCK}${R}(?!\\s*(?:am|pm|a\\.m|p\\.m))`, 'iu');
+const HALF_QUARTER_RX = new RegExp(`\\b(half|quarter)\\s+(past|to)\\s+(\\d{1,2}|${alt(CLOCK_WORDS)})${R}`, 'iu');
+
+function clockFrom(prefix, core) {
+  if (/^\d{1,2}:\d{2}$/.test(core)) { const [h, m] = core.split(':').map(Number); return { h, m }; }
+  return parseClock(prefix, core.toLowerCase());
+}
+
+/** 12-hour clock → 24-hour, using the time of day the caller mentioned. */
+function to24(h, period) {
+  if (h > 12) return h;
+  if (period === 'morning') return h === 12 ? 12 : h;
+  if (period === 'afternoon' || period === 'evening') return h < 12 ? h + 12 : h;
+  if (period === 'night') return h === 12 ? 0 : h >= 5 ? h + 12 : h;
+  return h < 8 ? h + 12 : h; // "at 3" during business context means 3pm
 }
 
 /**
- * Lightweight date/time parser. Returns a human display string and, when
+ * Date/time parser for English and Indian languages ("kal shaam 5 baje", "repu 10 gantalaki",
+ * "day after tomorrow", "half past three"). Returns a human display string and, when
  * possible, an ISO date (local to `now`) so bookings can be sorted.
  */
 export function extractDateTime(text, asked, now = new Date()) {
-  const t = text.toLowerCase();
+  let t = normalizeDigits(text).toLowerCase();
   const parts = [];
   let date = null;
 
-  if (/\b(asap|as soon as possible|right away|right now|immediately)\b/.test(t)) return { value: { text: 'ASAP' }, display: 'ASAP' };
-  if (/\btoday\b|\bthis (morning|afternoon|evening)\b|\btonight\b/.test(t)) { date = new Date(now); parts.push('today'); }
-  else if (/\btomorrow\b/.test(t)) { date = new Date(now.getTime() + 86400000); parts.push('tomorrow'); }
-  else if (/\bnext week\b/.test(t)) { date = new Date(now.getTime() + 7 * 86400000); parts.push('next week'); }
+  if (ASAP_RX.test(t)) return { value: { text: 'ASAP' }, display: 'ASAP' };
+
+  // Time of day first: "de la mañana" (morning) must not read as mañana (tomorrow)
+  const period = PERIODS.find(([, rx]) => rx.test(t))?.[0] || null;
+  t = t.replace(/\b(de|por) la (mañana|tarde|noche)\b/g, ' ');
+
+  const addDays = (n) => { const d = new Date(now); d.setDate(d.getDate() + n); return d; };
+  if (DAY_AFTER_RX.test(t)) { date = addDays(2); parts.push('day after tomorrow'); }
+  else if (/\btonight\b|\bthis (morning|afternoon|evening)\b/.test(t) || TODAY_RX.test(t)) { date = new Date(now); parts.push('today'); }
+  else if (TOMORROW_RX.test(t)) { date = addDays(1); parts.push('tomorrow'); }
+  else if (/\bnext week\b/.test(t)) { date = addDays(7); parts.push('next week'); }
   else {
-    const wd = WEEKDAYS.findIndex(d => new RegExp(`\\b${d}\\b`).test(t));
+    const wd = WEEKDAY_RX.findIndex(rx => rx.test(t));
     if (wd >= 0) {
       date = new Date(now);
       const delta = (wd - now.getDay() + 7) % 7 || 7;
@@ -93,19 +154,40 @@ export function extractDateTime(text, asked, now = new Date()) {
     }
   }
 
-  const tm = t.match(/\b(\d{1,2})(?::(\d{2}))?\s*(am|pm|a\.m\.|p\.m\.)\b/) || t.match(/\bat\s+(\d{1,2})(?::(\d{2}))?\b/);
-  if (tm) {
-    let h = Number(tm[1]);
-    const m = Number(tm[2] || 0);
-    const ap = (tm[3] || '').replace(/\./g, '');
-    if (ap === 'pm' && h < 12) h += 12;
-    if (ap === 'am' && h === 12) h = 0;
-    if (!ap && h < 8) h += 12; // "at 3" during business context means 3pm
+  // Clock time, most explicit form first
+  let h = null, m = 0;
+  const ampm = t.match(/\b(\d{1,2})(?::(\d{2}))?\s*(am|pm|a\.m\.?|p\.m\.?)(?![a-z])/);
+  const hq = !ampm && t.match(HALF_QUARTER_RX);
+  const marked = !ampm && !hq && t.match(MARKED_TIME_RX);
+  const afterPeriod = !ampm && !hq && !marked && t.match(PERIOD_THEN_NUMBER_RX);
+  const at = !ampm && !hq && !marked && !afterPeriod && (t.match(/\bat\s+(\d{1,2})(?::(\d{2}))?\b/) || t.match(/\ba las (\d{1,2})(?::(\d{2}))?\b/));
+  if (ampm) {
+    h = Number(ampm[1]); m = Number(ampm[2] || 0);
+    const pm = ampm[3].startsWith('p');
+    if (pm && h < 12) h += 12;
+    if (!pm && h === 12) h = 0;
+  } else if (hq) {
+    const base = clockFrom(null, hq[3]);
+    if (base) {
+      const mins = hq[1] === 'half' ? 30 : 15;
+      h = hq[2] === 'past' ? base.h : base.h - 1;
+      m = hq[2] === 'past' ? mins : 60 - mins;
+      h = to24(h, period);
+    }
+  } else if (marked || afterPeriod) {
+    const c = clockFrom((marked || afterPeriod)[1], (marked || afterPeriod)[2]);
+    if (c) { h = to24(c.h, period); m = c.m; }
+  } else if (at) {
+    h = to24(Number(at[1]), period); m = Number(at[2] || 0);
+  }
+
+  if (h != null) {
     if (date) date.setHours(h, m, 0, 0);
-    const disp = `${((h + 11) % 12) + 1}${m ? `:${String(m).padStart(2, '0')}` : ''}${h >= 12 ? 'pm' : 'am'}`;
-    parts.push(disp);
+    parts.push(`${((h + 11) % 12) + 1}${m ? `:${String(m).padStart(2, '0')}` : ''}${h >= 12 ? 'pm' : 'am'}`);
+  } else if (period) {
+    parts.push(/\btonight\b/.test(t) ? 'night' : period);
   } else {
-    const pod = t.match(/\b(morning|afternoon|evening|night|noon|lunch ?time|after work|end of (the )?day)\b/);
+    const pod = t.match(/\b(noon|lunch ?time|after work|end of (the )?day)\b/);
     if (pod) parts.push(pod[0]);
     else if (/\bafter (\d{1,2})\b/.test(t)) parts.push(t.match(/\bafter \d{1,2}(\s*(am|pm))?/)[0]);
   }
@@ -122,11 +204,23 @@ export function extractDateTime(text, asked, now = new Date()) {
 const NUMBER_WORDS = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, fifteen: 15, twenty: 20, thirty: 30, fifty: 50, hundred: 100, dozen: 12, 'a dozen': 12, 'half a dozen': 6, 'a couple': 2, couple: 2, single: 1, 'a pair': 2, pair: 2 };
 const NUMBER_WORD_RX = new RegExp(`\\b(${Object.keys(NUMBER_WORDS).sort((a, b) => b.length - a.length).join('|')})\\b`, 'i');
 
+/** First number: digits, English words, Indian words ("dus", "padi", "saade gyarah", "dedh lakh"). */
 export function extractNumber(text) {
-  const m = text.match(/\b\d+(\.\d+)?\b/);
-  if (m) return { value: Number(m[0]), display: m[0] };
+  const phrase = text.toLowerCase().match(/\b(half a dozen|a dozen|a couple|couple|a pair|pair|single)\b/);
+  if (phrase && !/\d/.test(text)) return { value: NUMBER_WORDS[phrase[1]], display: String(NUMBER_WORDS[phrase[1]]) };
+  const n = parseIndianNumber(text, { allowAmbiguous: detectLanguage(text) !== 'en' || text.trim().split(/\s+/).length <= 2 });
+  if (n) return { value: n.value, display: String(n.value) };
   const w = text.toLowerCase().match(NUMBER_WORD_RX);
   return w ? { value: NUMBER_WORDS[w[1].toLowerCase()], display: String(NUMBER_WORDS[w[1].toLowerCase()]) } : null;
+}
+
+/** Money: "dedh lakh", "₹2,50,000", "5 lakh", "1.5 crore" → 150000 etc. Shown Indian-style (₹1,50,000). */
+export function extractAmount(text, asked) {
+  const n = parseIndianNumber(text, { allowAmbiguous: true });
+  if (!n || (!asked && !n.hasMultiplier && !/[₹$]|\brs\.?|rupee|rupaye|rupay|inr\b/i.test(text))) return asked ? extractText(text, asked) : null;
+  const usd = /\$|dollar/i.test(text);
+  const display = usd ? `$${n.value.toLocaleString('en-US')}` : `₹${n.value.toLocaleString('en-IN')}`;
+  return { value: n.value, display };
 }
 
 export function extractChoice(text, options = []) {
@@ -164,6 +258,7 @@ export function extractCompany(text, asked) {
 const EXTRACTORS = {
   name: extractName,
   phone: (t) => extractPhone(t),
+  amount: extractAmount,
   email: (t) => extractEmail(t),
   yesno: (t, asked) => (asked ? extractYesNo(t) : null),
   datetime: extractDateTime,
@@ -189,12 +284,21 @@ export function extractQuantity(text) {
   const w = t.match(/\b(?:need|want|buy|get|order|take|reserve)\s+([a-z]+(?: a dozen)?)\b/) || t.match(/\b([a-z]+)\s+(?:pcs|pieces|units|of them|items|packs|boxes)\b/);
   if (w) { const n = extractNumber(w[1]); if (n) return n; }
   if (/\b(a couple|couple of)\b/.test(t)) return { value: 2, display: '2' };
+  // "dus chahiye", "padi kavali", "moonu fan venum", "be joie che": a number shortly before "want"
+  const want = normalizeDigits(t).match(WANT_RX);
+  if (want) {
+    const n = parseIndianNumber(want[1], { allowAmbiguous: true });
+    if (n && n.value >= 1 && n.value <= 9999) return { value: n.value, display: String(n.value) };
+  }
   return null;
 }
+const WANT_RX = new RegExp(`((?:[\\p{L}\\p{M}\\d]+\\s+){1,3})(?:${alt(WANT_WORDS)})${R}`, 'iu');
 
-export function extractSlot(slot, text, asked, now) {
+/** @param ctx.country default country code for 10-digit phone numbers ('+91', '+1') */
+export function extractSlot(slot, text, asked, now, ctx = {}) {
   if (slot.type === 'choice') return extractChoice(text, slot.options || []);
   if (slot.type === 'number' && !asked) return slot.key === 'quantity' ? extractQuantity(text) : null;
+  if (slot.type === 'phone') return extractPhone(text, ctx.country ? { defaultCountry: ctx.country } : undefined);
   const fn = EXTRACTORS[slot.type] || EXTRACTORS.text;
   return fn(text, asked, now);
 }

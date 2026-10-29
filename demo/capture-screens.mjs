@@ -19,8 +19,8 @@ const B = 'http://localhost:3000';
 const EXE = process.env.CHROME || `${process.env.HOME}/Library/Caches/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-mac-arm64/chrome-headless-shell`;
 const run = JSON.parse(fs.readFileSync(path.join(BUILD, 'run.json'), 'utf8'));
 const S = Object.fromEntries(run.scenarios.map(s => [s.id, s]));
-const AMMA = '+15550001099';
-const OWNER = '+15550001077';
+const AMMA = process.env.VEXA_AMMA || '+15550003099';
+const OWNER = process.env.VEXA_OWNER || '+15550003077';
 
 let token;
 async function api(p, { method = 'GET', body } = {}) {
@@ -121,6 +121,41 @@ await goto('/activity');
 await shot('activity.png', { wait: 1500 });
 await goto(`/call/${encodeURIComponent(S['4.c'].call.callId)}`);
 await shot('call-fans.png', { scrollTo: 'What Vexa captured', wait: 1500 });
+
+// ── Languages, bilingual transcripts and the call recording ────────────────
+const scrollToSel = (sel) => page.evaluate(sel => { document.querySelector(sel)?.scrollIntoView({ block: 'start' }); document.querySelector('.screen')?.scrollBy(0, -16); }, sel);
+if (S['6']?.call?.callId) {
+  const ml = `/call/${encodeURIComponent(S['6'].call.callId)}`;
+  await goto(ml);
+  await shot('ml-summary.png', { wait: 1500 });
+  await page.getByText(/Show transcript/).click();
+  await sleep(500);
+  await scrollToSel('select[aria-label="Read transcript in"]');
+  await shot('ml-transcript.png', { wait: 500 });
+  await page.selectOption('select[aria-label="Read transcript in"]', 'gu');
+  await page.waitForFunction(() => !document.querySelector('select[aria-label="Read transcript in"]')?.disabled && document.querySelector('.bubble-lang')?.textContent.startsWith('Spoken'), null, { timeout: 60000 });
+  await scrollToSel('.bubbles');
+  await shot('ml-gujarati.png', { wait: 600 });
+  await goto(ml);
+  await sleep(1200);
+  await page.getByText('Play recording').click();
+  await sleep(900);
+  await page.evaluate(() => { const a = document.querySelector('audio'); if (a) { a.pause(); a.currentTime = 6.2; } });
+  await shot('ml-recording.png', { scrollTo: 'Recording', wait: 600 });
+}
+if (S['7']?.call?.callId) {
+  await goto(`/call/${encodeURIComponent(S['7'].call.callId)}`);
+  await sleep(1200);
+  await page.getByText(/Show transcript/).click();
+  await sleep(400);
+  await scrollToSel('.bubbles');
+  await shot('hinglish-transcript.png', { wait: 500 });
+}
+await goto('/me/voice');
+await page.evaluate(() => [...document.querySelectorAll('label, .field')].find(e => /Greeting language/.test(e.textContent))?.scrollIntoView({ block: 'center' }));
+await shot('settings-voice.png', { wait: 900 });
+await goto('/me/recording');
+await shot('settings-recording.png', { wait: 900 });
 
 fs.writeFileSync(path.join(BUILD, 'screens.json'), JSON.stringify(meta, null, 2));
 await browser.close();

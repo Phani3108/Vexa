@@ -28,6 +28,7 @@ function view(s, r, extra = {}) {
     replyEn: r.sayEn || r.say,
     language: r.language || 'en',
     heard: r.heard || null,
+    style: r.style || null,
     ended: !!r.end,
     transferred: !!r.transfer,
     asked: r.asked || null,

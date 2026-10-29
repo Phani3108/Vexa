@@ -6,7 +6,14 @@ It works in two modes:
 - **Personal**: screens unknown callers, handles deliveries, shuts down spam, and protects your focus time.
 - **Business**: a receptionist that captures leads, takes booking requests, escalates emergencies and texts confirmations.
 
-▶ **Demo video:** [demo/output/vexa-demo.mp4](demo/output/vexa-demo.mp4) (subtitles: [vexa-demo.srt](demo/output/vexa-demo.srt), per-call AI cost: [COSTS.md](demo/output/COSTS.md)). It covers a delivery call with directions and handoff, a loan spam call with negotiation, a trusted-contact call, three business calls (booking, address, stock and price), and a platform tour.
+▶ **Demo video:** [demo/output/vexa-demo.mp4](demo/output/vexa-demo.mp4) (subtitles: [vexa-demo.srt](demo/output/vexa-demo.srt), per-call AI cost: [COSTS.md](demo/output/COSTS.md)). It runs about 18 minutes and covers:
+- A delivery call with directions and a handoff to you, a loan spam call with negotiation, and a trusted-contact call while you're busy.
+- Three business calls: booking, address, and stock with price.
+- A caller who switches Telugu → Hindi → English mid-call, a Hinglish caller, and six more languages.
+- The bilingual transcript and "read in any language", the call recording with playback, and the understanding test results.
+- A platform tour and the cost of every call.
+
+Rebuild the video: start the backend, then run `node demo/run-scenarios.mjs`, `node demo/attach-recording.mjs`, `node demo/capture-screens.mjs`, `node demo/build-timeline.mjs`, `node demo/make-data.mjs`, `node demo/write-costs.mjs`, `node demo/render-frames.mjs`, then `swift demo/encode.swift demo/build/frames 12 demo/build/audio/mix.wav demo/output/vexa-demo.mp4`.
 
 ## What makes it different
 
@@ -47,6 +54,8 @@ Open http://localhost:5173 and sign in with any phone number. In development the
 Without `ANTHROPIC_API_KEY` (or `OPENAI_API_KEY`), understanding uses the deterministic offline engine (English; script-based language detection only). With a key, Claude extracts the facts, detects the language and translates, but the engine still decides every step.
 
 Per-turn latency: set `ANTHROPIC_FAST_MODEL=claude-haiku-4-5` to run understanding and translation on Haiku while post-call analysis stays on the main model. Recordings live in `RECORDINGS_DIR` (default `backend/.data/recordings`).
+
+Indian-language understanding test set: `npm run eval:nlu` (offline, free) or `npm run eval:nlu -- --mode claude` (about $1.80 per run). Add `--file holdout.jsonl` for the held-out set.
 
 Multilingual demo against a real model: `node demo/run-multilingual.mjs` (needs the server on :3000), then `node demo/attach-recording.mjs` to attach a synthesized stereo recording to that call.
 

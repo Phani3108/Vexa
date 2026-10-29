@@ -49,7 +49,8 @@ test('extractors: names, phones and dates', () => {
   assert.equal(extractName('This is Dana Smith', false).value, 'Dana Smith');
   assert.equal(extractName('dana', true).value, 'Dana');
   assert.equal(extractName('tomorrow morning', true), null);
-  assert.equal(extractPhone('call me on 512 555 0199').value, '+15125550199');
+  assert.equal(extractPhone('call me on 512 555 0199', { defaultCountry: '+1' }).value, '+15125550199');
+  assert.equal(extractPhone('call me on 98490 01234').value, '+919849001234');
   assert.equal(extractDateTime('tomorrow at 3pm', false, NOW).display, 'tomorrow 3pm');
   assert.equal(extractDateTime('next friday morning', false, NOW).display, 'next Friday morning');
   assert.equal(extractDateTime('I need a plumber', false, NOW), null);
@@ -180,7 +181,7 @@ test('personal: loan offer is negotiated down', () => {
   assert.match(r4.say, /14 percent is on the high side.*12 percent/);
   const r5 = s.turn('best I can do is 12.5 percent');
   assert.equal(r5.end, true);
-  assert.match(r5.say, /12.5 percent/);
+  assert.match(r5.say, /₹5,00,000 at 12\.5% for 5 years/);
 });
 
 test('business: catalog lookup gives stock, unit price and total', () => {

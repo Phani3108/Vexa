@@ -13,7 +13,7 @@
  */
 
 import { extractSlot, isQuestion, wantsHuman, isGoodbye } from './extractors.js';
-import { defaultWorkflows } from './templates.js';
+import { defaultWorkflows, LOCAL_TRIGGERS } from './templates.js';
 import userConfigService from '../services/userConfigService.js';
 
 const MAX_REPROMPTS = 2;
@@ -24,7 +24,7 @@ function words(text) {
 }
 
 function phraseScore(text, phrases = []) {
-  const padded = ` ${String(text).toLowerCase().replace(/[^a-z0-9' ]+/g, ' ')} `;
+  const padded = ` ${String(text).toLowerCase().replace(/[^\p{L}\p{M}\p{N}' ]+/gu, ' ')} `;
   return phrases.reduce((s, p) => {
     const k = String(p || '').toLowerCase().trim();
     return k && padded.includes(` ${k} `) ? s + k.length : s;
@@ -85,6 +85,12 @@ export class WorkflowSession {
   // ── Context helpers ─────────────────────────────────────────────────────
 
   get isBusiness() { return this.user.accountType !== 'personal'; }
+  /** Country code for spoken 10-digit numbers: the owner's own number decides (+91 India by default). */
+  get country() {
+    const own = String(this.user.phoneNumber || this.user.businessProfile?.phone || '');
+    const known = ['+1', '+44', '+61', '+65', '+971', '+91'].find(c => own.startsWith(c));
+    return known || process.env.DEFAULT_COUNTRY_CODE || '+91';
+  }
   get ownerFirst() { return (this.user.name && this.user.name !== 'User' ? this.user.name : 'the owner').split(' ')[0]; }
   get biz() { return this.user.businessProfile?.businessName || this.user.name || 'us'; }
   get knownCallerName() {
@@ -230,6 +236,15 @@ export class WorkflowSession {
     }
   }
 
+  /** Does the caller name something in the catalog ("bulb", "pankha")? */
+  mentionsCatalogItem(text) {
+    // Aliases ("bulb", "pankha") or the full item name; single generic words like "water" don't count
+    const said = ` ${String(text).toLowerCase().replace(/[^\p{L}\p{M}\p{N} ]+/gu, ' ').replace(/(\p{L}{3,})(es|s)(?= )/gu, '$1')} `;
+    const plain = (p) => ` ${String(p).toLowerCase().replace(/(\p{L}{3,})(es|s)$/u, '$1')} `;
+    return (this.user.businessProfile?.catalog || []).some(item =>
+      [item.name, ...(item.aliases || [])].some(p => p && said.includes(plain(p))));
+  }
+
   /** Catalog lookup for the item + quantity collected so far. Sets computed vars for templates. */
   lookupCatalog() {
     const catalog = this.user.businessProfile?.catalog || [];
@@ -288,11 +303,14 @@ export class WorkflowSession {
       if (hinted) return hinted;
     }
     const category = this.categoryFor(text);
+    const catalogHit = this.mentionsCatalogItem(text);
     let best = null;
     for (const f of this.flows) {
       if (f.trigger?.isDefault) continue;
-      let s = phraseScore(text, f.trigger?.keywords);
+      let s = phraseScore(text, [...(f.trigger?.keywords || []), ...(LOCAL_TRIGGERS[f.id] || [])]);
       if (category && f.trigger?.categories?.includes(category)) s += 12;
+      // Naming something we sell ("LED bulb hai kya?") is a product question in any language
+      if (catalogHit && f.steps?.some(st => st.type === 'lookup' && st.source === 'catalog')) s += 8;
       if (s > 0 && (!best || s > best.s || (s === best.s && (f.priority || 5) < (best.f.priority || 5)))) best = { f, s };
     }
     return best?.f || this.flows.find(f => f.trigger?.isDefault) || this.flows[this.flows.length - 1];
@@ -344,9 +362,9 @@ export class WorkflowSession {
 
       if (nluSlots[slot.key] != null && nluSlots[slot.key] !== '') {
         const raw = String(nluSlots[slot.key]);
-        hit = extractSlot(slot, raw, true, this.now()) || { value: raw, display: raw };
+        hit = extractSlot(slot, raw, true, this.now(), { country: this.country }) || { value: raw, display: raw };
       } else {
-        hit = extractSlot(slot, text, asked, this.now());
+        hit = extractSlot(slot, text, asked, this.now(), { country: this.country });
         // Opening statement answers the flow's first free-text question ("I need a quote for…")
         if (!hit && opening && slot === this.firstTextSlot() && words(text).length >= 2) {
           let tidy = tidyStatement(text);

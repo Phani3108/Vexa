@@ -219,8 +219,8 @@ export interface CallerProfile {
 }
 
 // ── Flows ─────────────────────────────────────────────────
-export type SlotType = 'text' | 'name' | 'phone' | 'email' | 'datetime' | 'yesno' | 'number' | 'choice' | 'company' | 'address'
-export type StepType = 'collect' | 'confirm' | 'say' | 'branch' | 'action' | 'transfer' | 'end' | 'goto'
+export type SlotType = 'text' | 'name' | 'phone' | 'email' | 'datetime' | 'yesno' | 'number' | 'choice' | 'company' | 'address' | 'amount'
+export type StepType = 'collect' | 'confirm' | 'say' | 'branch' | 'action' | 'transfer' | 'end' | 'goto' | 'lookup'
 
 export interface FlowSlot {
   key: string
@@ -252,6 +252,7 @@ export interface FlowStep {
   else?: string
   to?: string
   action?: string
+  source?: string
   params?: Record<string, unknown>
 }
 
