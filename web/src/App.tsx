@@ -22,6 +22,7 @@ import Talk from './pages/Talk'
 import LinkSettings from './pages/LinkSettings'
 import Family from './pages/Family'
 import FamilyMember from './pages/FamilyMember'
+import Interpreter, { InterpreterGuest } from './pages/Interpreter'
 
 /** Phone-sized app; on desktop it sits in a device frame. */
 function Stage({ children }: { children: ReactNode }) {
@@ -51,8 +52,15 @@ export default function App() {
   const { pathname } = useLocation()
 
   // Public pages: no sign-in (Vexa Link, interpreter guest)
-  if (pathname.startsWith('/l/')) {
-    return <Stage><Routes><Route path="/l/:slug" element={<main className="screen full"><Talk /></main>} /></Routes></Stage>
+  if (pathname.startsWith('/l/') || pathname.startsWith('/i/')) {
+    return (
+      <Stage>
+        <Routes>
+          <Route path="/l/:slug" element={<main className="screen full"><Talk /></main>} />
+          <Route path="/i/:room" element={<main className="screen full"><InterpreterGuest /></main>} />
+        </Routes>
+      </Stage>
+    )
   }
 
   if (!token) {
@@ -99,6 +107,7 @@ export default function App() {
           <Route path="/link" element={full(<LinkSettings />)} />
           <Route path="/family" element={full(<Family />)} />
           <Route path="/family/:userId" element={full(<FamilyMember />)} />
+          <Route path="/interpret" element={full(<Interpreter />)} />
           <Route path="/onboarding" element={<Onboarding />} />
           <Route path="/login" element={<Navigate to="/" replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />
