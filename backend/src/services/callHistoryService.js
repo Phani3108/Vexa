@@ -135,6 +135,7 @@ class CallHistoryService {
           actionItems: Array.isArray(analysis.actionItems) ? analysis.actionItems : [],
           isSpam: !!analysis.isSpam,
           ...(analysis.summaryLocal ? { summaryLocal: analysis.summaryLocal } : {}),
+          ...(analysis.scam ? { scam: analysis.scam } : {}),
           lead: {
             isLead: !!lead.isLead,
             name: lead.name || analysis.callerName || null,

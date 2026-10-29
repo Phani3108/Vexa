@@ -8,7 +8,8 @@
     "start": "node src/app.js",
     "dev": "nodemon --watch src src/app.js",
     "test": "node --test test/*.test.js",
-    "eval:nlu": "node eval/nlu/run.mjs"
+    "eval:nlu": "node eval/nlu/run.mjs",
+    "eval:packs": "node eval/packs/run.mjs"
   },
   "keywords": [
     "ai",

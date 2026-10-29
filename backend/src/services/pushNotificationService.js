@@ -188,6 +188,24 @@ export const sendUrgentCallNotification = async (userId, callData) => {
 };
 
 /**
+ * Scam shield fired: tell the owner (or a guardian) what was blocked and why.
+ */
+export const sendScamAlertNotification = async (userId, data) => {
+  const tokens = await getDeviceTokens(userId);
+  if (tokens.length === 0) return { success: false, reason: 'no_tokens' };
+  return sendToTokens(tokens, {
+    title: `🛡️ Scam call blocked: ${data.label || 'likely scam'}`,
+    body: data.phrase ? `“${String(data.phrase).slice(0, 110)}”` : `From ${data.callerNumber || 'unknown number'}`,
+    badge: 1,
+  }, {
+    type: 'scam_blocked',
+    callId: data.callId || '',
+    callerNumber: data.callerNumber || '',
+    action: 'view_call',
+  });
+};
+
+/**
  * Generic push notification
  */
 export const sendPushNotification = async (deviceToken, notification) => {
@@ -208,4 +226,5 @@ export default {
   sendCallSummaryNotification,
   sendLiveCallNotification,
   sendUrgentCallNotification,
+  sendScamAlertNotification,
 };

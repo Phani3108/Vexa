@@ -154,6 +154,7 @@ p { margin: 0; }
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
 .card.tight { padding: 0; overflow: hidden; }
 .card.glow { border-color: transparent; background: linear-gradient(var(--surface-solid), var(--surface-solid)) padding-box, var(--grad) border-box; border: 1px solid transparent; }
+.card.scam-card { border-color: var(--danger); background: var(--danger-soft); }
 .card.live { background: linear-gradient(160deg, rgba(62, 230, 213, 0.16), rgba(139, 123, 255, 0.1)); border-color: rgba(62, 230, 213, 0.3); }
 .card + .card { margin-top: 12px; }
 

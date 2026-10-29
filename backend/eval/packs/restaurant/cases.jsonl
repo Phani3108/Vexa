@@ -1,0 +1,7 @@
+{"id": "rest-takeaway", "pack": "restaurant", "turns": ["I want to order 2 chicken biryani and 3 butter naan", "pickup", "at 8pm", "Ravi", "yes"], "expect": {"flow": "takeaway_order", "status": "completed", "actions": ["create_lead", "notify_owner"], "say": ["₹820"]}}
+{"id": "rest-delivery-address", "pack": "restaurant", "turns": ["order karna hai, 1 dal makhani aur 4 roti", "home delivery", "Flat 12, Lake View, Gachibowli", "in 45 minutes", "Sana", "yes"], "expect": {"flow": "takeaway_order", "status": "completed", "say": ["₹340", "Lake View"]}}
+{"id": "rest-sold-out", "pack": "restaurant", "turns": ["one mutton rogan josh and a lassi"], "expect": {"flow": "takeaway_order", "say": ["not available"]}}
+{"id": "rest-add-to-cart", "pack": "restaurant", "turns": ["2 veg biryani please", "and add one gulab jamun", "pickup", "8pm", "Kiran", "yes"], "expect": {"flow": "takeaway_order", "status": "completed", "say": ["₹610"]}}
+{"id": "rest-allergen", "pack": "restaurant", "turns": ["is the paneer tikka nut free?"], "expect": {"refused": "allergen_guarantee", "notSay": ["pickup or"]}}
+{"id": "rest-table", "pack": "restaurant", "turns": ["table for 4 tonight at 8", "Meena", "yes"], "expect": {"flow": "booking", "status": "completed", "say": ["table for 4"]}}
+{"id": "rest-price", "pack": "restaurant", "turns": ["how much is the chicken biryani?"], "expect": {"say": ["₹320"]}}

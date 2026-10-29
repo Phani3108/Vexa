@@ -206,6 +206,7 @@ const NUMBER_WORD_RX = new RegExp(`\\b(${Object.keys(NUMBER_WORDS).sort((a, b) =
 
 /** First number: digits, English words, Indian words ("dus", "padi", "saade gyarah", "dedh lakh"). */
 export function extractNumber(text) {
+  text = String(text).replace(/(\d)(?=[a-z])/gi, '$1 ');   // "2BHK", "5kg" → "2 BHK", "5 kg"
   const phrase = text.toLowerCase().match(/\b(half a dozen|a dozen|a couple|couple|a pair|pair|single)\b/);
   if (phrase && !/\d/.test(text)) return { value: NUMBER_WORDS[phrase[1]], display: String(NUMBER_WORDS[phrase[1]]) };
   const n = parseIndianNumber(text, { allowAmbiguous: detectLanguage(text) !== 'en' || text.trim().split(/\s+/).length <= 2 });
@@ -294,10 +295,71 @@ export function extractQuantity(text) {
 }
 const WANT_RX = new RegExp(`((?:[\\p{L}\\p{M}\\d]+\\s+){1,3})(?:${alt(WANT_WORDS)})${R}`, 'iu');
 
-/** @param ctx.country default country code for 10-digit phone numbers ('+91', '+1') */
+const ORDER_STOP = /(?:,|;|\.|\band\b|\baur\b|\bplus\b|\bthen\b|\balso\b|&|\+|\bmariyu\b|\bmarupadi\b|\bum\b|\bpinne\b|\bani\b|\bane\b)/gi;
+const singular = (w) => w.replace(/(\p{L}{3,})(?:es|s)$/u, '$1');
+
+/**
+ * Several items with quantities, matched against the catalog by name or alias:
+ * "2 paneer tikka aur 4 roti", "do pankha, dus bulb", "3 x Masala dosa; 1 x Coffee".
+ * Returns { value: [{ name, qty }], display } or null when nothing in the catalog is named.
+ */
+export function extractOrder(text, catalog = []) {
+  const t = normalizeDigits(String(text || '')).toLowerCase().replace(/[×*]/g, ' x ');
+  // Longest names first, so "paneer tikka" wins over "tikka"
+  const names = catalog.flatMap(item => [item.name, ...(item.aliases || [])].filter(Boolean).map(n => ({ item, n: String(n).toLowerCase() })))
+    .sort((a, b) => b.n.length - a.n.length);
+  const taken = [];
+  const hits = [];
+  for (const { item, n } of names) {
+    const pat = n.split(/\s+/).map(w => singular(w).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?:e?s)?').join('\\s+');
+    const re = new RegExp(`${L}${pat}${R}`, 'giu');
+    for (const m of t.matchAll(re)) {
+      const start = m.index, end = m.index + m[0].length;
+      if (taken.some(([a, b]) => start < b && end > a)) continue;
+      taken.push([start, end]);
+      hits.push({ item, start, end });
+    }
+  }
+  if (!hits.length) return null;
+  hits.sort((a, b) => a.start - b.start);
+  const lines = new Map();
+  hits.forEach((h, i) => {
+    // Quantity: the number just before the item (within its clause), else "x 2" just after
+    const prevEnd = i ? hits[i - 1].end : 0;
+    let before = t.slice(prevEnd, h.start);
+    const stops = [...before.matchAll(ORDER_STOP)];
+    if (stops.length) before = before.slice(stops[stops.length - 1].index + stops[stops.length - 1][0].length);
+    const words = before.trim().split(/\s+/).filter(Boolean).slice(-3);
+    let qty = null;
+    for (let k = 0; k < words.length && qty == null; k++) {
+      const n = parseIndianNumber(words.slice(k).join(' '), { allowAmbiguous: true });
+      if (n && n.value > 0 && n.value < 1000) qty = n.value;
+    }
+    if (qty == null) {
+      const after = t.slice(h.end, (hits[i + 1]?.start ?? t.length)).match(/^\s*(?:x|nos?|pieces?|pcs|plates?)?\s*(\d{1,3})\b/);
+      if (after) qty = Number(after[1]);
+    }
+    lines.set(h.item.name, { name: h.item.name, qty: Math.max(1, Math.round(qty ?? 1)) });
+  });
+  const value = [...lines.values()];
+  return { value, display: value.map(l => `${l.qty} × ${l.name}`).join(', ') };
+}
+
+/** @param ctx.country default country code for 10-digit phone numbers ('+91', '+1'); ctx.catalog for orders */
 export function extractSlot(slot, text, asked, now, ctx = {}) {
   if (slot.type === 'choice') return extractChoice(text, slot.options || []);
-  if (slot.type === 'number' && !asked) return slot.key === 'quantity' ? extractQuantity(text) : null;
+  if (slot.type === 'order') return extractOrder(text, ctx.catalog || []);
+  if (slot.type === 'number' && !asked) {
+    if (slot.key === 'quantity') return extractQuantity(text);
+    // A number with its unit is safe to take unasked: "2BHK", "4 people", "3 kids", "table for 4"
+    if (slot.unit || slot.unitBefore) {
+      const t = normalizeDigits(text);
+      const m = (slot.unit && t.match(new RegExp(`(\\d+(?:\\.\\d+)?)\\s*(?:${slot.unit})`, 'i')))
+        || (slot.unitBefore && t.match(new RegExp(`\\b(?:${slot.unitBefore})\\s+(\\d+)\\b`, 'i')));
+      return m ? { value: Number(m[1]), display: m[1] } : null;
+    }
+    return null;
+  }
   if (slot.type === 'phone') return extractPhone(text, ctx.country ? { defaultCountry: ctx.country } : undefined);
   const fn = EXTRACTORS[slot.type] || EXTRACTORS.text;
   return fn(text, asked, now);

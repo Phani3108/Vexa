@@ -35,7 +35,14 @@ export async function openCallSession({ user, callerNumber, isTest = false, io =
   const risk = scoreRisk({ callerNumber, callerCtx, user });
   const shield = userConfigService.effectiveShield(user);
 
-  const onAction = (action) => {
+  const onAction = (action, engine) => {
+    // Scam shield: the owner hears about it while the scammer is still on the line
+    if (action.type === 'notify_owner' && action.params?.kind === 'scam') {
+      const scam = engine?.scam || {};
+      io?.to(`user:${user.userId}`).emit('call:scam', { callId, type: scam.type, label: scam.label, phrases: scam.phrases || [] });
+      if (!isTest) pushService.sendScamAlertNotification(user.userId, { callId, callerNumber, label: scam.label, phrase: scam.phrases?.[0] }).catch(() => {});
+      return;
+    }
     // Urgent alerts can't wait for the call to end
     if (action.type === 'notify_owner' && action.params?.urgent) {
       io?.to(`user:${user.userId}`).emit('call:urgent', { callId, slots: action.slots, workflow: action.workflow });
@@ -282,6 +289,14 @@ export async function finalizeCallSession({ session, user, callResult, io = null
     analysis.actionRequired = lead.isLead || !!analysis.actionRequired;
     if (/emergency/.test(run.workflowId)) analysis.urgency = 'critical';
     if (analysis.isSpam) { analysis.actionRequired = false; if (analysis.lead) analysis.lead.isLead = false; }
+  }
+  // Scam shield evidence: what kind of scam and the caller's own words
+  if (run.scam) {
+    analysis.isSpam = true;
+    analysis.scam = { type: run.scam.type, label: run.scam.label, phrases: run.scam.phrases || [] };
+    analysis.categoryLabel = 'Scam blocked';
+    analysis.actionRequired = false;
+    if (analysis.lead) analysis.lead.isLead = false;
   }
 
   // Summary in the caller's language too, so the owner can read it either way

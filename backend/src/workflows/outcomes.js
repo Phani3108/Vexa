@@ -6,6 +6,8 @@
  *   send_sms      → text to the caller (Twilio), or recorded as skipped
  *   notify_owner  → push + live event (urgent ones fire during the call)
  *   tag_spam      → spam flag on call and caller
+ *   pay_link      → UPI payment link texted to the caller (amount = the read-back total);
+ *                   above the owner's auto-limit it waits for the owner to approve
  *
  * Every action gets a status so the app can show exactly what happened.
  */
@@ -13,6 +15,7 @@
 import twilio from 'twilio';
 import Booking from '../models/mongodb/Booking.js';
 import pushService from '../services/pushNotificationService.js';
+import { upiLink, isUpiId } from '../lib/upi.js';
 
 function smsClient() {
   const { TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN } = process.env;
@@ -83,7 +86,7 @@ export async function applyOutcomes({ run, call, user, io }) {
             kind,
             customerName: s.name || null,
             phoneNumber: callerNumber,
-            service: s.service || s.need || (kind !== 'new' ? `${kind === 'cancel' ? 'Cancel' : 'Move'} appointment (${s.current || 'unknown'})` : null),
+            service: action.params?.service || s.service || s.need || (kind !== 'new' ? `${kind === 'cancel' ? 'Cancel' : 'Move'} appointment (${s.current || 'unknown'})` : null),
             requestedTime: s.when || s.newTime || s.current || null,
             requestedAt: action.slotsIso || null
           });
@@ -118,6 +121,23 @@ export async function applyOutcomes({ run, call, user, io }) {
         case 'tag_spam':
           result = { status: 'done', detail: 'Marked as spam' };
           break;
+        case 'pay_link': {
+          const p = user.businessProfile || {};
+          const amount = Math.round(Number(action.params?.amount) * 100) / 100;
+          const limit = Number(p.payLinkAutoLimit ?? 5000);
+          if (!isUpiId(p.upiId)) { result = { status: 'skipped', detail: 'Add your UPI ID in Business info to send payment links' }; break; }
+          if (!(amount > 0)) { result = { status: 'skipped', detail: 'No amount to collect' }; break; }
+          const link = upiLink({ pa: p.upiId, pn: p.upiName || vars.biz, am: amount, tn: renderTemplate(action.params?.note || 'Payment to {{biz}}', vars) });
+          const body = `${vars.biz}: pay ₹${amount.toLocaleString('en-IN')} with any UPI app: ${link}`;
+          if (amount > limit) {
+            result = { status: 'needs_approval', detail: `₹${amount.toLocaleString('en-IN')} is above your ₹${limit.toLocaleString('en-IN')} auto-send limit — approve it in the app`, link, amount, body };
+          } else if (call.isTest) {
+            result = { status: 'simulated', detail: body, link, amount };
+          } else {
+            result = { ...(await sendSms({ to: run.slots?.callback || callerNumber, from, body })), body, link, amount };
+          }
+          break;
+        }
         default:
           result = { status: 'skipped', detail: `Unknown action ${action.type}` };
       }

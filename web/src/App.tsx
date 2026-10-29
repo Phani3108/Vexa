@@ -17,6 +17,7 @@ import FlowEditor from './pages/FlowEditor'
 import Me from './pages/Me'
 import Settings from './pages/Settings'
 import Bookings from './pages/Bookings'
+import Packs from './pages/Packs'
 
 /** Phone-sized app; on desktop it sits in a device frame. */
 function Stage({ children }: { children: ReactNode }) {
@@ -84,6 +85,7 @@ export default function App() {
           <Route path="/flows/:id" element={full(<FlowEditor />)} />
           <Route path="/me/:section" element={full(<Settings />)} />
           <Route path="/bookings" element={full(<Bookings />)} />
+          <Route path="/packs" element={full(<Packs />)} />
           <Route path="/onboarding" element={<Onboarding />} />
           <Route path="/login" element={<Navigate to="/" replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />

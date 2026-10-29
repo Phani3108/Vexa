@@ -89,6 +89,7 @@ export interface UserConfig {
   name: string
   about: string
   businessProfile: BusinessProfile
+  packs?: string[]
   aiSettings: { voice?: string; tone?: string; greeting?: string; language?: string }
   recording?: { enabled?: boolean; announce?: boolean; retentionDays?: number }
   callCategories: CallCategory[]
@@ -168,6 +169,7 @@ export interface CallDetail {
     isSpam?: boolean
     lead?: Lead
     summaryLocal?: { lang: string; text: string }
+    scam?: ScamEvidence | null
   }
   languages?: string[]
   recording?: Recording
@@ -338,4 +340,20 @@ export interface TurnResult {
   callId?: string
   pending?: boolean
   call?: { callId: string; analysis: CallDetail['analysis']; workflowRun?: WorkflowRun }
+}
+
+export interface ScamEvidence {
+  type: string
+  label: string
+  phrases: string[]
+}
+
+export interface PackSummary {
+  id: string
+  name: string
+  industry: string
+  icon: string
+  description: string
+  flows: string[]
+  guardrails: string[]
 }

@@ -19,6 +19,20 @@ const CALLBACK = { key: 'callback', label: 'Callback number', type: 'phone', pro
 
 const BUSINESS = [
   {
+    id: 'scam',
+    name: 'Scam shield',
+    description: 'Fake police, KYC or courier threats and requests for OTPs end in one turn. Nothing is shared, you get an alert with the evidence.',
+    icon: 'shield-alert',
+    priority: 0,
+    trigger: { keywords: [] },
+    slots: [],
+    steps: [
+      { id: 's1', type: 'action', action: 'notify_owner', params: { kind: 'scam' } },
+      { id: 's2', type: 'action', action: 'tag_spam' },
+      { id: 's3', type: 'end', text: 'We never share personal details, OTPs or bank information over the phone. If this is an official matter, please send a written notice to {{biz}}. I\'m disconnecting the call now.' }
+    ]
+  },
+  {
     id: 'emergency',
     name: 'Emergency',
     description: 'Gets the problem and address in two questions, alerts you, and transfers the call.',
@@ -232,6 +246,20 @@ const BUSINESS = [
 // ─────────────────────────────────────────────────────────────────────────────
 
 const PERSONAL = [
+  {
+    id: 'p_scam',
+    name: 'Scam shield',
+    description: 'Fake police, KYC or courier threats and requests for OTPs end in one turn. Nothing is shared, you get an alert with the evidence.',
+    icon: 'shield-alert',
+    priority: 0,
+    trigger: { keywords: [] },
+    slots: [],
+    steps: [
+      { id: 's1', type: 'action', action: 'notify_owner', params: { kind: 'scam' } },
+      { id: 's2', type: 'action', action: 'tag_spam' },
+      { id: 's3', type: 'end', text: 'We never share personal details, OTPs or bank information over the phone. If this is an official matter, please send a written notice. I\'m disconnecting the call now.' }
+    ]
+  },
   {
     id: 'p_emergency',
     name: 'Emergency',

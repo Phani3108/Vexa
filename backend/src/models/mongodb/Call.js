@@ -54,6 +54,8 @@ const callSchema = new mongoose.Schema({
     actionItems: [String],          // follow-up items if any
 
     isSpam: { type: Boolean, default: false },
+    // Scam shield evidence: { type: 'digital_arrest' | 'kyc_otp' | …, label, phrases: [quoted caller lines] }
+    scam: { type: mongoose.Schema.Types.Mixed, default: null },
 
     // SME lead capture — a potential or existing customer who needs a response
     lead: {

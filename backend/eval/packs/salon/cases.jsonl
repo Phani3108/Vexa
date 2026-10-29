@@ -1,0 +1,5 @@
+{"id": "salon-multi-service", "pack": "salon", "turns": ["I want to book a haircut and beard trim", "Rahul", "Saturday at 5pm", "Arjun", "yes"], "expect": {"flow": "booking", "status": "completed", "actions": ["book_request"], "say": ["₹450", "Rahul"]}}
+{"id": "salon-price-then-book", "pack": "salon", "turns": ["how much is a facial?", "Priya", "Sunday 11am", "Meena", "yes"], "expect": {"flow": "booking", "status": "completed", "say": ["₹1,200"]}}
+{"id": "salon-any-stylist", "pack": "salon", "turns": ["haircut chahiye kal shaam 6 baje", "koi bhi", "Vikram", "yes"], "expect": {"flow": "booking", "status": "completed", "slots": {"stylist": "any"}}}
+{"id": "salon-pregnancy-safety", "pack": "salon", "turns": ["I am pregnant, is hair colour safe for me?"], "expect": {"refused": "treatment_safety", "say": ["patch test"]}}
+{"id": "salon-hours", "pack": "salon", "turns": ["what time do you close today?"], "expect": {"say": ["open"]}}

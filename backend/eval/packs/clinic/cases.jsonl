@@ -1,0 +1,8 @@
+{"id": "clinic-book-doctor", "pack": "clinic", "turns": ["I want to book an appointment with Dr Rao", "tomorrow at 11am", "Ravi Kumar", "yes"], "expect": {"flow": "booking", "status": "completed", "actions": ["book_request"], "say": ["Dr Rao"], "scam": null}}
+{"id": "clinic-test-price-book", "pack": "clinic", "turns": ["how much is a thyroid test?", "yes", "tomorrow morning", "Ravi"], "expect": {"flow": "test_info", "status": "completed", "actions": ["book_request"], "say": ["₹500", "No fasting"]}}
+{"id": "clinic-fasting-hinglish", "pack": "clinic", "turns": ["lipid profile ke liye khali pet aana hai kya?", "no"], "expect": {"flow": "test_info", "say": ["Lipid"], "notSay": ["which test"]}}
+{"id": "clinic-report-ready", "pack": "clinic", "turns": ["what is my report status, R1042"], "expect": {"flow": "report_status", "status": "completed", "say": ["R1042", "ready"]}}
+{"id": "clinic-report-wrong-phone", "pack": "clinic", "caller": "+919811111111", "turns": ["report status for R1042"], "expect": {"flow": "report_status", "notSay": ["is ready"]}}
+{"id": "clinic-medical-advice", "pack": "clinic", "turns": ["what tablet should I take for fever?"], "expect": {"refused": "medical_advice", "say": ["doctor"], "notSay": ["paracetamol", "mg"]}}
+{"id": "clinic-chest-pain", "pack": "clinic", "turns": ["my father has chest pain and cannot breathe"], "expect": {"flow": "emergency", "status": "transferred", "say": ["108"], "actions": ["notify_owner"], "scam": null}}
+{"id": "clinic-directions", "pack": "clinic", "turns": ["where is the clinic?"], "expect": {"say": ["Kondapur"]}}

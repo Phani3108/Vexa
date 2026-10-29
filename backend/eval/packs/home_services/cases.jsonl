@@ -1,0 +1,7 @@
+{"id": "hs-ac-booking", "pack": "home_services", "turns": ["my AC is not cooling", "tomorrow at 10am", "Flat 5, Hill Park", "Ravi", "yes"], "expect": {"flow": "lead_intake", "status": "completed", "actions": ["book_request"], "say": ["₹499 to ₹3,000", "AC repair"]}}
+{"id": "hs-gas-leak", "pack": "home_services", "turns": ["there is a gas leak in my kitchen", "12 Lake View Road"], "expect": {"flow": "emergency", "status": "transferred", "say": ["gas valve"], "scam": null}}
+{"id": "hs-power-cut-sparking", "pack": "home_services", "turns": ["my electricity connection got cut and there is sparking", "12 Lake View Road"], "expect": {"flow": "emergency", "say": ["main power"], "scam": null}}
+{"id": "hs-technician-eta", "pack": "home_services", "turns": ["where is the technician, J5531"], "expect": {"flow": "job_status", "status": "completed", "say": ["20 minutes"], "notSay": ["Hitech City"]}}
+{"id": "hs-fixed-quote", "pack": "home_services", "turns": ["can you give me the exact price for gas refill?"], "expect": {"refused": "fixed_quote", "say": ["range"]}}
+{"id": "hs-plumber-hinglish", "pack": "home_services", "turns": ["bathroom mein tap leak ho raha hai", "kal subah 9 baje", "Flat 8, Rose Villa", "Anil", "yes"], "expect": {"flow": "lead_intake", "status": "completed", "say": ["Plumber"]}}
+{"id": "hs-transfer-urgent", "pack": "home_services", "turns": ["it is an emergency, please transfer me to the technician right now", "Flat 2, Sun Towers"], "expect": {"flow": "emergency", "scam": null}}

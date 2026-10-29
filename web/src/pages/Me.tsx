@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { BookOpen, Building2, CalendarCheck, ChevronRight, Clock, LogOut, Disc3, Mic2, Package, PhoneForwarded, ShieldBan, Star, Users } from 'lucide-react'
+import { BookOpen, Boxes, Building2, CalendarCheck, ChevronRight, Clock, LogOut, Disc3, Mic2, Package, PhoneForwarded, ShieldBan, Star, Users } from 'lucide-react'
 import { api } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import type { UserConfig } from '../lib/types'
@@ -59,6 +59,7 @@ export default function Me() {
       <div className="section">
         <div className="eyebrow" style={{ margin: '0 4px 8px' }}>Your receptionist</div>
         <div className="card tight">
+          <Row to="/packs" icon={Boxes} label="Business packs" hint={config.packs?.length ? `Installed: ${config.packs.map(id => id[0].toUpperCase() + id.slice(1).replace(/_/g, ' ')).join(', ')}` : 'Clinic, salon, restaurant, kirana, home services, coaching, real estate'} />
           {isBiz ? (
             <>
               <Row to="/me/business" icon={Building2} label="Business info" hint={p.address || 'Name, address, links, transfer number'} />
