@@ -25,7 +25,7 @@ import { findByPhone } from '../lib/phone.js';
 import { extractEmail } from './extractors.js';
 import { newLedger, withLedger, summarize } from '../lib/usage.js';
 import { translateText, translateLines } from '../lib/translate.js';
-import { detectLanguage, normalizeLanguage } from '../lib/language.js';
+import { analyzeLanguage, detectLanguage, normalizeLanguage } from '../lib/language.js';
 
 export async function openCallSession({ user, callerNumber, isTest = false, io = null, callId = null }) {
   const callerCtx = await callHistoryService.getCallerContext(callerNumber, user.userId);
@@ -172,15 +172,19 @@ export async function takeTurn(session, text, { nluTimeout, translate = true, tr
       detail: e.active?.id === 'p_delivery' ? 'The courier needs your OTP. Pick up to talk to them now.' : 'Vexa is transferring this call to you.'
     });
   }
-  // Multilingual edge: reply in the language the caller just used (they may switch any time)
-  const heardLang = nlu?.language || detectLanguage(text);
+  // Multilingual edge: reply in the language the caller just used (they may switch any time),
+  // the way they used it — mixed with English or not, native script or English letters
+  const local = analyzeLanguage(text);
+  const heardLang = nlu?.language || local.lang;
   if (normalizeLanguage(heardLang)) session.language = heardLang;
   session.languages.add(session.language);
+  session.style = { mixed: nlu ? !!nlu.codeMixed || local.mixed : local.mixed, script: local.script };
   result.sayEn = result.say;
   if (translate && session.language !== 'en' && result.say) {
-    result.say = await withLedger(session.ledger, 'translation', () => translateText(result.say, session.language, { timeoutMs: translateTimeout }));
+    result.say = await withLedger(session.ledger, 'translation', () => translateText(result.say, session.language, { timeoutMs: translateTimeout, ...session.style }));
   }
   result.language = session.language;
+  result.style = session.style;
   result.heard = { language: heardLang, translation: nlu?.translation || (heardLang === 'en' ? text : null) };
   return { ...result, aiAssisted: !!nlu };
 }
@@ -188,7 +192,7 @@ export async function takeTurn(session, text, { nluTimeout, translate = true, tr
 /** Translate an English line into the caller's current language (used for whispers). */
 async function localize(session, text) {
   if (!text || session.language === 'en') return text;
-  return withLedger(session.ledger, 'translation', () => translateText(text, session.language));
+  return withLedger(session.ledger, 'translation', () => translateText(text, session.language, session.style || {}));
 }
 
 /**

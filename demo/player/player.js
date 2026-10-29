@@ -7,6 +7,9 @@
   const fmtT = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
   const money = n => `$${(n || 0).toFixed(4)}`;
   const LABEL = { ai: 'Vexa', caller: 'Caller', owner: 'You', system: 'System' };
+  const LANG = { en: 'English', hi: 'Hindi', te: 'Telugu', ta: 'Tamil', ml: 'Malayalam', mr: 'Marathi', gu: 'Gujarati', es: 'Spanish' };
+  const typed = (l, t) => (l.env && t < l.end ? Math.max(0, Math.min(1, (t - l.start) / (l.end - l.start))) : 1);
+  const cut = (text, f) => (f >= 1 ? text : text.slice(0, Math.max(1, Math.ceil(text.length * f))));
 
   function segAt(t) {
     return timeline.segments.find(s => t >= s.start && t < s.end) || timeline.segments[timeline.segments.length - 1];
@@ -35,7 +38,7 @@
   function subs(t, side) {
     const c = timeline.subtitles.find(s => t >= s.start && t < s.end + 0.15);
     if (!c) return '';
-    const cls = c.speaker === 'Vexa' ? '' : c.speaker === 'Narrator' ? 'narr' : c.speaker.startsWith('You') ? 'owner' : 'caller';
+    const cls = c.speaker.startsWith('Vexa') ? '' : c.speaker === 'Narrator' || c.speaker === 'Recording' ? 'narr' : c.speaker.startsWith('You') ? 'owner' : 'caller';
     return `<div class="subs${side ? ' side-subs' : ''}"><span class="sp ${cls}">${esc(c.speaker)}:</span>${esc(c.text)}</div>`;
   }
 
@@ -120,11 +123,12 @@
       const pos = first?.tap === 'accept' ? { x: 0.651, y: 0.877 } : { x: 0.382, y: 0.877 };
       phone = `<div class="phone"><img class="screen" src="${SCREEN_DIR}${lastImage.phoneImage}" />${tapHtml(pos.x, pos.y, t, groupEnd - 0.7)}</div>`;
     } else {
-      const bubbleLines = convo.slice(-7).map(l => {
-        let text = l.text;
-        if (l.env && t < l.end) text = text.slice(0, Math.max(1, Math.ceil(text.length * (t - l.start) / (l.end - l.start))));
+      const multi = convo.some(l => l.lang && l.lang !== 'en');
+      const bubbleLines = convo.slice(multi ? -5 : -7).map(l => {
+        const f = typed(l, t);
         const cls = l.speaker === 'system' ? 'system' : l.speaker;
-        return `<div class="bubble ${cls}">${esc(text)}</div>`;
+        const foreign = l.lang && l.lang !== 'en';
+        return `<div class="bubble ${cls}">${foreign ? `<span class="lang">${esc(LANG[l.lang] || l.lang)}</span>` : ''}${esc(cut(l.text, f))}${foreign && l.en && f >= 1 ? `<div class="en">${esc(l.en)}</div>` : ''}</div>`;
       }).join('');
       const filled = Object.entries(und.slots || {});
       const slotHtml = filled.map(([k, v]) => `<span class="slot">${esc(v.label)} <b>${esc(v.value)}</b></span>`).join('') +
@@ -147,20 +151,27 @@
     void imgLine;
 
     // Right: transcript with intelligence, understanding, voice, cost / outcome
-    const transcript = convo.slice(-7).map(l => {
+    const multiT = convo.some(l => l.lang && l.lang !== 'en');
+    const transcript = convo.slice(multiT ? -5 : -7).map(l => {
       const cls = l.speaker;
       const who = l.speaker === 'caller' ? (sc.id === '3' ? 'Amma' : sc.callerName.replace('Delivery executive', 'Courier')) : LABEL[l.speaker] || l.speaker;
-      let text = l.text;
-      if (l.env && t < l.end) text = text.slice(0, Math.max(1, Math.ceil(text.length * (t - l.start) / (l.end - l.start))));
+      const f = typed(l, t);
+      const foreign = l.lang && l.lang !== 'en';
+      const style = l.style ? [l.style.mixed ? 'mixed with English' : '', l.style.script === 'latin' && l.lang !== 'en' && l.lang !== 'es' ? 'English letters' : ''].filter(Boolean).join(' · ') : '';
+      const tag = foreign ? `<span class="lang ${cls === 'ai' ? 'ai' : ''}">${esc(LANG[l.lang] || l.lang)}${style ? ` · ${esc(style)}` : ''}</span>` : '';
+      const silent = l.silent ? '<span class="chip" style="height:22px;font-size:11px;margin-left:6px">no local voice · text only</span>' : '';
       const meta = l.speaker === 'ai' && l.latencyMs ? `<div class="meta"><span>Claude understood in ${(l.latencyMs / 1000).toFixed(1)}s</span>${l.turnTokens ? `<span>${l.turnTokens.toLocaleString()} tok · ${money(l.turnCost)}</span>` : ''}</div>` : '';
-      return `<div class="tline"><div class="who ${cls}">${esc(who)}</div><div>${esc(text)}${meta}</div></div>`;
+      return `<div class="tline"><div class="who ${cls}">${esc(who)}</div><div>${tag}${esc(cut(l.text, f))}${silent}${foreign && l.en && f >= 1 ? `<div class="en">${esc(l.en)}</div>` : ''}${meta}</div></div>`;
     }).join('') + (thinking ? `<div class="tline"><div class="who ai">Vexa</div><div class="muted">Claude is reading the caller… <span class="chip accent" style="height:24px;font-size:12px">real latency ${(thinking.latencyMs / 1000).toFixed(1)}s</span></div></div>` : '');
 
     const prevSlots = (() => {
       const ais = started.filter(l => l.speaker === 'ai' && l.understanding);
       return ais.length > 1 ? ais[ais.length - 2].understanding.slots || {} : {};
     })();
-    const facts = Object.entries(und.slots || {}).map(([k, v]) => `<div class="row"><span class="k">${esc(v.label)}</span><span class="v ${prevSlots[k] ? '' : 'new'}">${esc(v.value)}</span></div>`).join('')
+    const heard = [];
+    for (const l of started) if (l.speaker === 'caller' && l.lang && heard[heard.length - 1] !== l.lang) heard.push(l.lang);
+    const langRow = heard.some(x => x !== 'en') ? `<div class="row"><span class="k">Caller language</span><span class="v new">${esc(heard.map(x => LANG[x] || x).join(' → '))}</span></div>` : '';
+    const facts = (langRow + Object.entries(und.slots || {}).map(([k, v]) => `<div class="row"><span class="k">${esc(v.label)}</span><span class="v ${prevSlots[k] ? '' : 'new'}">${esc(v.value)}</span></div>`).join(''))
       || '<div class="muted small">Waiting for the caller…</div>';
     const spent = [...started].reverse().find(l => l.spent != null);
     const costCard = `<div class="card" style="flex:none"><h4>AI cost so far</h4><div class="bigcost">${money(outcomeOn ? seg.outcome.totalCost : spent?.spent || 0)}</div><div class="muted small">${(outcomeOn ? seg.outcome.totalTokens : spent?.tokens || 0).toLocaleString()} tokens${outcomeOn ? ' · incl. post-call analysis' : ''}</div></div>`;
@@ -168,6 +179,7 @@
     const right = outcomeOn
       ? `<div class="card outcome" style="flex:none"><h4>✦ After the call</h4>
           <div style="font-size:20px;line-height:1.4;font-weight:500">${esc(seg.outcome.summary)}</div>
+          ${sc.summaryLocal?.text ? `<div style="font-size:17px;line-height:1.45;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);color:var(--text-2)"><span class="chip" style="height:22px;font-size:11px;margin-right:6px">${esc(LANG[sc.summaryLocal.lang] || sc.summaryLocal.lang)}</span>${esc(sc.summaryLocal.text)}</div>` : ''}
           <div class="actions">
             <span class="chip accent">${esc(seg.outcome.workflow || '')} · ${esc(seg.outcome.status || '')}</span>
             ${(seg.outcome.actions || []).map(a => `<span class="chip ${a.status === 'failed' ? 'danger' : 'ok'}">${esc(a.type.replace(/_/g, ' '))} · ${esc(a.status)}</span>`).join('')}
@@ -190,17 +202,26 @@
   }
 
   function renderCosts(seg) {
-    const rows = seg.costs.map(c => `<tr><td>${esc(c.id)}</td><td>${esc(c.title)}</td><td class="num">${c.requests}</td><td class="num">${c.inputTokens.toLocaleString()}</td><td class="num">${c.outputTokens.toLocaleString()}</td><td class="num">${(c.inputTokens + c.outputTokens).toLocaleString()}</td><td class="num">${money(c.costUsd)}</td></tr>`).join('');
-    const cmd = seg.command?.aiUsage;
-    const cmdRow = cmd ? `<tr><td>3*</td><td>Ask Vexa: “busy until 7 PM”</td><td class="num">${cmd.requests}</td><td class="num">${cmd.inputTokens.toLocaleString()}</td><td class="num">${cmd.outputTokens.toLocaleString()}</td><td class="num">${(cmd.inputTokens + cmd.outputTokens).toLocaleString()}</td><td class="num">${money(cmd.costUsd)}</td></tr>` : '';
-    return `<div class="side" style="left:120px;right:120px;top:120px">
-      <div><div class="kicker">The bill</div><div class="title">What each call cost</div><div class="subtitle">Claude Opus 5.5 · $4 per million input tokens · $20 per million output tokens (thinking billed as output)</div></div>
-      <div class="card" style="flex:none"><table>
-        <tr><th>#</th><th>Call</th><th style="text-align:right">AI requests</th><th style="text-align:right">Input tok</th><th style="text-align:right">Output tok</th><th style="text-align:right">Total tok</th><th style="text-align:right">Cost</th></tr>
-        ${rows}${cmdRow}
-        <tr class="total"><td></td><td>Total</td><td></td><td></td><td></td><td class="num">${seg.totalTokens.toLocaleString()}</td><td class="num">${money(seg.total)}</td></tr>
+    const rows = seg.costs.map(c => `<tr><td>${esc(c.id)}</td><td>${esc(c.title)}</td><td class="num">${c.requests}</td><td class="num">${c.inputTokens.toLocaleString()}</td><td class="num">${c.outputTokens.toLocaleString()}</td><td class="num">${(c.inputTokens + c.outputTokens).toLocaleString()}</td><td class="num">${money(c.costUsd)}</td><td class="num">₹${(c.costUsd * 84).toFixed(2)}</td></tr>`).join('');
+    return `<div class="side" style="left:120px;right:120px;top:110px;bottom:150px;gap:14px">
+      <div><div class="kicker">The bill</div><div class="title">What each call cost</div><div class="subtitle">Claude Opus 5.5 · $4 per million input tokens · $20 per million output tokens · ₹ at 84 per $</div></div>
+      <div class="card" style="flex:none;padding:8px 20px"><table style="font-size:19px">
+        <tr><th>#</th><th>Call</th><th style="text-align:right">Requests</th><th style="text-align:right">Input tok</th><th style="text-align:right">Output tok</th><th style="text-align:right">Total tok</th><th style="text-align:right">Cost</th><th style="text-align:right">₹</th></tr>
+        ${rows.replace(/<td/g, '<td style="padding:8px 14px"')}
+        <tr class="total"><td></td><td>Total</td><td></td><td></td><td></td><td class="num">${seg.totalTokens.toLocaleString()}</td><td class="num">${money(seg.total)}</td><td class="num">₹${(seg.total * 84).toFixed(2)}</td></tr>
       </table></div>
-      <div class="muted small">Measured from Claude's usage on each request (understanding every turn, generated directions, post-call analysis). Phone-line and voice costs are not included — this recording used local synthesized voices.</div>
+      <div class="muted small">Measured from Claude's usage on each request (understanding every turn, translation of replies, generated directions, post-call analysis). Phone-line and voice costs are not included — this recording used local synthesized voices.</div>
+    </div>`;
+  }
+
+  function renderTable(seg, t) {
+    const speaking = (seg.narration || []).some(n => t >= n.start && t < n.end);
+    const head = seg.columns.map((c, i) => `<th style="${i > 0 && seg.columns.length === 4 ? 'text-align:right' : ''}">${esc(c)}</th>`).join('');
+    const body = seg.rows.map((r, ri) => `<tr class="${(seg.highlight || []).includes(ri) ? 'hl' : ''}">${r.map((c, i) => `<td class="${i > 0 && seg.columns.length === 4 ? 'num' : ''}" style="${i > 0 && seg.columns.length === 4 ? 'text-align:right' : ''}">${esc(c)}</td>`).join('')}</tr>`).join('');
+    return `<div class="side" style="left:120px;right:120px;top:110px;bottom:160px;gap:16px">
+      <div style="display:flex;align-items:center;gap:22px">${orb(70, t, speaking)}<div><div class="kicker">${esc(seg.kicker)}</div><div class="title">${esc(seg.title)}</div><div class="subtitle">${esc(seg.subtitle)}</div></div></div>
+      <div class="card tbl" style="flex:none"><table><tr>${head}</tr>${body}</table></div>
+      ${seg.note ? `<div class="muted small">${esc(seg.note)}</div>` : ''}
     </div>`;
   }
 
@@ -211,6 +232,7 @@
     else if (seg.type === 'screen') body = renderScreen(seg, t);
     else if (seg.type === 'call') body = renderCall(seg, t);
     else if (seg.type === 'costs') body = renderCosts(seg);
+    else if (seg.type === 'table') body = renderTable(seg, t);
     stage.innerHTML = top(seg, t) + body + subs(t, seg.type === 'call' || seg.type === 'screen');
     const canvas = document.getElementById('wave');
     if (canvas) {

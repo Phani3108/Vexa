@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowDown, ArrowUp, CheckCheck, CircleHelp, Copy, GitBranch, MessageCircle, PhoneForwarded, PhoneOff, Play, Plus, Trash2, X, Zap } from 'lucide-react'
+import { ArrowDown, ArrowUp, CheckCheck, CircleHelp, Copy, GitBranch, MessageCircle, PackageSearch, PhoneForwarded, PhoneOff, Play, Plus, Trash2, X, Zap } from 'lucide-react'
 import { api, ApiError } from '../lib/api'
 import type { FlowSlot, FlowStep, SlotType, StepType, Workflow } from '../lib/types'
 import Sheet from '../components/Sheet'
@@ -9,7 +9,7 @@ import { Field, PageLoader, Toggle, TopBar, toast } from '../components/ui'
 const SLOT_TYPES: { id: SlotType; label: string }[] = [
   { id: 'text', label: 'Free text' }, { id: 'name', label: 'Name' }, { id: 'datetime', label: 'Date / time' },
   { id: 'phone', label: 'Phone number' }, { id: 'email', label: 'Email' }, { id: 'yesno', label: 'Yes / no' },
-  { id: 'address', label: 'Address' }, { id: 'company', label: 'Company' }, { id: 'number', label: 'Number' }, { id: 'choice', label: 'Choice' },
+  { id: 'address', label: 'Address' }, { id: 'company', label: 'Company' }, { id: 'number', label: 'Number' }, { id: 'amount', label: 'Amount (₹, lakh)' }, { id: 'choice', label: 'Choice' },
 ]
 const STEP_TYPES: { id: StepType; label: string; hint: string }[] = [
   { id: 'collect', label: 'Ask a question', hint: 'Skipped automatically if the caller already said it' },
@@ -17,6 +17,7 @@ const STEP_TYPES: { id: StepType; label: string; hint: string }[] = [
   { id: 'say', label: 'Say something', hint: 'A line Vexa speaks, then continues' },
   { id: 'branch', label: 'If / else', hint: 'Go different ways based on an answer or the situation' },
   { id: 'action', label: 'Do something', hint: 'Create a lead, request a booking, text the caller…' },
+  { id: 'lookup', label: 'Check stock & price', hint: 'Looks up the item in your catalog: stock, unit price and total' },
   { id: 'transfer', label: 'Transfer to you', hint: 'Ends the flow by putting the caller through' },
   { id: 'end', label: 'End the call', hint: 'Final line, then Vexa hangs up' },
 ]
@@ -27,8 +28,9 @@ const ACTIONS = [
 const CONDS = [
   { id: 'business_open', label: 'We are open now' }, { id: 'transfer_allowed', label: 'Transfers allowed right now' },
   { id: 'is_vip', label: 'Caller is a VIP' }, { id: 'focus_mode', label: 'I am in Focus' }, { id: 'has_booking_url', label: 'I have a booking link' },
+  { id: 'item_in_stock', label: 'The item is in stock' },
 ]
-const STEP_ICON: Record<StepType, typeof Zap> = { collect: CircleHelp, confirm: CheckCheck, say: MessageCircle, branch: GitBranch, action: Zap, transfer: PhoneForwarded, end: PhoneOff, goto: ArrowDown }
+const STEP_ICON: Record<StepType, typeof Zap> = { collect: CircleHelp, confirm: CheckCheck, say: MessageCircle, branch: GitBranch, action: Zap, transfer: PhoneForwarded, end: PhoneOff, goto: ArrowDown, lookup: PackageSearch }
 
 function describe(step: FlowStep, flow: Workflow): string {
   const slot = flow.slots.find(s => s.key === step.slot)
@@ -41,10 +43,11 @@ function describe(step: FlowStep, flow: Workflow): string {
     case 'action': return `Do: ${ACTIONS.find(a => a.id === step.action)?.label || step.action}`
     case 'branch': {
       const w = step.when || {}
-      const c = w.cond ? CONDS.find(x => x.id === w.cond)?.label : w.slot ? `${flow.slots.find(s => s.key === w.slot)?.label || w.slot} is ${String(w.is)}` : w.all ? 'all conditions match' : 'condition'
+      const c = w.cond ? CONDS.find(x => x.id === w.cond)?.label || w.cond : w.slot ? `${flow.slots.find(s => s.key === w.slot)?.label || w.slot} is ${String(w.is)}` : w.all ? 'all conditions match' : 'condition'
       return `If ${c} → ${step.then || 'next'}, else → ${step.else || 'next'}`
     }
     case 'goto': return `Go to ${step.to}`
+    case 'lookup': return 'Check the catalog: stock, unit price and total for the item and quantity'
   }
 }
 
@@ -113,6 +116,7 @@ export default function FlowEditor() {
     if (['say', 'confirm', 'end', 'transfer'].includes(type)) base.text = type === 'end' ? 'Thanks for calling. I\'m disconnecting the call now.' : type === 'transfer' ? 'Let me put you through. Transferring you now.' : type === 'confirm' ? 'Did I get that right?' : 'One moment.'
     if (type === 'action') base.action = 'create_lead'
     if (type === 'branch') base.when = { cond: 'business_open' }
+    if (type === 'lookup') base.source = 'catalog'
     // insert before the final end/transfer so flows stay valid
     const steps = flow!.steps.slice()
     const lastTerminal = steps.map(s => s.type).lastIndexOf('end')

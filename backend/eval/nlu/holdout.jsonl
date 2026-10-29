@@ -1,0 +1,50 @@
+{"id":"h-01","cat":"holdout","setup":"biz:when","text":"kal dopahar ko 3 baje theek rahega","expect":{"lang":"hi","slots":{"when":"tomorrow 3pm"}}}
+{"id":"h-02","cat":"holdout","setup":"biz:when","text":"parson subah 9 baje","expect":{"slots":{"when":"day after tomorrow 9am"}}}
+{"id":"h-03","cat":"holdout","setup":"biz:qty","text":"humko char chahiye","expect":{"lang":"hi","slots":{"quantity":4}}}
+{"id":"h-04","cat":"holdout","setup":"biz:name","text":"naam hai Rohit Gupta","expect":{"lang":"hi","slots":{"name":"rohit gupta"}}}
+{"id":"h-05","cat":"holdout","setup":"biz:open","text":"bhai saab, ceiling fan ka rate kya hai?","expect":{"lang":"hi","mixed":true}}
+{"id":"h-06","cat":"holdout","setup":"biz:confirm","text":"haan bhai sahi hai","expect":{"confirm":"yes"}}
+{"id":"h-07","cat":"holdout","setup":"biz:confirm","text":"nahi nahi, kal nahi parso","expect":{"confirm":"no"}}
+{"id":"h-08","cat":"holdout","setup":"biz:when","text":"repu madhyahnam 3 gantalaki","expect":{"lang":"te","slots":{"when":"tomorrow 3pm"}}}
+{"id":"h-09","cat":"holdout","setup":"biz:qty","text":"naaku naalugu kavali","expect":{"lang":"te","slots":{"quantity":4}}}
+{"id":"h-10","cat":"holdout","setup":"biz:name","text":"nenu Kiran matladutunna","expect":{"lang":"te","slots":{"name":"kiran"}}}
+{"id":"h-11","cat":"holdout","setup":"biz:confirm","text":"avunandi","expect":{"confirm":"yes"}}
+{"id":"h-12","cat":"holdout","setup":"biz:confirm","text":"kaadu andi","expect":{"confirm":"no"}}
+{"id":"h-13","cat":"holdout","setup":"biz:when","text":"ivvala saayantram 7 ki","expect":{"lang":"te","slots":{"when":"today 7pm"}}}
+{"id":"h-14","cat":"holdout","setup":"biz:when","text":"naalaikku saayangaalam 6 manikku","expect":{"lang":"ta","slots":{"when":"tomorrow 6pm"}}}
+{"id":"h-15","cat":"holdout","setup":"biz:qty","text":"enakku naalu venum","expect":{"lang":"ta","slots":{"quantity":4}}}
+{"id":"h-16","cat":"holdout","setup":"biz:confirm","text":"seri seri","expect":{"confirm":"yes"}}
+{"id":"h-17","cat":"holdout","setup":"biz:confirm","text":"illainga","expect":{"confirm":"no"}}
+{"id":"h-18","cat":"holdout","setup":"biz:when","text":"naale vaikunneram 5 manikku","expect":{"lang":"ml","slots":{"when":"tomorrow 5pm"}}}
+{"id":"h-19","cat":"holdout","setup":"biz:confirm","text":"athe athe","expect":{"confirm":"yes"}}
+{"id":"h-20","cat":"holdout","setup":"biz:confirm","text":"venda","expect":{"confirm":"no"}}
+{"id":"h-21","cat":"holdout","setup":"biz:when","text":"udya dupari 2 vajta","expect":{"lang":"mr","slots":{"when":"tomorrow 2pm"}}}
+{"id":"h-22","cat":"holdout","setup":"biz:qty","text":"mala char pahijet","expect":{"lang":"mr","slots":{"quantity":4}}}
+{"id":"h-23","cat":"holdout","setup":"biz:confirm","text":"ho ho barobar","expect":{"confirm":"yes"}}
+{"id":"h-24","cat":"holdout","setup":"biz:when","text":"kaale bapore 1 vage","expect":{"lang":"gu","slots":{"when":"tomorrow 1pm"}}}
+{"id":"h-25","cat":"holdout","setup":"biz:qty","text":"mare tran joie che","expect":{"lang":"gu","slots":{"quantity":3}}}
+{"id":"h-26","cat":"holdout","setup":"biz:confirm","text":"haa, chalse","expect":{"confirm":"yes"}}
+{"id":"h-27","cat":"holdout","setup":"per:amount","text":"teen lakh ka offer hai sir","expect":{"slots":{"amount":300000}}}
+{"id":"h-28","cat":"holdout","setup":"per:rate","text":"sirf nau percent","expect":{"slots":{"rate":9}}}
+{"id":"h-29","cat":"holdout","setup":"per:rate","text":"saade aath percent","expect":{"slots":{"rate":8.5}}}
+{"id":"h-30","cat":"holdout","setup":"per:amount","text":"75 thousand","expect":{"slots":{"amount":75000}}}
+{"id":"h-31","cat":"holdout","setup":"unit:phone","text":"my number is nine nine eight eight seven seven six six five five","expect":{"phone":"+919988776655"}}
+{"id":"h-32","cat":"holdout","setup":"unit:phone","text":"+91-98490-01234","expect":{"phone":"+919849001234"}}
+{"id":"h-33","cat":"holdout","setup":"biz:when","text":"Monday ko subah 11 baje","expect":{"slots":{"when":"monday 11am"}}}
+{"id":"h-34","cat":"holdout","setup":"biz:when","text":"somvar subah","expect":{"slots":{"when":"monday morning"}}}
+{"id":"h-35","cat":"holdout","setup":"biz:when","text":"kal raat 8:30 baje","expect":{"slots":{"when":"tomorrow 8:30pm"}}}
+{"id":"h-36","cat":"holdout","setup":"biz:when","text":"paune das baje kal","expect":{"slots":{"when":"tomorrow 9:45am"}}}
+{"id":"h-37","cat":"holdout","setup":"biz:open","text":"मुझे दो पंखे चाहिए","expect":{"lang":"hi","mixed":false,"slots":{"quantity":2}}}
+{"id":"h-38","cat":"holdout","setup":"biz:when","text":"రేపు సాయంత్రం 4 గంటలకు","expect":{"lang":"te","mixed":false,"slots":{"when":"tomorrow 4pm"}}}
+{"id":"h-39","cat":"holdout","setup":"biz:when","text":"நாளை மாலை 5 மணிக்கு","expect":{"lang":"ta","slots":{"when":"tomorrow 5pm"}}}
+{"id":"h-40","cat":"holdout","setup":"biz:when","text":"നാളെ രാവിലെ 10 മണിക്ക്","expect":{"lang":"ml","slots":{"when":"tomorrow 10am"}}}
+{"id":"h-41","cat":"holdout","setup":"biz:confirm","text":"ठीक है जी","expect":{"confirm":"yes"}}
+{"id":"h-42","cat":"holdout","setup":"biz:confirm","text":"అవునండి","expect":{"confirm":"yes"}}
+{"id":"h-43","cat":"holdout","setup":"biz:confirm","text":"இல்லைங்க","expect":{"confirm":"no"}}
+{"id":"h-44","cat":"holdout","setup":"biz:open","text":"mee daggara LED bulbs unnaya andi?","expect":{"lang":"te","mixed":true}}
+{"id":"h-45","cat":"holdout","setup":"biz:open","text":"hello, appointment book karna tha","expect":{"lang":"hi","mixed":true}}
+{"id":"h-46","cat":"holdout","setup":"biz:open","text":"hello, can I get an appointment tomorrow?","expect":{"lang":"en","mixed":false}}
+{"id":"h-47","cat":"holdout","setup":"biz:name","text":"Myself Deepak Nair","expect":{"lang":"en","slots":{"name":"deepak nair"}}}
+{"id":"h-48","cat":"holdout","setup":"biz:when","text":"evening around 6","expect":{"slots":{"when":"6pm"}}}
+{"id":"h-49","cat":"holdout","setup":"biz:qty","text":"just one piece","expect":{"slots":{"quantity":1}}}
+{"id":"h-50","cat":"holdout","setup":"biz:confirm","text":"yes sir, correct","expect":{"confirm":"yes"}}

@@ -1,0 +1,2725 @@
+{
+  "mode": "claude",
+  "at": "2026-10-05T09:59:19.388Z",
+  "results": [
+    {
+      "id": "h-01",
+      "cat": "holdout",
+      "setup": "biz:when",
+      "text": "kal dopahar ko 3 baje theek rahega",
+      "expect": {
+        "lang": "hi",
+        "slots": {
+          "when": "tomorrow 3pm"
+        }
+      },
+      "checks": [
+        {
+          "what": "lang",
+          "ok": true,
+          "want": "hi",
+          "got": "hi"
+        },
+        {
+          "what": "slot:when",
+          "ok": true,
+          "want": "tomorrow 3pm",
+          "got": "tomorrow 3pm"
+        }
+      ],
+      "got": {
+        "lang": "hi",
+        "mixed": false,
+        "when": "tomorrow 3pm"
+      },
+      "usage": {
+        "requests": 1,
+        "model": "claude-opus-5-5",
+        "inputTokens": 2305,
+        "outputTokens": 113,
+        "cacheReadTokens": 0,
+        "costUsd": 0.01148,
+        "avgLatencyMs": 3453,
+        "byPurpose": {
+          "understanding": {
+            "requests": 1,
+            "inputTokens": 2305,
+            "outputTokens": 113,
+            "costUsd": 0.01148
+          }
+        },
+        "detail": [
+          {
+            "purpose": "understanding",
+            "model": "claude-opus-5-5",
+            "inputTokens": 2305,
+            "outputTokens": 113,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0,
+            "costUsd": 0.01148,
+            "latencyMs": 3453
+          }
+        ]
+      }
+    },
+    {
+      "id": "h-02",
+      "cat": "holdout",
+      "setup": "biz:when",
+      "text": "parson subah 9 baje",
+      "expect": {
+        "slots": {
+          "when": "day after tomorrow 9am"
+        }
+      },
+      "checks": [
+        {
+          "what": "slot:when",
+          "ok": true,
+          "want": "day after tomorrow 9am",
+          "got": "day after tomorrow 9am"
+        }
+      ],
+      "got": {
+        "lang": "hi",
+        "mixed": false,
+        "when": "day after tomorrow 9am"
+      },
+      "usage": {
+        "requests": 1,
+        "model": "claude-opus-5-5",
+        "inputTokens": 2296,
+        "outputTokens": 108,
+        "cacheReadTokens": 0,
+        "costUsd": 0.011344,
+        "avgLatencyMs": 3435,
+        "byPurpose": {
+          "understanding": {
+            "requests": 1,
+            "inputTokens": 2296,
+            "outputTokens": 108,
+            "costUsd": 0.011344
+          }
+        },
+        "detail": [
+          {
+            "purpose": "understanding",
+            "model": "claude-opus-5-5",
+            "inputTokens": 2296,
+            "outputTokens": 108,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0,
+            "costUsd": 0.011344,
+            "latencyMs": 3435
+          }
+        ]
+      }
+    },
+    {
+      "id": "h-03",
+      "cat": "holdout",
+      "setup": "biz:qty",
+      "text": "humko char chahiye",
+      "expect": {
+        "lang": "hi",
+        "slots": {
+          "quantity": 4
+        }
+      },
+      "checks": [
+        {
+          "what": "lang",
+          "ok": true,
+          "want": "hi",
+          "got": "hi"
+        },
+        {
+          "what": "slot:quantity",
+          "ok": true,
+          "want": 4,
+          "got": "4"
+        }
+      ],
+      "got": {
+        "lang": "hi",
+        "mixed": false,
+        "quantity": "4"
+      },
+      "usage": {
+        "requests": 1,
+        "model": "claude-opus-5-5",
+        "inputTokens": 2343,
+        "outputTokens": 98,
+        "cacheReadTokens": 0,
+        "costUsd": 0.011332,
+        "avgLatencyMs": 3011,
+        "byPurpose": {
+          "understanding": {
+            "requests": 1,
+            "inputTokens": 2343,
+            "outputTokens": 98,
+            "costUsd": 0.011332
+          }
+        },
+        "detail": [
+          {
+            "purpose": "understanding",
+            "model": "claude-opus-5-5",
+            "inputTokens": 2343,
+            "outputTokens": 98,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0,
+            "costUsd": 0.011332,
+            "latencyMs": 3011
+          }
+        ]
+      }
+    },
+    {
+      "id": "h-04",
+      "cat": "holdout",
+      "setup": "biz:name",
+      "text": "naam hai Rohit Gupta",
+      "expect": {
+        "lang": "hi",
+        "slots": {
+          "name": "rohit gupta"
+        }
+      },
+      "checks": [
+        {
+          "what": "lang",
+          "ok": true,
+          "want": "hi",
+          "got": "hi"
+        },
+        {
+          "what": "slot:name",
+          "ok": true,
+          "want": "rohit gupta",
+          "got": "Rohit Gupta"
+        }
+      ],
+      "got": {
+        "lang": "hi",
+        "mixed": false,
+        "name": "Rohit Gupta"
+      },
+      "usage": {
+        "requests": 1,
+        "model": "claude-opus-5-5",
+        "inputTokens": 2264,
+        "outputTokens": 98,
+        "cacheReadTokens": 0,
+        "costUsd": 0.011016,
+        "avgLatencyMs": 3349,
+        "byPurpose": {
+          "understanding": {
+            "requests": 1,
+            "inputTokens": 2264,
+            "outputTokens": 98,
+            "costUsd": 0.011016
+          }
+        },
+        "detail": [
+          {
+            "purpose": "understanding",
+            "model": "claude-opus-5-5",
+            "inputTokens": 2264,
+            "outputTokens": 98,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0,
+            "costUsd": 0.011016,
+            "latencyMs": 3349
+          }
+        ]
+      }
+    },
+    {
+      "id": "h-05",
+      "cat": "holdout",
+      "setup": "biz:open",
+      "text": "bhai saab, ceiling fan ka rate kya hai?",
+      "expect": {
+        "lang": "hi",
+        "mixed": true
+      },
+      "checks": [
+        {
+          "what": "lang",
+          "ok": true,
+          "want": "hi",
+          "got": "hi"
+        },
+        {
+          "what": "mixed",
+          "ok": true,
+          "want": true,
+          "got": true
+        }
+      ],
+      "got": {
+        "lang": "hi",
+        "mixed": true
+      },
+      "usage": {
+        "requests": 1,
+        "model": "claude-opus-5-5",
+        "inputTokens": 3077,
+        "outputTokens": 197,
+        "cacheReadTokens": 0,
+        "costUsd": 0.016248,
+        "avgLatencyMs": 4204,
+        "byPurpose": {
+          "understanding": {
+            "requests": 1,
+            "inputTokens": 3077,
+            "outputTokens": 197,
+            "costUsd": 0.016248
+          }
+        },
+        "detail": [
+          {
+            "purpose": "understanding",
+            "model": "claude-opus-5-5",
+            "inputTokens": 3077,
+            "outputTokens": 197,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0,
+            "costUsd": 0.016248,
+            "latencyMs": 4204
+          }
+        ]
+      }
+    },
+    {
+      "id": "h-06",
+      "cat": "holdout",
+      "setup": "biz:confirm",
+      "text": "haan bhai sahi hai",
+      "expect": {
+        "confirm": "yes"
+      },
+      "checks": [
+        {
+          "what": "confirm",
+          "ok": true,
+          "want": "yes",
+          "got": "yes"
+        }
+      ],
+      "got": {
+        "lang": "hi",
+        "mixed": false,
+        "confirm": "yes"
+      },
+      "usage": {
+        "requests": 1,
+        "model": "claude-opus-5-5",
+        "inputTokens": 2337,
+        "outputTokens": 95,
+        "cacheReadTokens": 0,
+        "costUsd": 0.011248,
+        "avgLatencyMs": 2361,
+        "byPurpose": {
+          "understanding": {
+            "requests": 1,
+            "inputTokens": 2337,
+            "outputTokens": 95,
+            "costUsd": 0.011248
+          }
+        },
+        "detail": [
+          {
+            "purpose": "understanding",
+            "model": "claude-opus-5-5",
+            "inputTokens": 2337,
+            "outputTokens": 95,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0,
+            "costUsd": 0.011248,
+            "latencyMs": 2361
+          }
+        ]
+      }
+    },
+    {
+      "id": "h-07",
+      "cat": "holdout",
+      "setup": "biz:confirm",
+      "text": "nahi nahi, kal nahi parso",
+      "expect": {
+        "confirm": "no"
+      },
+      "checks": [
+        {
+          "what": "confirm",
+          "ok": true,
+          "want": "no",
+          "got": "no"
+        }
+      ],
+      "got": {
+        "lang": "hi",
+        "mixed": false,
+        "confirm": "no"
+      },
+      "usage": {
+        "requests": 1,
+        "model": "claude-opus-5-5",
+        "inputTokens": 2341,
+        "outputTokens": 110,
+        "cacheReadTokens": 0,
+        "costUsd": 0.011564,
+        "avgLatencyMs": 2655,
+        "byPurpose": {
+          "understanding": {
+            "requests": 1,
+            "inputTokens": 2341,
+            "outputTokens": 110,
+            "costUsd": 0.011564
+          }
+        },
+        "detail": [
+          {
+            "purpose": "understanding",
+            "model": "claude-opus-5-5",
+            "inputTokens": 2341,
+            "outputTokens": 110,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0,
+            "costUsd": 0.011564,
+            "latencyMs": 2655
+          }
+        ]
+      }
+    },
+    {
+      "id": "h-08",
+      "cat": "holdout",
+      "setup": "biz:when",
+      "text": "repu madhyahnam 3 gantalaki",
+      "expect": {
+        "lang": "te",
+        "slots": {
+          "when": "tomorrow 3pm"
+        }
+      },
+      "checks": [
+        {
+          "what": "lang",
+          "ok": true,
+          "want": "te",
+          "got": "te"
+        },
+        {
+          "what": "slot:when",
+          "ok": true,
+          "want": "tomorrow 3pm",
+          "got": "tomorrow 3pm"
+        }
+      ],
+      "got": {
+        "lang": "te",
+        "mixed": false,
+        "when": "tomorrow 3pm"
+      },
+      "usage": {
+        "requests": 1,
+        "model": "claude-opus-5-5",
+        "inputTokens": 2303,
+        "outputTokens": 108,
+        "cacheReadTokens": 0,
+        "costUsd": 0.011372,
+        "avgLatencyMs": 2975,
+        "byPurpose": {
+          "understanding": {
+            "requests": 1,
+            "inputTokens": 2303,
+            "outputTokens": 108,
+            "costUsd": 0.011372
+          }
+        },
+        "detail": [
+          {
+            "purpose": "understanding",
+            "model": "claude-opus-5-5",
+            "inputTokens": 2303,
+            "outputTokens": 108,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0,
+            "costUsd": 0.011372,
+            "latencyMs": 2975
+          }
+        ]
+      }
+    },
+    {
+      "id": "h-09",
+      "cat": "holdout",
+      "setup": "biz:qty",
+      "text": "naaku naalugu kavali",
+      "expect": {
+        "lang": "te",
+        "slots": {
+          "quantity": 4
+        }
+      },
+      "checks": [
+        {
+          "what": "lang",
+          "ok": true,
+          "want": "te",
+          "got": "te"
+        },
+        {
+          "what": "slot:quantity",
+          "ok": true,
+          "want": 4,
+          "got": "4"
+        }
+      ],
+      "got": {
+        "lang": "te",
+        "mixed": false,
+        "quantity": "4"
+      },
+      "usage": {
+        "requests": 1,
+        "model": "claude-opus-5-5",
+        "inputTokens": 2346,
+        "outputTokens": 98,
+        "cacheReadTokens": 0,
+        "costUsd": 0.011344,
+        "avgLatencyMs": 2483,
+        "byPurpose": {
+          "understanding": {
+            "requests": 1,
+            "inputTokens": 2346,
+            "outputTokens": 98,
+            "costUsd": 0.011344
+          }
+        },
+        "detail": [
+          {
+            "purpose": "understanding",
+            "model": "claude-opus-5-5",
+            "inputTokens": 2346,
+            "outputTokens": 98,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0,
+            "costUsd": 0.011344,
+            "latencyMs": 2483
+          }
+        ]
+      }
+    },
+    {
+      "id": "h-10",
+      "cat": "holdout",
+      "setup": "biz:name",
+      "text": "nenu Kiran matladutunna",
+      "expect": {
+        "lang": "te",
+        "slots": {
+          "name": "kiran"
+        }
+      },
+      "checks": [
+        {
+          "what": "lang",
+          "ok": true,
+          "want": "te",
+          "got": "te"
+        },
+        {
+          "what": "slot:name",
+          "ok": true,
+          "want": "kiran",
+          "got": "Kiran"
+        }
+      ],
+      "got": {
+        "lang": "te",
+        "mixed": false,
+        "name": "Kiran"
+      },
+      "usage": {
+        "requests": 1,
+        "model": "claude-opus-5-5",
+        "inputTokens": 2264,
+        "outputTokens": 91,
+        "cacheReadTokens": 0,
+        "costUsd": 0.010876,
+        "avgLatencyMs": 1666,
+        "byPurpose": {
+          "understanding": {
+            "requests": 1,
+            "inputTokens": 2264,
+            "outputTokens": 91,
+            "costUsd": 0.010876
+          }
+        },
+        "detail": [
+          {
+            "purpose": "understanding",
+            "model": "claude-opus-5-5",
+            "inputTokens": 2264,
+            "outputTokens": 91,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0,
+            "costUsd": 0.010876,
+            "latencyMs": 1666
+          }
+        ]
+      }
+    },
+    {
+      "id": "h-11",
+      "cat": "holdout",
+      "setup": "biz:confirm",
+      "text": "avunandi",
+      "expect": {
+        "confirm": "yes"
+      },
+      "checks": [
+        {
+          "what": "confirm",
+          "ok": true,
+          "want": "yes",
+          "got": "yes"
+        }
+      ],
+      "got": {
+        "lang": "te",
+        "mixed": false,
+        "confirm": "yes"
+      },
+      "usage": {
+        "requests": 1,
+        "model": "claude-opus-5-5",
+        "inputTokens": 2331,
+        "outputTokens": 87,
+        "cacheReadTokens": 0,
+        "costUsd": 0.011064,
+        "avgLatencyMs": 1729,
+        "byPurpose": {
+          "understanding": {
+            "requests": 1,
+            "inputTokens": 2331,
+            "outputTokens": 87,
+            "costUsd": 0.011064
+          }
+        },
+        "detail": [
+          {
+            "purpose": "understanding",
+            "model": "claude-opus-5-5",
+            "inputTokens": 2331,
+            "outputTokens": 87,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0,
+            "costUsd": 0.011064,
+            "latencyMs": 1729
+          }
+        ]
+      }
+    },
+    {
+      "id": "h-12",
+      "cat": "holdout",
+      "setup": "biz:confirm",
+      "text": "kaadu andi",
+      "expect": {
+        "confirm": "no"
+      },
+      "checks": [
+        {
+          "what": "confirm",
+          "ok": true,
+          "want": "no",
+          "got": "no"
+        }
+      ],
+      "got": {
+        "lang": "te",
+        "mixed": false,
+        "confirm": "no"
+      },
+      "usage": {
+        "requests": 1,
+        "model": "claude-opus-5-5",
+        "inputTokens": 2333,
+        "outputTokens": 91,
+        "cacheReadTokens": 0,
+        "costUsd": 0.011152,
+        "avgLatencyMs": 2955,
+        "byPurpose": {
+          "understanding": {
+            "requests": 1,
+            "inputTokens": 2333,
+            "outputTokens": 91,
+            "costUsd": 0.011152
+          }
+        },
+        "detail": [
+          {
+            "purpose": "understanding",
+            "model": "claude-opus-5-5",
+            "inputTokens": 2333,
+            "outputTokens": 91,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0,
+            "costUsd": 0.011152,
+            "latencyMs": 2955
+          }
+        ]
+      }
+    },
+    {
+      "id": "h-13",
+      "cat": "holdout",
+      "setup": "biz:when",
+      "text": "ivvala saayantram 7 ki",
+      "expect": {
+        "lang": "te",
+        "slots": {
+          "when": "today 7pm"
+        }
+      },
+      "checks": [
+        {
+          "what": "lang",
+          "ok": true,
+          "want": "te",
+          "got": "te"
+        },
+        {
+          "what": "slot:when",
+          "ok": true,
+          "want": "today 7pm",
+          "got": "today 7pm"
+        }
+      ],
+      "got": {
+        "lang": "te",
+        "mixed": false,
+        "when": "today 7pm"
+      },
+      "usage": {
+        "requests": 1,
+        "model": "claude-opus-5-5",
+        "inputTokens": 2300,
+        "outputTokens": 93,
+        "cacheReadTokens": 0,
+        "costUsd": 0.01106,
+        "avgLatencyMs": 4013,
+        "byPurpose": {
+          "understanding": {
+            "requests": 1,
+            "inputTokens": 2300,
+            "outputTokens": 93,
+            "costUsd": 0.01106
+          }
+        },
+        "detail": [
+          {
+            "purpose": "understanding",
+            "model": "claude-opus-5-5",
+            "inputTokens": 2300,
+            "outputTokens": 93,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0,
+            "costUsd": 0.01106,
+            "latencyMs": 4013
+          }
+        ]
+      }
+    },
+    {
+      "id": "h-14",
+      "cat": "holdout",
+      "setup": "biz:when",
+      "text": "naalaikku saayangaalam 6 manikku",
+      "expect": {
+        "lang": "ta",
+        "slots": {
+          "when": "tomorrow 6pm"
+        }
+      },
+      "checks": [
+        {
+          "what": "lang",
+          "ok": true,
+          "want": "ta",
+          "got": "ta"
+        },
+        {
+          "what": "slot:when",
+          "ok": true,
+          "want": "tomorrow 6pm",
+          "got": "tomorrow 6pm"
+        }
+      ],
+      "got": {
+        "lang": "ta",
+        "mixed": false,
+        "when": "tomorrow 6pm"
+      },
+      "usage": {
+        "requests": 1,
+        "model": "claude-opus-5-5",
+        "inputTokens": 2304,
+        "outputTokens": 107,
+        "cacheReadTokens": 0,
+        "costUsd": 0.011356,
+        "avgLatencyMs": 2203,
+        "byPurpose": {
+          "understanding": {
+            "requests": 1,
+            "inputTokens": 2304,
+            "outputTokens": 107,
+            "costUsd": 0.011356
+          }
+        },
+        "detail": [
+          {
+            "purpose": "understanding",
+            "model": "claude-opus-5-5",
+            "inputTokens": 2304,
+            "outputTokens": 107,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0,
+            "costUsd": 0.011356,
+            "latencyMs": 2203
+          }
+        ]
+      }
+    },
+    {
+      "id": "h-15",
+      "cat": "holdout",
+      "setup": "biz:qty",
+      "text": "enakku naalu venum",
+      "expect": {
+        "lang": "ta",
+        "slots": {
+          "quantity": 4
+        }
+      },
+      "checks": [
+        {
+          "what": "lang",
+          "ok": true,
+          "want": "ta",
+          "got": "ta"
+        },
+        {
+          "what": "slot:quantity",
+          "ok": true,
+          "want": 4,
+          "got": "4"
+        }
+      ],
+      "got": {
+        "lang": "ta",
+        "mixed": false,
+        "quantity": "4"
+      },
+      "usage": {
+        "requests": 1,
+        "model": "claude-opus-5-5",
+        "inputTokens": 2344,
+        "outputTokens": 99,
+        "cacheReadTokens": 0,
+        "costUsd": 0.011356,
+        "avgLatencyMs": 3358,
+        "byPurpose": {
+          "understanding": {
+            "requests": 1,
+            "inputTokens": 2344,
+            "outputTokens": 99,
+            "costUsd": 0.011356
+          }
+        },
+        "detail": [
+          {
+            "purpose": "understanding",
+            "model": "claude-opus-5-5",
+            "inputTokens": 2344,
+            "outputTokens": 99,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0,
+            "costUsd": 0.011356,
+            "latencyMs": 3358
+          }
+        ]
+      }
+    },
+    {
+      "id": "h-16",
+      "cat": "holdout",
+      "setup": "biz:confirm",
+      "text": "seri seri",
+      "expect": {
+        "confirm": "yes"
+      },
+      "checks": [
+        {
+          "what": "confirm",
+          "ok": true,
+          "want": "yes",
+          "got": "yes"
+        }
+      ],
+      "got": {
+        "lang": "ta",
+        "mixed": false,
+        "confirm": "yes"
+      },
+      "usage": {
+        "requests": 1,
+        "model": "claude-opus-5-5",
+        "inputTokens": 2331,
+        "outputTokens": 90,
+        "cacheReadTokens": 0,
+        "costUsd": 0.011124,
+        "avgLatencyMs": 3542,
+        "byPurpose": {
+          "understanding": {
+            "requests": 1,
+            "inputTokens": 2331,
+            "outputTokens": 90,
+            "costUsd": 0.011124
+          }
+        },
+        "detail": [
+          {
+            "purpose": "understanding",
+            "model": "claude-opus-5-5",
+            "inputTokens": 2331,
+            "outputTokens": 90,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0,
+            "costUsd": 0.011124,
+            "latencyMs": 3542
+          }
+        ]
+      }
+    },
+    {
+      "id": "h-17",
+      "cat": "holdout",
+      "setup": "biz:confirm",
+      "text": "illainga",
+      "expect": {
+        "confirm": "no"
+      },
+      "checks": [
+        {
+          "what": "confirm",
+          "ok": true,
+          "want": "no",
+          "got": "no"
+        }
+      ],
+      "got": {
+        "lang": "ta",
+        "mixed": false,
+        "confirm": "no"
+      },
+      "usage": {
+        "requests": 1,
+        "model": "claude-opus-5-5",
+        "inputTokens": 2330,
+        "outputTokens": 125,
+        "cacheReadTokens": 0,
+        "costUsd": 0.01182,
+        "avgLatencyMs": 3903,
+        "byPurpose": {
+          "understanding": {
+            "requests": 1,
+            "inputTokens": 2330,
+            "outputTokens": 125,
+            "costUsd": 0.01182
+          }
+        },
+        "detail": [
+          {
+            "purpose": "understanding",
+            "model": "claude-opus-5-5",
+            "inputTokens": 2330,
+            "outputTokens": 125,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0,
+            "costUsd": 0.01182,
+            "latencyMs": 3903
+          }
+        ]
+      }
+    },
+    {
+      "id": "h-18",
+      "cat": "holdout",
+      "setup": "biz:when",
+      "text": "naale vaikunneram 5 manikku",
+      "expect": {
+        "lang": "ml",
+        "slots": {
+          "when": "tomorrow 5pm"
+        }
+      },
+      "checks": [
+        {
+          "what": "lang",
+          "ok": true,
+          "want": "ml",
+          "got": "ml"
+        },
+        {
+          "what": "slot:when",
+          "ok": true,
+          "want": "tomorrow 5pm",
+          "got": "tomorrow 5pm"
+        }
+      ],
+      "got": {
+        "lang": "ml",
+        "mixed": false,
+        "when": "tomorrow 5pm"
+      },
+      "usage": {
+        "requests": 1,
+        "model": "claude-opus-5-5",
+        "inputTokens": 2301,
+        "outputTokens": 107,
+        "cacheReadTokens": 0,
+        "costUsd": 0.011344,
+        "avgLatencyMs": 3075,
+        "byPurpose": {
+          "understanding": {
+            "requests": 1,
+            "inputTokens": 2301,
+            "outputTokens": 107,
+            "costUsd": 0.011344
+          }
+        },
+        "detail": [
+          {
+            "purpose": "understanding",
+            "model": "claude-opus-5-5",
+            "inputTokens": 2301,
+            "outputTokens": 107,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0,
+            "costUsd": 0.011344,
+            "latencyMs": 3075
+          }
+        ]
+      }
+    },
+    {
+      "id": "h-19",
+      "cat": "holdout",
+      "setup": "biz:confirm",
+      "text": "athe athe",
+      "expect": {
+        "confirm": "yes"
+      },
+      "checks": [
+        {
+          "what": "confirm",
+          "ok": true,
+          "want": "yes",
+          "got": "yes"
+        }
+      ],
+      "got": {
+        "lang": "ta",
+        "mixed": false,
+        "confirm": "yes"
+      },
+      "usage": {
+        "requests": 1,
+        "model": "claude-opus-5-5",
+        "inputTokens": 2331,
+        "outputTokens": 205,
+        "cacheReadTokens": 0,
+        "costUsd": 0.013424,
+        "avgLatencyMs": 4330,
+        "byPurpose": {
+          "understanding": {
+            "requests": 1,
+            "inputTokens": 2331,
+            "outputTokens": 205,
+            "costUsd": 0.013424
+          }
+        },
+        "detail": [
+          {
+            "purpose": "understanding",
+            "model": "claude-opus-5-5",
+            "inputTokens": 2331,
+            "outputTokens": 205,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0,
+            "costUsd": 0.013424,
+            "latencyMs": 4330
+          }
+        ]
+      }
+    },
+    {
+      "id": "h-20",
+      "cat": "holdout",
+      "setup": "biz:confirm",
+      "text": "venda",
+      "expect": {
+        "confirm": "no"
+      },
+      "checks": [
+        {
+          "what": "confirm",
+          "ok": true,
+          "want": "no",
+          "got": "no"
+        }
+      ],
+      "got": {
+        "lang": "ml",
+        "mixed": false,
+        "confirm": "no"
+      },
+      "usage": {
+        "requests": 1,
+        "model": "claude-opus-5-5",
+        "inputTokens": 2329,
+        "outputTokens": 168,
+        "cacheReadTokens": 0,
+        "costUsd": 0.012676,
+        "avgLatencyMs": 2668,
+        "byPurpose": {
+          "understanding": {
+            "requests": 1,
+            "inputTokens": 2329,
+            "outputTokens": 168,
+            "costUsd": 0.012676
+          }
+        },
+        "detail": [
+          {
+            "purpose": "understanding",
+            "model": "claude-opus-5-5",
+            "inputTokens": 2329,
+            "outputTokens": 168,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0,
+            "costUsd": 0.012676,
+            "latencyMs": 2668
+          }
+        ]
+      }
+    },
+    {
+      "id": "h-21",
+      "cat": "holdout",
+      "setup": "biz:when",
+      "text": "udya dupari 2 vajta",
+      "expect": {
+        "lang": "mr",
+        "slots": {
+          "when": "tomorrow 2pm"
+        }
+      },
+      "checks": [
+        {
+          "what": "lang",
+          "ok": true,
+          "want": "mr",
+          "got": "mr"
+        },
+        {
+          "what": "slot:when",
+          "ok": true,
+          "want": "tomorrow 2pm",
+          "got": "tomorrow 2pm"
+        }
+      ],
+      "got": {
+        "lang": "mr",
+        "mixed": false,
+        "when": "tomorrow 2pm"
+      },
+      "usage": {
+        "requests": 1,
+        "model": "claude-opus-5-5",
+        "inputTokens": 2298,
+        "outputTokens": 109,
+        "cacheReadTokens": 0,
+        "costUsd": 0.011372,
+        "avgLatencyMs": 4964,
+        "byPurpose": {
+          "understanding": {
+            "requests": 1,
+            "inputTokens": 2298,
+            "outputTokens": 109,
+            "costUsd": 0.011372
+          }
+        },
+        "detail": [
+          {
+            "purpose": "understanding",
+            "model": "claude-opus-5-5",
+            "inputTokens": 2298,
+            "outputTokens": 109,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0,
+            "costUsd": 0.011372,
+            "latencyMs": 4964
+          }
+        ]
+      }
+    },
+    {
+      "id": "h-22",
+      "cat": "holdout",
+      "setup": "biz:qty",
+      "text": "mala char pahijet",
+      "expect": {
+        "lang": "mr",
+        "slots": {
+          "quantity": 4
+        }
+      },
+      "checks": [
+        {
+          "what": "lang",
+          "ok": true,
+          "want": "mr",
+          "got": "mr"
+        },
+        {
+          "what": "slot:quantity",
+          "ok": true,
+          "want": 4,
+          "got": "4"
+        }
+      ],
+      "got": {
+        "lang": "mr",
+        "mixed": false,
+        "quantity": "4"
+      },
+      "usage": {
+        "requests": 1,
+        "model": "claude-opus-5-5",
+        "inputTokens": 2343,
+        "outputTokens": 99,
+        "cacheReadTokens": 0,
+        "costUsd": 0.011352,
+        "avgLatencyMs": 2971,
+        "byPurpose": {
+          "understanding": {
+            "requests": 1,
+            "inputTokens": 2343,
+            "outputTokens": 99,
+            "costUsd": 0.011352
+          }
+        },
+        "detail": [
+          {
+            "purpose": "understanding",
+            "model": "claude-opus-5-5",
+            "inputTokens": 2343,
+            "outputTokens": 99,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0,
+            "costUsd": 0.011352,
+            "latencyMs": 2971
+          }
+        ]
+      }
+    },
+    {
+      "id": "h-23",
+      "cat": "holdout",
+      "setup": "biz:confirm",
+      "text": "ho ho barobar",
+      "expect": {
+        "confirm": "yes"
+      },
+      "checks": [
+        {
+          "what": "confirm",
+          "ok": true,
+          "want": "yes",
+          "got": "yes"
+        }
+      ],
+      "got": {
+        "lang": "mr",
+        "mixed": false,
+        "confirm": "yes"
+      },
+      "usage": {
+        "requests": 1,
+        "model": "claude-opus-5-5",
+        "inputTokens": 2334,
+        "outputTokens": 93,
+        "cacheReadTokens": 0,
+        "costUsd": 0.011196,
+        "avgLatencyMs": 2578,
+        "byPurpose": {
+          "understanding": {
+            "requests": 1,
+            "inputTokens": 2334,
+            "outputTokens": 93,
+            "costUsd": 0.011196
+          }
+        },
+        "detail": [
+          {
+            "purpose": "understanding",
+            "model": "claude-opus-5-5",
+            "inputTokens": 2334,
+            "outputTokens": 93,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0,
+            "costUsd": 0.011196,
+            "latencyMs": 2578
+          }
+        ]
+      }
+    },
+    {
+      "id": "h-24",
+      "cat": "holdout",
+      "setup": "biz:when",
+      "text": "kaale bapore 1 vage",
+      "expect": {
+        "lang": "gu",
+        "slots": {
+          "when": "tomorrow 1pm"
+        }
+      },
+      "checks": [
+        {
+          "what": "lang",
+          "ok": true,
+          "want": "gu",
+          "got": "gu"
+        },
+        {
+          "what": "slot:when",
+          "ok": true,
+          "want": "tomorrow 1pm",
+          "got": "tomorrow 1pm"
+        }
+      ],
+      "got": {
+        "lang": "gu",
+        "mixed": false,
+        "when": "tomorrow 1pm"
+      },
+      "usage": {
+        "requests": 1,
+        "model": "claude-opus-5-5",
+        "inputTokens": 2298,
+        "outputTokens": 182,
+        "cacheReadTokens": 0,
+        "costUsd": 0.012832,
+        "avgLatencyMs": 2506,
+        "byPurpose": {
+          "understanding": {
+            "requests": 1,
+            "inputTokens": 2298,
+            "outputTokens": 182,
+            "costUsd": 0.012832
+          }
+        },
+        "detail": [
+          {
+            "purpose": "understanding",
+            "model": "claude-opus-5-5",
+            "inputTokens": 2298,
+            "outputTokens": 182,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0,
+            "costUsd": 0.012832,
+            "latencyMs": 2506
+          }
+        ]
+      }
+    },
+    {
+      "id": "h-25",
+      "cat": "holdout",
+      "setup": "biz:qty",
+      "text": "mare tran joie che",
+      "expect": {
+        "lang": "gu",
+        "slots": {
+          "quantity": 3
+        }
+      },
+      "checks": [
+        {
+          "what": "lang",
+          "ok": true,
+          "want": "gu",
+          "got": "gu"
+        },
+        {
+          "what": "slot:quantity",
+          "ok": true,
+          "want": 3,
+          "got": "3"
+        }
+      ],
+      "got": {
+        "lang": "gu",
+        "mixed": false,
+        "quantity": "3"
+      },
+      "usage": {
+        "requests": 1,
+        "model": "claude-opus-5-5",
+        "inputTokens": 2343,
+        "outputTokens": 99,
+        "cacheReadTokens": 0,
+        "costUsd": 0.011352,
+        "avgLatencyMs": 2069,
+        "byPurpose": {
+          "understanding": {
+            "requests": 1,
+            "inputTokens": 2343,
+            "outputTokens": 99,
+            "costUsd": 0.011352
+          }
+        },
+        "detail": [
+          {
+            "purpose": "understanding",
+            "model": "claude-opus-5-5",
+            "inputTokens": 2343,
+            "outputTokens": 99,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0,
+            "costUsd": 0.011352,
+            "latencyMs": 2069
+          }
+        ]
+      }
+    },
+    {
+      "id": "h-26",
+      "cat": "holdout",
+      "setup": "biz:confirm",
+      "text": "haa, chalse",
+      "expect": {
+        "confirm": "yes"
+      },
+      "checks": [
+        {
+          "what": "confirm",
+          "ok": true,
+          "want": "yes",
+          "got": "yes"
+        }
+      ],
+      "got": {
+        "lang": "gu",
+        "mixed": false,
+        "confirm": "yes"
+      },
+      "usage": {
+        "requests": 1,
+        "model": "claude-opus-5-5",
+        "inputTokens": 2333,
+        "outputTokens": 93,
+        "cacheReadTokens": 0,
+        "costUsd": 0.011192,
+        "avgLatencyMs": 2774,
+        "byPurpose": {
+          "understanding": {
+            "requests": 1,
+            "inputTokens": 2333,
+            "outputTokens": 93,
+            "costUsd": 0.011192
+          }
+        },
+        "detail": [
+          {
+            "purpose": "understanding",
+            "model": "claude-opus-5-5",
+            "inputTokens": 2333,
+            "outputTokens": 93,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0,
+            "costUsd": 0.011192,
+            "latencyMs": 2774
+          }
+        ]
+      }
+    },
+    {
+      "id": "h-27",
+      "cat": "holdout",
+      "setup": "per:amount",
+      "text": "teen lakh ka offer hai sir",
+      "expect": {
+        "slots": {
+          "amount": 300000
+        }
+      },
+      "checks": [
+        {
+          "what": "slot:amount",
+          "ok": true,
+          "want": 300000,
+          "got": "₹3,00,000"
+        }
+      ],
+      "got": {
+        "lang": "hi",
+        "mixed": true,
+        "amount": "₹3,00,000"
+      },
+      "usage": {
+        "requests": 1,
+        "model": "claude-opus-5-5",
+        "inputTokens": 2111,
+        "outputTokens": 114,
+        "cacheReadTokens": 0,
+        "costUsd": 0.010724,
+        "avgLatencyMs": 2471,
+        "byPurpose": {
+          "understanding": {
+            "requests": 1,
+            "inputTokens": 2111,
+            "outputTokens": 114,
+            "costUsd": 0.010724
+          }
+        },
+        "detail": [
+          {
+            "purpose": "understanding",
+            "model": "claude-opus-5-5",
+            "inputTokens": 2111,
+            "outputTokens": 114,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0,
+            "costUsd": 0.010724,
+            "latencyMs": 2471
+          }
+        ]
+      }
+    },
+    {
+      "id": "h-28",
+      "cat": "holdout",
+      "setup": "per:rate",
+      "text": "sirf nau percent",
+      "expect": {
+        "slots": {
+          "rate": 9
+        }
+      },
+      "checks": [
+        {
+          "what": "slot:rate",
+          "ok": true,
+          "want": 9,
+          "got": "9"
+        }
+      ],
+      "got": {
+        "lang": "hi",
+        "mixed": true,
+        "rate": "9"
+      },
+      "usage": {
+        "requests": 1,
+        "model": "claude-opus-5-5",
+        "inputTokens": 2070,
+        "outputTokens": 101,
+        "cacheReadTokens": 0,
+        "costUsd": 0.0103,
+        "avgLatencyMs": 5181,
+        "byPurpose": {
+          "understanding": {
+            "requests": 1,
+            "inputTokens": 2070,
+            "outputTokens": 101,
+            "costUsd": 0.0103
+          }
+        },
+        "detail": [
+          {
+            "purpose": "understanding",
+            "model": "claude-opus-5-5",
+            "inputTokens": 2070,
+            "outputTokens": 101,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0,
+            "costUsd": 0.0103,
+            "latencyMs": 5181
+          }
+        ]
+      }
+    },
+    {
+      "id": "h-29",
+      "cat": "holdout",
+      "setup": "per:rate",
+      "text": "saade aath percent",
+      "expect": {
+        "slots": {
+          "rate": 8.5
+        }
+      },
+      "checks": [
+        {
+          "what": "slot:rate",
+          "ok": true,
+          "want": 8.5,
+          "got": "8.5"
+        }
+      ],
+      "got": {
+        "lang": "hi",
+        "mixed": true,
+        "rate": "8.5"
+      },
+      "usage": {
+        "requests": 1,
+        "model": "claude-opus-5-5",
+        "inputTokens": 2069,
+        "outputTokens": 105,
+        "cacheReadTokens": 0,
+        "costUsd": 0.010376,
+        "avgLatencyMs": 3673,
+        "byPurpose": {
+          "understanding": {
+            "requests": 1,
+            "inputTokens": 2069,
+            "outputTokens": 105,
+            "costUsd": 0.010376
+          }
+        },
+        "detail": [
+          {
+            "purpose": "understanding",
+            "model": "claude-opus-5-5",
+            "inputTokens": 2069,
+            "outputTokens": 105,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0,
+            "costUsd": 0.010376,
+            "latencyMs": 3673
+          }
+        ]
+      }
+    },
+    {
+      "id": "h-30",
+      "cat": "holdout",
+      "setup": "per:amount",
+      "text": "75 thousand",
+      "expect": {
+        "slots": {
+          "amount": 75000
+        }
+      },
+      "checks": [
+        {
+          "what": "slot:amount",
+          "ok": true,
+          "want": 75000,
+          "got": "₹75,000"
+        }
+      ],
+      "got": {
+        "lang": "en",
+        "mixed": false,
+        "amount": "₹75,000"
+      },
+      "usage": {
+        "requests": 1,
+        "model": "claude-opus-5-5",
+        "inputTokens": 2103,
+        "outputTokens": 105,
+        "cacheReadTokens": 0,
+        "costUsd": 0.010512,
+        "avgLatencyMs": 5529,
+        "byPurpose": {
+          "understanding": {
+            "requests": 1,
+            "inputTokens": 2103,
+            "outputTokens": 105,
+            "costUsd": 0.010512
+          }
+        },
+        "detail": [
+          {
+            "purpose": "understanding",
+            "model": "claude-opus-5-5",
+            "inputTokens": 2103,
+            "outputTokens": 105,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0,
+            "costUsd": 0.010512,
+            "latencyMs": 5529
+          }
+        ]
+      }
+    },
+    {
+      "id": "h-31",
+      "cat": "holdout",
+      "setup": "unit:phone",
+      "text": "my number is nine nine eight eight seven seven six six five five",
+      "expect": {
+        "phone": "+919988776655"
+      },
+      "checks": [
+        {
+          "what": "phone",
+          "ok": true,
+          "want": "+919988776655",
+          "got": "+919988776655"
+        }
+      ],
+      "got": {
+        "phone": "+919988776655"
+      }
+    },
+    {
+      "id": "h-32",
+      "cat": "holdout",
+      "setup": "unit:phone",
+      "text": "+91-98490-01234",
+      "expect": {
+        "phone": "+919849001234"
+      },
+      "checks": [
+        {
+          "what": "phone",
+          "ok": true,
+          "want": "+919849001234",
+          "got": "+919849001234"
+        }
+      ],
+      "got": {
+        "phone": "+919849001234"
+      }
+    },
+    {
+      "id": "h-33",
+      "cat": "holdout",
+      "setup": "biz:when",
+      "text": "Monday ko subah 11 baje",
+      "expect": {
+        "slots": {
+          "when": "monday 11am"
+        }
+      },
+      "checks": [
+        {
+          "what": "slot:when",
+          "ok": true,
+          "want": "monday 11am",
+          "got": "Monday 11am"
+        }
+      ],
+      "got": {
+        "lang": "hi",
+        "mixed": true,
+        "when": "Monday 11am"
+      },
+      "usage": {
+        "requests": 1,
+        "model": "claude-opus-5-5",
+        "inputTokens": 2299,
+        "outputTokens": 101,
+        "cacheReadTokens": 0,
+        "costUsd": 0.011216,
+        "avgLatencyMs": 1979,
+        "byPurpose": {
+          "understanding": {
+            "requests": 1,
+            "inputTokens": 2299,
+            "outputTokens": 101,
+            "costUsd": 0.011216
+          }
+        },
+        "detail": [
+          {
+            "purpose": "understanding",
+            "model": "claude-opus-5-5",
+            "inputTokens": 2299,
+            "outputTokens": 101,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0,
+            "costUsd": 0.011216,
+            "latencyMs": 1979
+          }
+        ]
+      }
+    },
+    {
+      "id": "h-34",
+      "cat": "holdout",
+      "setup": "biz:when",
+      "text": "somvar subah",
+      "expect": {
+        "slots": {
+          "when": "monday morning"
+        }
+      },
+      "checks": [
+        {
+          "what": "slot:when",
+          "ok": true,
+          "want": "monday morning",
+          "got": "Monday morning"
+        }
+      ],
+      "got": {
+        "lang": "hi",
+        "mixed": false,
+        "when": "Monday morning"
+      },
+      "usage": {
+        "requests": 1,
+        "model": "claude-opus-5-5",
+        "inputTokens": 2292,
+        "outputTokens": 92,
+        "cacheReadTokens": 0,
+        "costUsd": 0.011008,
+        "avgLatencyMs": 1896,
+        "byPurpose": {
+          "understanding": {
+            "requests": 1,
+            "inputTokens": 2292,
+            "outputTokens": 92,
+            "costUsd": 0.011008
+          }
+        },
+        "detail": [
+          {
+            "purpose": "understanding",
+            "model": "claude-opus-5-5",
+            "inputTokens": 2292,
+            "outputTokens": 92,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0,
+            "costUsd": 0.011008,
+            "latencyMs": 1896
+          }
+        ]
+      }
+    },
+    {
+      "id": "h-35",
+      "cat": "holdout",
+      "setup": "biz:when",
+      "text": "kal raat 8:30 baje",
+      "expect": {
+        "slots": {
+          "when": "tomorrow 8:30pm"
+        }
+      },
+      "checks": [
+        {
+          "what": "slot:when",
+          "ok": true,
+          "want": "tomorrow 8:30pm",
+          "got": "tomorrow 8:30pm"
+        }
+      ],
+      "got": {
+        "lang": "hi",
+        "mixed": false,
+        "when": "tomorrow 8:30pm"
+      },
+      "usage": {
+        "requests": 1,
+        "model": "claude-opus-5-5",
+        "inputTokens": 2298,
+        "outputTokens": 105,
+        "cacheReadTokens": 0,
+        "costUsd": 0.011292,
+        "avgLatencyMs": 3167,
+        "byPurpose": {
+          "understanding": {
+            "requests": 1,
+            "inputTokens": 2298,
+            "outputTokens": 105,
+            "costUsd": 0.011292
+          }
+        },
+        "detail": [
+          {
+            "purpose": "understanding",
+            "model": "claude-opus-5-5",
+            "inputTokens": 2298,
+            "outputTokens": 105,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0,
+            "costUsd": 0.011292,
+            "latencyMs": 3167
+          }
+        ]
+      }
+    },
+    {
+      "id": "h-36",
+      "cat": "holdout",
+      "setup": "biz:when",
+      "text": "paune das baje kal",
+      "expect": {
+        "slots": {
+          "when": "tomorrow 9:45am"
+        }
+      },
+      "checks": [
+        {
+          "what": "slot:when",
+          "ok": true,
+          "want": "tomorrow 9:45am",
+          "got": "tomorrow 9:45am"
+        }
+      ],
+      "got": {
+        "lang": "hi",
+        "mixed": false,
+        "when": "tomorrow 9:45am"
+      },
+      "usage": {
+        "requests": 1,
+        "model": "claude-opus-5-5",
+        "inputTokens": 2294,
+        "outputTokens": 105,
+        "cacheReadTokens": 0,
+        "costUsd": 0.011276,
+        "avgLatencyMs": 2727,
+        "byPurpose": {
+          "understanding": {
+            "requests": 1,
+            "inputTokens": 2294,
+            "outputTokens": 105,
+            "costUsd": 0.011276
+          }
+        },
+        "detail": [
+          {
+            "purpose": "understanding",
+            "model": "claude-opus-5-5",
+            "inputTokens": 2294,
+            "outputTokens": 105,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0,
+            "costUsd": 0.011276,
+            "latencyMs": 2727
+          }
+        ]
+      }
+    },
+    {
+      "id": "h-37",
+      "cat": "holdout",
+      "setup": "biz:open",
+      "text": "मुझे दो पंखे चाहिए",
+      "expect": {
+        "lang": "hi",
+        "mixed": false,
+        "slots": {
+          "quantity": 2
+        }
+      },
+      "checks": [
+        {
+          "what": "lang",
+          "ok": true,
+          "want": "hi",
+          "got": "hi"
+        },
+        {
+          "what": "mixed",
+          "ok": true,
+          "want": false,
+          "got": false
+        },
+        {
+          "what": "slot:quantity",
+          "ok": true,
+          "want": 2,
+          "got": "2"
+        }
+      ],
+      "got": {
+        "lang": "hi",
+        "mixed": false,
+        "quantity": "2"
+      },
+      "usage": {
+        "requests": 1,
+        "model": "claude-opus-5-5",
+        "inputTokens": 3071,
+        "outputTokens": 182,
+        "cacheReadTokens": 0,
+        "costUsd": 0.015924,
+        "avgLatencyMs": 2404,
+        "byPurpose": {
+          "understanding": {
+            "requests": 1,
+            "inputTokens": 3071,
+            "outputTokens": 182,
+            "costUsd": 0.015924
+          }
+        },
+        "detail": [
+          {
+            "purpose": "understanding",
+            "model": "claude-opus-5-5",
+            "inputTokens": 3071,
+            "outputTokens": 182,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0,
+            "costUsd": 0.015924,
+            "latencyMs": 2404
+          }
+        ]
+      }
+    },
+    {
+      "id": "h-38",
+      "cat": "holdout",
+      "setup": "biz:when",
+      "text": "రేపు సాయంత్రం 4 గంటలకు",
+      "expect": {
+        "lang": "te",
+        "mixed": false,
+        "slots": {
+          "when": "tomorrow 4pm"
+        }
+      },
+      "checks": [
+        {
+          "what": "lang",
+          "ok": true,
+          "want": "te",
+          "got": "te"
+        },
+        {
+          "what": "mixed",
+          "ok": true,
+          "want": false,
+          "got": false
+        },
+        {
+          "what": "slot:when",
+          "ok": true,
+          "want": "tomorrow 4pm",
+          "got": "tomorrow 4pm"
+        }
+      ],
+      "got": {
+        "lang": "te",
+        "mixed": false,
+        "when": "tomorrow 4pm"
+      },
+      "usage": {
+        "requests": 1,
+        "model": "claude-opus-5-5",
+        "inputTokens": 2308,
+        "outputTokens": 106,
+        "cacheReadTokens": 0,
+        "costUsd": 0.011352,
+        "avgLatencyMs": 4430,
+        "byPurpose": {
+          "understanding": {
+            "requests": 1,
+            "inputTokens": 2308,
+            "outputTokens": 106,
+            "costUsd": 0.011352
+          }
+        },
+        "detail": [
+          {
+            "purpose": "understanding",
+            "model": "claude-opus-5-5",
+            "inputTokens": 2308,
+            "outputTokens": 106,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0,
+            "costUsd": 0.011352,
+            "latencyMs": 4430
+          }
+        ]
+      }
+    },
+    {
+      "id": "h-39",
+      "cat": "holdout",
+      "setup": "biz:when",
+      "text": "நாளை மாலை 5 மணிக்கு",
+      "expect": {
+        "lang": "ta",
+        "slots": {
+          "when": "tomorrow 5pm"
+        }
+      },
+      "checks": [
+        {
+          "what": "lang",
+          "ok": true,
+          "want": "ta",
+          "got": "ta"
+        },
+        {
+          "what": "slot:when",
+          "ok": true,
+          "want": "tomorrow 5pm",
+          "got": "tomorrow 5pm"
+        }
+      ],
+      "got": {
+        "lang": "ta",
+        "mixed": false,
+        "when": "tomorrow 5pm"
+      },
+      "usage": {
+        "requests": 1,
+        "model": "claude-opus-5-5",
+        "inputTokens": 2305,
+        "outputTokens": 107,
+        "cacheReadTokens": 0,
+        "costUsd": 0.01136,
+        "avgLatencyMs": 2430,
+        "byPurpose": {
+          "understanding": {
+            "requests": 1,
+            "inputTokens": 2305,
+            "outputTokens": 107,
+            "costUsd": 0.01136
+          }
+        },
+        "detail": [
+          {
+            "purpose": "understanding",
+            "model": "claude-opus-5-5",
+            "inputTokens": 2305,
+            "outputTokens": 107,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0,
+            "costUsd": 0.01136,
+            "latencyMs": 2430
+          }
+        ]
+      }
+    },
+    {
+      "id": "h-40",
+      "cat": "holdout",
+      "setup": "biz:when",
+      "text": "നാളെ രാവിലെ 10 മണിക്ക്",
+      "expect": {
+        "lang": "ml",
+        "slots": {
+          "when": "tomorrow 10am"
+        }
+      },
+      "checks": [
+        {
+          "what": "lang",
+          "ok": true,
+          "want": "ml",
+          "got": "ml"
+        },
+        {
+          "what": "slot:when",
+          "ok": true,
+          "want": "tomorrow 10am",
+          "got": "tomorrow 10am"
+        }
+      ],
+      "got": {
+        "lang": "ml",
+        "mixed": false,
+        "when": "tomorrow 10am"
+      },
+      "usage": {
+        "requests": 1,
+        "model": "claude-opus-5-5",
+        "inputTokens": 2310,
+        "outputTokens": 106,
+        "cacheReadTokens": 0,
+        "costUsd": 0.01136,
+        "avgLatencyMs": 1989,
+        "byPurpose": {
+          "understanding": {
+            "requests": 1,
+            "inputTokens": 2310,
+            "outputTokens": 106,
+            "costUsd": 0.01136
+          }
+        },
+        "detail": [
+          {
+            "purpose": "understanding",
+            "model": "claude-opus-5-5",
+            "inputTokens": 2310,
+            "outputTokens": 106,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0,
+            "costUsd": 0.01136,
+            "latencyMs": 1989
+          }
+        ]
+      }
+    },
+    {
+      "id": "h-41",
+      "cat": "holdout",
+      "setup": "biz:confirm",
+      "text": "ठीक है जी",
+      "expect": {
+        "confirm": "yes"
+      },
+      "checks": [
+        {
+          "what": "confirm",
+          "ok": true,
+          "want": "yes",
+          "got": "yes"
+        }
+      ],
+      "got": {
+        "lang": "hi",
+        "mixed": false,
+        "confirm": "yes"
+      },
+      "usage": {
+        "requests": 1,
+        "model": "claude-opus-5-5",
+        "inputTokens": 2334,
+        "outputTokens": 97,
+        "cacheReadTokens": 0,
+        "costUsd": 0.011276,
+        "avgLatencyMs": 2568,
+        "byPurpose": {
+          "understanding": {
+            "requests": 1,
+            "inputTokens": 2334,
+            "outputTokens": 97,
+            "costUsd": 0.011276
+          }
+        },
+        "detail": [
+          {
+            "purpose": "understanding",
+            "model": "claude-opus-5-5",
+            "inputTokens": 2334,
+            "outputTokens": 97,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0,
+            "costUsd": 0.011276,
+            "latencyMs": 2568
+          }
+        ]
+      }
+    },
+    {
+      "id": "h-42",
+      "cat": "holdout",
+      "setup": "biz:confirm",
+      "text": "అవునండి",
+      "expect": {
+        "confirm": "yes"
+      },
+      "checks": [
+        {
+          "what": "confirm",
+          "ok": true,
+          "want": "yes",
+          "got": "yes"
+        }
+      ],
+      "got": {
+        "lang": "te",
+        "mixed": false,
+        "confirm": "yes"
+      },
+      "usage": {
+        "requests": 1,
+        "model": "claude-opus-5-5",
+        "inputTokens": 2332,
+        "outputTokens": 93,
+        "cacheReadTokens": 0,
+        "costUsd": 0.011188,
+        "avgLatencyMs": 3010,
+        "byPurpose": {
+          "understanding": {
+            "requests": 1,
+            "inputTokens": 2332,
+            "outputTokens": 93,
+            "costUsd": 0.011188
+          }
+        },
+        "detail": [
+          {
+            "purpose": "understanding",
+            "model": "claude-opus-5-5",
+            "inputTokens": 2332,
+            "outputTokens": 93,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0,
+            "costUsd": 0.011188,
+            "latencyMs": 3010
+          }
+        ]
+      }
+    },
+    {
+      "id": "h-43",
+      "cat": "holdout",
+      "setup": "biz:confirm",
+      "text": "இல்லைங்க",
+      "expect": {
+        "confirm": "no"
+      },
+      "checks": [
+        {
+          "what": "confirm",
+          "ok": true,
+          "want": "no",
+          "got": "no"
+        }
+      ],
+      "got": {
+        "lang": "ta",
+        "mixed": false,
+        "confirm": "no"
+      },
+      "usage": {
+        "requests": 1,
+        "model": "claude-opus-5-5",
+        "inputTokens": 2335,
+        "outputTokens": 92,
+        "cacheReadTokens": 0,
+        "costUsd": 0.01118,
+        "avgLatencyMs": 1592,
+        "byPurpose": {
+          "understanding": {
+            "requests": 1,
+            "inputTokens": 2335,
+            "outputTokens": 92,
+            "costUsd": 0.01118
+          }
+        },
+        "detail": [
+          {
+            "purpose": "understanding",
+            "model": "claude-opus-5-5",
+            "inputTokens": 2335,
+            "outputTokens": 92,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0,
+            "costUsd": 0.01118,
+            "latencyMs": 1592
+          }
+        ]
+      }
+    },
+    {
+      "id": "h-44",
+      "cat": "holdout",
+      "setup": "biz:open",
+      "text": "mee daggara LED bulbs unnaya andi?",
+      "expect": {
+        "lang": "te",
+        "mixed": true
+      },
+      "checks": [
+        {
+          "what": "lang",
+          "ok": true,
+          "want": "te",
+          "got": "te"
+        },
+        {
+          "what": "mixed",
+          "ok": true,
+          "want": true,
+          "got": true
+        }
+      ],
+      "got": {
+        "lang": "te",
+        "mixed": true
+      },
+      "usage": {
+        "requests": 1,
+        "model": "claude-opus-5-5",
+        "inputTokens": 3074,
+        "outputTokens": 198,
+        "cacheReadTokens": 0,
+        "costUsd": 0.016256,
+        "avgLatencyMs": 2850,
+        "byPurpose": {
+          "understanding": {
+            "requests": 1,
+            "inputTokens": 3074,
+            "outputTokens": 198,
+            "costUsd": 0.016256
+          }
+        },
+        "detail": [
+          {
+            "purpose": "understanding",
+            "model": "claude-opus-5-5",
+            "inputTokens": 3074,
+            "outputTokens": 198,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0,
+            "costUsd": 0.016256,
+            "latencyMs": 2850
+          }
+        ]
+      }
+    },
+    {
+      "id": "h-45",
+      "cat": "holdout",
+      "setup": "biz:open",
+      "text": "hello, appointment book karna tha",
+      "expect": {
+        "lang": "hi",
+        "mixed": true
+      },
+      "checks": [
+        {
+          "what": "lang",
+          "ok": true,
+          "want": "hi",
+          "got": "hi"
+        },
+        {
+          "what": "mixed",
+          "ok": true,
+          "want": true,
+          "got": true
+        }
+      ],
+      "got": {
+        "lang": "hi",
+        "mixed": true
+      },
+      "usage": {
+        "requests": 1,
+        "model": "claude-opus-5-5",
+        "inputTokens": 3067,
+        "outputTokens": 184,
+        "cacheReadTokens": 0,
+        "costUsd": 0.015948,
+        "avgLatencyMs": 2488,
+        "byPurpose": {
+          "understanding": {
+            "requests": 1,
+            "inputTokens": 3067,
+            "outputTokens": 184,
+            "costUsd": 0.015948
+          }
+        },
+        "detail": [
+          {
+            "purpose": "understanding",
+            "model": "claude-opus-5-5",
+            "inputTokens": 3067,
+            "outputTokens": 184,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0,
+            "costUsd": 0.015948,
+            "latencyMs": 2488
+          }
+        ]
+      }
+    },
+    {
+      "id": "h-46",
+      "cat": "holdout",
+      "setup": "biz:open",
+      "text": "hello, can I get an appointment tomorrow?",
+      "expect": {
+        "lang": "en",
+        "mixed": false
+      },
+      "checks": [
+        {
+          "what": "lang",
+          "ok": true,
+          "want": "en",
+          "got": "en"
+        },
+        {
+          "what": "mixed",
+          "ok": true,
+          "want": false,
+          "got": false
+        }
+      ],
+      "got": {
+        "lang": "en",
+        "mixed": false
+      },
+      "usage": {
+        "requests": 1,
+        "model": "claude-opus-5-5",
+        "inputTokens": 3072,
+        "outputTokens": 190,
+        "cacheReadTokens": 0,
+        "costUsd": 0.016088,
+        "avgLatencyMs": 6135,
+        "byPurpose": {
+          "understanding": {
+            "requests": 1,
+            "inputTokens": 3072,
+            "outputTokens": 190,
+            "costUsd": 0.016088
+          }
+        },
+        "detail": [
+          {
+            "purpose": "understanding",
+            "model": "claude-opus-5-5",
+            "inputTokens": 3072,
+            "outputTokens": 190,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0,
+            "costUsd": 0.016088,
+            "latencyMs": 6135
+          }
+        ]
+      }
+    },
+    {
+      "id": "h-47",
+      "cat": "holdout",
+      "setup": "biz:name",
+      "text": "Myself Deepak Nair",
+      "expect": {
+        "lang": "en",
+        "slots": {
+          "name": "deepak nair"
+        }
+      },
+      "checks": [
+        {
+          "what": "lang",
+          "ok": true,
+          "want": "en",
+          "got": "en"
+        },
+        {
+          "what": "slot:name",
+          "ok": true,
+          "want": "deepak nair",
+          "got": "Deepak Nair"
+        }
+      ],
+      "got": {
+        "lang": "en",
+        "mixed": false,
+        "name": "Deepak Nair"
+      },
+      "usage": {
+        "requests": 1,
+        "model": "claude-opus-5-5",
+        "inputTokens": 2262,
+        "outputTokens": 94,
+        "cacheReadTokens": 0,
+        "costUsd": 0.010928,
+        "avgLatencyMs": 2950,
+        "byPurpose": {
+          "understanding": {
+            "requests": 1,
+            "inputTokens": 2262,
+            "outputTokens": 94,
+            "costUsd": 0.010928
+          }
+        },
+        "detail": [
+          {
+            "purpose": "understanding",
+            "model": "claude-opus-5-5",
+            "inputTokens": 2262,
+            "outputTokens": 94,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0,
+            "costUsd": 0.010928,
+            "latencyMs": 2950
+          }
+        ]
+      }
+    },
+    {
+      "id": "h-48",
+      "cat": "holdout",
+      "setup": "biz:when",
+      "text": "evening around 6",
+      "expect": {
+        "slots": {
+          "when": "6pm"
+        }
+      },
+      "checks": [
+        {
+          "what": "slot:when",
+          "ok": true,
+          "want": "6pm",
+          "got": "6pm"
+        }
+      ],
+      "got": {
+        "lang": "en",
+        "mixed": false,
+        "when": "6pm"
+      },
+      "usage": {
+        "requests": 1,
+        "model": "claude-opus-5-5",
+        "inputTokens": 2292,
+        "outputTokens": 92,
+        "cacheReadTokens": 0,
+        "costUsd": 0.011008,
+        "avgLatencyMs": 3550,
+        "byPurpose": {
+          "understanding": {
+            "requests": 1,
+            "inputTokens": 2292,
+            "outputTokens": 92,
+            "costUsd": 0.011008
+          }
+        },
+        "detail": [
+          {
+            "purpose": "understanding",
+            "model": "claude-opus-5-5",
+            "inputTokens": 2292,
+            "outputTokens": 92,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0,
+            "costUsd": 0.011008,
+            "latencyMs": 3550
+          }
+        ]
+      }
+    },
+    {
+      "id": "h-49",
+      "cat": "holdout",
+      "setup": "biz:qty",
+      "text": "just one piece",
+      "expect": {
+        "slots": {
+          "quantity": 1
+        }
+      },
+      "checks": [
+        {
+          "what": "slot:quantity",
+          "ok": true,
+          "want": 1,
+          "got": "1"
+        }
+      ],
+      "got": {
+        "lang": "en",
+        "mixed": false,
+        "quantity": "1"
+      },
+      "usage": {
+        "requests": 1,
+        "model": "claude-opus-5-5",
+        "inputTokens": 2340,
+        "outputTokens": 98,
+        "cacheReadTokens": 0,
+        "costUsd": 0.01132,
+        "avgLatencyMs": 2868,
+        "byPurpose": {
+          "understanding": {
+            "requests": 1,
+            "inputTokens": 2340,
+            "outputTokens": 98,
+            "costUsd": 0.01132
+          }
+        },
+        "detail": [
+          {
+            "purpose": "understanding",
+            "model": "claude-opus-5-5",
+            "inputTokens": 2340,
+            "outputTokens": 98,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0,
+            "costUsd": 0.01132,
+            "latencyMs": 2868
+          }
+        ]
+      }
+    },
+    {
+      "id": "h-50",
+      "cat": "holdout",
+      "setup": "biz:confirm",
+      "text": "yes sir, correct",
+      "expect": {
+        "confirm": "yes"
+      },
+      "checks": [
+        {
+          "what": "confirm",
+          "ok": true,
+          "want": "yes",
+          "got": "yes"
+        }
+      ],
+      "got": {
+        "lang": "en",
+        "mixed": false,
+        "confirm": "yes"
+      },
+      "usage": {
+        "requests": 1,
+        "model": "claude-opus-5-5",
+        "inputTokens": 2334,
+        "outputTokens": 91,
+        "cacheReadTokens": 0,
+        "costUsd": 0.011156,
+        "avgLatencyMs": 2007,
+        "byPurpose": {
+          "understanding": {
+            "requests": 1,
+            "inputTokens": 2334,
+            "outputTokens": 91,
+            "costUsd": 0.011156
+          }
+        },
+        "detail": [
+          {
+            "purpose": "understanding",
+            "model": "claude-opus-5-5",
+            "inputTokens": 2334,
+            "outputTokens": 91,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0,
+            "costUsd": 0.011156,
+            "latencyMs": 2007
+          }
+        ]
+      }
+    }
+  ]
+}

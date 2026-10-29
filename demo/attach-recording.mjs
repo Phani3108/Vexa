@@ -11,7 +11,8 @@ import path from 'path';
 
 const B = 'http://localhost:3000';
 const RATE = 8000;
-const VOICES = { caller: { en: 'Rishi', hi: 'Lekha', te: 'Geeta', es: 'Paulina' }, ai: { en: 'Samantha', hi: 'Lekha', te: 'Geeta', es: 'Mónica' } };
+const VOICES = { caller: { en: 'Rishi', hi: 'Lekha', te: 'Geeta', ta: 'Vani', mr: 'Lekha', es: 'Paulina' }, ai: { en: 'Samantha', hi: 'Lekha', te: 'Geeta', ta: 'Vani', mr: 'Lekha', es: 'Mónica' } };
+const OWNER = process.env.VEXA_OWNER || '+15550003077';
 
 let token;
 async function api(p, { method = 'GET', body, raw } = {}) {
@@ -25,12 +26,12 @@ async function api(p, { method = 'GET', body, raw } = {}) {
   return d;
 }
 
-const { devCode } = await api('/api/auth/otp/request', { method: 'POST', body: { phoneNumber: '+15550001077' } });
-token = (await api('/api/auth/otp/verify', { method: 'POST', body: { phoneNumber: '+15550001077', code: devCode } })).token;
+const { devCode } = await api('/api/auth/otp/request', { method: 'POST', body: { phoneNumber: OWNER } });
+token = (await api('/api/auth/otp/verify', { method: 'POST', body: { phoneNumber: OWNER, code: devCode } })).token;
 
 const { calls } = await api('/api/calls?limit=30&includeTest=1');
-let call;
-for (const c of calls) {
+let call = process.env.CALL_ID ? (await api(`/api/calls/${encodeURIComponent(process.env.CALL_ID)}`)).call : null;
+for (const c of call ? [] : calls) {
   const { call: d } = await api(`/api/calls/${c.callId}`);
   if ((d.languages || []).length > 2) { call = d; break; }
 }
@@ -68,5 +69,6 @@ const wav = Buffer.concat([header, Buffer.from(pcm.buffer)]);
 
 const { recording } = await api(`/api/calls/${call.callId}/recording`, { method: 'POST', raw: wav });
 fs.rmSync(tmp, { recursive: true, force: true });
+fs.writeFileSync(path.join(path.dirname(new URL(import.meta.url).pathname), 'build', 'recording.json'), JSON.stringify({ callId: call.callId, ...recording }, null, 2));
 console.log(`Attached ${recording.durationSec}s stereo recording to ${call.callId}`);
 console.log(`Open: ${B}/call/${call.callId}`);

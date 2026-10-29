@@ -54,12 +54,19 @@ Return JSON:
   "goodbye": <true if they are ending the call>,
   "emergency": <true if the caller describes something urgent or dangerous happening right now — flooding, fire, gas, injury, no heat in winter, a break-in — even without the word "emergency">,
   "language": "<the language of THIS utterance: ${LANGUAGE_CODES.join(' | ')} | other. Code-mixed speech counts as the non-English language it is mixed with>",
+  "codeMixed": <true if the caller mixed English words into another language ("kal AC service chahiye"), else false>,
   "translation": "<the utterance translated into English (copy it if it is already English)>",
   "confirmation": "<'yes' or 'no' if the caller is agreeing or disagreeing with what was just read back to them, else empty>"
 }
 The caller may speak English, Hindi, Telugu, Tamil, Malayalam, Marathi, Gujarati or Spanish, and may switch between them.
 ALWAYS write slot values and the answer in English: transliterate names into Latin script (రవి → Ravi), yes/no slots as "yes"/"no", quantities and rates as digits, times as English words ("tomorrow 11am").
-Use an empty string for any slot the caller did not clearly state. Dates/times: keep the caller's words ("tomorrow at 3pm").`;
+Use an empty string for any slot the caller did not clearly state.
+
+Indian callers:
+- They often speak Indian languages written in English letters (Hinglish "kal subah 11 baje", Tenglish "repu 10 gantalaki", Tanglish "naalaikku venum", Manglish "naale venam") and mix in English words. Decide the language from its words, not the alphabet. Malayalam (enikku, ente, venam, randu, naale) vs Tamil (enakku, en, venum, rendu, naalai); Marathi (aahe, mala, pahije, udya) vs Hindi.
+- Indian English is normal: "prepone" = move earlier, "out of station" = away, "same day itself" = today, "my good name is X" / "this side X" / "myself X" = I am X.
+- Dates/times: write them in English as "<day> <time>", e.g. "day after tomorrow 5pm", "tomorrow 10:30am", "Sunday morning". kal (for a booking) = tomorrow; parso / ellundi / naalai marunaal / mattannaal / parva = day after tomorrow. subah / udayam / kaalai / raavile / sakali / savare = morning; dopahar / madhyahnam / madhiyam / dupari / bapore = afternoon; shaam / saayantram / maalai / vaikunneram / sandhyakali / saanje = evening; raat = night. "5 baje" / "5 gantalaki" / "5 mani" / "5 vajta" / "5 vage" = 5 o'clock; saade X = X:30, sawa X = X:15, paune X = (X-1):45. Pick am/pm from the time of day; with none, 1–7 means pm. A time offered as a question ("aaj shaam 7 baje chalega?") still answers the time question.
+- Numbers as digits: lakh = 100000, crore = 10000000, dedh = 1.5, dhai = 2.5 ("dedh lakh" → "150000"; "saade gyarah percent" → "11.5"). Phone numbers as digits ("double nine" = 99).`;
 
   // Schema lists exactly the facts we can use this turn. Plain strings ("" = not stated)
   // keep it within structured-output limits on union-typed fields.
@@ -76,6 +83,7 @@ Use an empty string for any slot the caller did not clearly state. Dates/times: 
     goodbye: { type: 'boolean' },
     emergency: { type: 'boolean' },
     language: { type: 'string', enum: [...LANGUAGE_CODES, 'other'] },
+    codeMixed: { type: 'boolean' },
     translation: { type: 'string' },
     confirmation: { type: 'string', enum: ['yes', 'no', ''] }
   });
@@ -91,6 +99,7 @@ Use an empty string for any slot the caller did not clearly state. Dates/times: 
     return {
       used: true,
       language,
+      codeMixed: !!raw.codeMixed,
       translation: typeof raw.translation === 'string' && raw.translation.trim() ? raw.translation.trim() : text,
       confirmation: raw.confirmation || '',
       intent: session.flows.some(f => f.id === raw.intent) ? raw.intent : null,

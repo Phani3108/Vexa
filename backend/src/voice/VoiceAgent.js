@@ -16,16 +16,25 @@ import { realtimeConnection } from '../lib/openai.js';
 import ConversationAnalyzer, { NAME_INTRO } from './ConversationAnalyzer.js';
 import { takeTurn, whisper as flowWhisper } from '../workflows/callSession.js';
 import { CallRecorder } from '../lib/recorder.js';
+import { isBackchannel } from '../lib/indic.js';
+
+// Flow calls: how long the caller must keep talking over Vexa before it stops.
+// Shorter sounds ("haan", "hmm", "achha", "ok") are listening, not interrupting.
+const BARGE_IN_MS = Number(process.env.BARGE_IN_MS) || 600;
 
 const VALID_VOICES = ['alloy', 'echo', 'shimmer', 'ash', 'ballad', 'coral', 'sage', 'verse'];
 
 const SPOKEN = { en: 'English', hi: 'Hindi', te: 'Telugu', ta: 'Tamil', ml: 'Malayalam', mr: 'Marathi', gu: 'Gujarati', es: 'Spanish' };
 
 /** The engine writes English; the realtime voice speaks it in the caller's current language. */
-function speakInstruction(text, lang = 'en') {
+function speakInstruction(text, lang = 'en', style = {}) {
   const line = text.replace(/"/g, "'");
   if (!lang || lang === 'en') return `Say the following to the caller, naturally and warmly, without adding or removing information:\n"${line}"`;
-  return `The caller is speaking ${SPOKEN[lang] || lang}. Say the following to them in natural, conversational ${SPOKEN[lang] || lang} (keep names, addresses, numbers, prices and common English words like OTP or booking as they are). Do not add or remove information:\n"${line}"`;
+  const name = SPOKEN[lang] || lang;
+  const mix = style.mixed
+    ? ` They mix English into their ${name}, so speak the same way: ${name} sentences with the everyday English words (appointment, booking, service, delivery, times like "eleven AM") kept in English, the way people in India actually talk on the phone.`
+    : '';
+  return `The caller is speaking ${name}. Say the following to them in natural, conversational ${name} (keep names, addresses, numbers, prices and common English words like OTP or booking as they are).${mix} Do not add or remove information:\n"${line}"`;
 }
 
 class VoiceAgent extends EventEmitter {
@@ -164,7 +173,19 @@ class VoiceAgent extends EventEmitter {
           // Handle speech interruption (barge-in)
           if (response.type === 'input_audio_buffer.speech_started') {
             if (callContext) callContext._lastSpeechStartedAt = Date.now();
-            handleSpeechStarted();
+            if (callContext?.flowSession && markQueue.length > 0) {
+              // Caller started talking while Vexa speaks: interrupt only if it lasts
+              callContext._spokeOverVexa = true;
+              clearTimeout(callContext._bargeInTimer);
+              callContext._bargeInTimer = setTimeout(() => {
+                callContext._bargeInTimer = null;
+                handleSpeechStarted({ keepInput: true });
+                if (azureWs?.readyState === WebSocket.OPEN) azureWs.send(JSON.stringify({ type: 'response.cancel' }));
+              }, BARGE_IN_MS);
+            } else {
+              if (callContext) callContext._spokeOverVexa = false;
+              handleSpeechStarted();
+            }
           }
 
           // speech_stopped means the user completed a full, clean speech turn.
@@ -172,6 +193,11 @@ class VoiceAgent extends EventEmitter {
           // utterance *after* the buffer.clear — clear the flag so their
           // transcript is accepted, not discarded.
           if (response.type === 'input_audio_buffer.speech_stopped') {
+            if (callContext?._bargeInTimer) {
+              // Short sound over Vexa ("haan", "hmm"): let Vexa keep talking
+              clearTimeout(callContext._bargeInTimer);
+              callContext._bargeInTimer = null;
+            }
             if (callContext && callContext._bargeinTranscriptPending) {
               callContext._bargeinTranscriptPending = false;
             }
@@ -286,6 +312,14 @@ class VoiceAgent extends EventEmitter {
               return;
             }
             // ──────────────────────────────────────────────────────────────
+
+            // "haan" / "hmm" / "ok" said over Vexa is the caller listening, not answering
+            const spokeOver = callContext._spokeOverVexa;
+            callContext._spokeOverVexa = false;
+            if (callContext.flowSession && spokeOver && isBackchannel(rawTranscript)) {
+              console.log(`👂 Backchannel while Vexa spoke (not a turn): "${rawTranscript}"`);
+              return;
+            }
 
             console.log('📝 User:', rawTranscript);
             const transcriptEntry = {
@@ -482,7 +516,7 @@ class VoiceAgent extends EventEmitter {
     };
     
     // Helper: Handle speech interruption (user starts talking while AI is speaking)
-    const handleSpeechStarted = () => {
+    const handleSpeechStarted = ({ keepInput = false } = {}) => {
       if (markQueue.length > 0 && responseStartTimestampTwilio !== null && latestMediaTimestamp > 0) {
         const elapsedTime = latestMediaTimestamp - responseStartTimestampTwilio;
         
@@ -523,7 +557,9 @@ class VoiceAgent extends EventEmitter {
           // Also clear Azure's input audio buffer so the noise fragment captured
           // during barge-in (AI audio bleed / room noise) is never committed for
           // transcription. Without this, the model transcribes that garbage audio.
-          if (azureWs && azureWs.readyState === WebSocket.OPEN) {
+          // (Flow calls interrupt only after the caller has talked for BARGE_IN_MS, so that
+          // audio is their real words — keep it.)
+          if (!keepInput && azureWs && azureWs.readyState === WebSocket.OPEN) {
             azureWs.send(JSON.stringify({ type: 'input_audio_buffer.clear' }));
             console.log('🧹 Azure input buffer cleared after barge-in');
           }
@@ -532,7 +568,7 @@ class VoiceAgent extends EventEmitter {
           // *before* the buffer.clear arrived (noise/AI-bleed fragment).
           // Cleared immediately on the next speech_stopped so a real utterance
           // the user makes after the barge-in is never thrown away.
-          if (callContext) callContext._bargeinTranscriptPending = true;
+          if (callContext && !keepInput) callContext._bargeinTranscriptPending = true;
 
           markQueue = [];
           lastAssistantItem = null;
@@ -544,7 +580,7 @@ class VoiceAgent extends EventEmitter {
     ws.on('close', () => {
       console.log('📞 Twilio media stream disconnected');
       // Mark as ending so the Azure close handler doesn't fire a spurious hangup
-      if (callContext) callContext.isEnding = true;
+      if (callContext) { callContext.isEnding = true; clearTimeout(callContext._bargeInTimer); }
       if (azureWs && azureWs.readyState === WebSocket.OPEN) {
         azureWs.close();
       }
@@ -590,7 +626,8 @@ class VoiceAgent extends EventEmitter {
           silence_duration_ms: callContext.flowSession ? 700 : 1000,
           // Flow-driven calls: the workflow engine decides every reply, so the
           // model must not auto-respond when the caller stops talking.
-          ...(callContext.flowSession ? { create_response: false, interrupt_response: true } : {})
+          // Interruptions are decided here (see BARGE_IN_MS), so a "haan" doesn't cut Vexa off.
+          ...(callContext.flowSession ? { create_response: false, interrupt_response: false } : {})
         },
         temperature: this.voiceConfig.temperature,
         max_response_output_tokens: this.voiceConfig.maxResponseTokens
@@ -954,7 +991,7 @@ class VoiceAgent extends EventEmitter {
       type: 'response.create',
       response: {
         modalities: ['text', 'audio'],
-        instructions: speakInstruction(text, callContext.speakLanguage)
+        instructions: speakInstruction(text, callContext.speakLanguage, callContext.speakStyle)
       }
     }));
   }
@@ -975,6 +1012,7 @@ class VoiceAgent extends EventEmitter {
         }
         callContext.pendingAi = { textEn: result.sayEn || result.say, lang: result.language || 'en' };
         callContext.speakLanguage = result.language || 'en';
+        callContext.speakStyle = result.style || {};
         this._applyFlowResult(callContext, result);
       } catch (err) {
         console.error('❌ Flow turn failed, falling back to free conversation:', err.message);

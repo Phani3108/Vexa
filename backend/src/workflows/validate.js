@@ -2,7 +2,7 @@
  * Validation for owner-edited workflows — a broken flow must never reach a live call.
  */
 
-const SLOT_TYPES = ['text', 'name', 'phone', 'email', 'datetime', 'yesno', 'number', 'choice', 'company', 'address'];
+const SLOT_TYPES = ['text', 'name', 'phone', 'email', 'datetime', 'yesno', 'number', 'choice', 'company', 'address', 'amount'];
 const STEP_TYPES = ['collect', 'confirm', 'say', 'branch', 'action', 'transfer', 'end', 'goto', 'lookup'];
 const ACTIONS = ['create_lead', 'book_request', 'send_sms', 'notify_owner', 'tag_spam'];
 const CONDS = ['business_open', 'is_vip', 'focus_mode', 'has_booking_url', 'transfer_allowed', 'item_in_stock'];

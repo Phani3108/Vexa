@@ -1,0 +1,161 @@
+{"id":"hi-r-01","cat":"romanized","setup":"biz:open","text":"kal subah 11 baje AC service chahiye","expect":{"lang":"hi","mixed":true}}
+{"id":"hi-r-02","cat":"romanized","setup":"biz:when","text":"kal subah 11 baje aa jaiye","expect":{"lang":"hi","slots":{"when":"tomorrow 11am"}}}
+{"id":"hi-r-03","cat":"romanized","setup":"biz:name","text":"mera naam Ravi Kumar hai","expect":{"lang":"hi","slots":{"name":"ravi kumar"}}}
+{"id":"hi-r-04","cat":"romanized","setup":"biz:when","text":"parso shaam 5 baje aa sakte ho?","expect":{"lang":"hi","slots":{"when":"day after tomorrow 5pm"}}}
+{"id":"hi-r-05","cat":"romanized","setup":"biz:open","text":"bhaiya LED bulb hai kya? dus chahiye","expect":{"lang":"hi","mixed":true,"slots":{"quantity":10}}}
+{"id":"hi-r-06","cat":"romanized","setup":"biz:qty","text":"mujhe do chahiye","expect":{"lang":"hi","slots":{"quantity":2}}}
+{"id":"hi-r-07","cat":"romanized","setup":"biz:open","text":"aapki shop kahan pe hai?","expect":{"lang":"hi"}}
+{"id":"hi-r-08","cat":"romanized","setup":"biz:name","text":"ji, main Priya Sharma bol rahi hoon","expect":{"lang":"hi","slots":{"name":"priya sharma"}}}
+{"id":"hi-r-09","cat":"romanized","setup":"per:open","text":"sir main HDFC Bank se bol raha hoon, personal loan ke baare mein","expect":{"lang":"hi","mixed":true}}
+{"id":"hi-r-10","cat":"romanized","setup":"per:open","text":"Swiggy se order aaya hai, gate pe khada hoon","expect":{"lang":"hi","mixed":true}}
+{"id":"hi-r-11","cat":"romanized","setup":"biz:when","text":"aaj shaam ko 7 baje chalega?","expect":{"lang":"hi","slots":{"when":"today 7pm"}}}
+{"id":"hi-r-12","cat":"romanized","setup":"biz:qty","text":"teen piece de dijiye","expect":{"lang":"hi","slots":{"quantity":3}}}
+{"id":"te-r-01","cat":"romanized","setup":"biz:open","text":"naaku repu morning 10 ki appointment kavali","expect":{"lang":"te","mixed":true}}
+{"id":"te-r-02","cat":"romanized","setup":"biz:when","text":"repu udayam 10 gantalaki","expect":{"lang":"te","slots":{"when":"tomorrow 10am"}}}
+{"id":"te-r-03","cat":"romanized","setup":"biz:name","text":"na peru Suresh Reddy","expect":{"lang":"te","slots":{"name":"suresh reddy"}}}
+{"id":"te-r-04","cat":"romanized","setup":"biz:open","text":"LED bulbs unnaya? padi kavali","expect":{"lang":"te","mixed":true,"slots":{"quantity":10}}}
+{"id":"te-r-05","cat":"romanized","setup":"biz:qty","text":"rendu kavali andi","expect":{"lang":"te","slots":{"quantity":2}}}
+{"id":"te-r-06","cat":"romanized","setup":"biz:open","text":"mee shop ekkada undi?","expect":{"lang":"te"}}
+{"id":"te-r-07","cat":"romanized","setup":"biz:when","text":"ellundi saayantram 6 gantalaki","expect":{"lang":"te","slots":{"when":"day after tomorrow 6pm"}}}
+{"id":"te-r-08","cat":"romanized","setup":"per:open","text":"sir, Amazon delivery undi, mee gate daggara unna","expect":{"lang":"te","mixed":true}}
+{"id":"te-r-09","cat":"romanized","setup":"biz:qty","text":"moodu fans kavali","expect":{"lang":"te","slots":{"quantity":3}}}
+{"id":"ta-r-01","cat":"romanized","setup":"biz:when","text":"naalaikku kaalaila 10 manikku varuveengala?","expect":{"lang":"ta","slots":{"when":"tomorrow 10am"}}}
+{"id":"ta-r-02","cat":"romanized","setup":"biz:name","text":"en peru Karthik","expect":{"lang":"ta","slots":{"name":"karthik"}}}
+{"id":"ta-r-03","cat":"romanized","setup":"biz:qty","text":"moonu fan venum","expect":{"lang":"ta","slots":{"quantity":3}}}
+{"id":"ta-r-04","cat":"romanized","setup":"biz:open","text":"unga kadai enga irukku?","expect":{"lang":"ta"}}
+{"id":"ta-r-05","cat":"romanized","setup":"biz:when","text":"naalai saayangaalam 4 mani","expect":{"lang":"ta","slots":{"when":"tomorrow 4pm"}}}
+{"id":"ta-r-06","cat":"romanized","setup":"biz:open","text":"enakku AC service venum, naalaikku possible ah?","expect":{"lang":"ta","mixed":true}}
+{"id":"ta-r-07","cat":"romanized","setup":"biz:qty","text":"rendu podhum","expect":{"lang":"ta","slots":{"quantity":2}}}
+{"id":"ml-r-01","cat":"romanized","setup":"biz:when","text":"naale raavile 9 manikku","expect":{"lang":"ml","slots":{"when":"tomorrow 9am"}}}
+{"id":"ml-r-02","cat":"romanized","setup":"biz:name","text":"ente peru Anu Thomas","expect":{"lang":"ml","slots":{"name":"anu thomas"}}}
+{"id":"ml-r-03","cat":"romanized","setup":"biz:qty","text":"randu bulb venam","expect":{"lang":"ml","slots":{"quantity":2}}}
+{"id":"ml-r-04","cat":"romanized","setup":"biz:open","text":"enikku naale oru booking venam","expect":{"lang":"ml","mixed":true}}
+{"id":"ml-r-05","cat":"romanized","setup":"biz:open","text":"kada evideya?","expect":{"lang":"ml"}}
+{"id":"mr-r-01","cat":"romanized","setup":"biz:when","text":"udya sakali 11 vajta","expect":{"lang":"mr","slots":{"when":"tomorrow 11am"}}}
+{"id":"mr-r-02","cat":"romanized","setup":"biz:name","text":"maza naav Sachin Patil aahe","expect":{"lang":"mr","slots":{"name":"sachin patil"}}}
+{"id":"mr-r-03","cat":"romanized","setup":"biz:qty","text":"teen fan pahijet","expect":{"lang":"mr","slots":{"quantity":3}}}
+{"id":"mr-r-04","cat":"romanized","setup":"biz:open","text":"mala udya appointment pahije aahe","expect":{"lang":"mr","mixed":true}}
+{"id":"gu-r-01","cat":"romanized","setup":"biz:when","text":"kaale savare 10 vage","expect":{"lang":"gu","slots":{"when":"tomorrow 10am"}}}
+{"id":"gu-r-02","cat":"romanized","setup":"biz:name","text":"maru naam Hetal Shah che","expect":{"lang":"gu","slots":{"name":"hetal shah"}}}
+{"id":"gu-r-03","cat":"romanized","setup":"biz:qty","text":"be joie che","expect":{"lang":"gu","slots":{"quantity":2}}}
+{"id":"gu-r-04","cat":"romanized","setup":"biz:open","text":"mare kaale appointment joie che","expect":{"lang":"gu","mixed":true}}
+{"id":"hi-n-01","cat":"native","setup":"biz:when","text":"कल शाम 5 बजे","expect":{"lang":"hi","slots":{"when":"tomorrow 5pm"}}}
+{"id":"hi-n-02","cat":"native","setup":"biz:open","text":"मुझे कल शाम 5 बजे plumber चाहिए","expect":{"lang":"hi","mixed":true}}
+{"id":"hi-n-03","cat":"native","setup":"biz:qty","text":"दो चाहिए","expect":{"lang":"hi","slots":{"quantity":2}}}
+{"id":"hi-n-04","cat":"native","setup":"biz:name","text":"मेरा नाम अमित वर्मा है","expect":{"lang":"hi","slots":{"name":"amit verma"}}}
+{"id":"te-n-01","cat":"native","setup":"biz:when","text":"రేపు ఉదయం 11 గంటలకు","expect":{"lang":"te","slots":{"when":"tomorrow 11am"}}}
+{"id":"te-n-02","cat":"native","setup":"biz:open","text":"నాకు రేపు 11 AM కి AC service కావాలి","expect":{"lang":"te","mixed":true}}
+{"id":"te-n-03","cat":"native","setup":"biz:qty","text":"రెండు కావాలి","expect":{"lang":"te","slots":{"quantity":2}}}
+{"id":"te-n-04","cat":"native","setup":"biz:name","text":"నా పేరు రవి","expect":{"lang":"te","slots":{"name":"ravi"}}}
+{"id":"ta-n-01","cat":"native","setup":"biz:when","text":"நாளைக்கு காலை 10 மணிக்கு","expect":{"lang":"ta","slots":{"when":"tomorrow 10am"}}}
+{"id":"ta-n-02","cat":"native","setup":"biz:open","text":"எனக்கு நாளைக்கு 10 மணிக்கு appointment வேணும்","expect":{"lang":"ta","mixed":true}}
+{"id":"ta-n-03","cat":"native","setup":"biz:qty","text":"மூன்று வேணும்","expect":{"lang":"ta","slots":{"quantity":3}}}
+{"id":"ml-n-01","cat":"native","setup":"biz:when","text":"നാളെ വൈകുന്നേരം 3 മണിക്ക്","expect":{"lang":"ml","slots":{"when":"tomorrow 3pm"}}}
+{"id":"ml-n-02","cat":"native","setup":"biz:open","text":"എനിക്ക് നാളെ 3 മണിക്ക് booking വേണം","expect":{"lang":"ml","mixed":true}}
+{"id":"mr-n-01","cat":"native","setup":"biz:when","text":"उद्या सकाळी 11 वाजता","expect":{"lang":"mr","slots":{"when":"tomorrow 11am"}}}
+{"id":"mr-n-02","cat":"native","setup":"biz:open","text":"मला उद्या 11 वाजता appointment पाहिजे","expect":{"lang":"mr","mixed":true}}
+{"id":"gu-n-01","cat":"native","setup":"biz:when","text":"કાલે સાંજે 4 વાગ્યે","expect":{"lang":"gu","slots":{"when":"tomorrow 4pm"}}}
+{"id":"gu-n-02","cat":"native","setup":"biz:open","text":"મારે કાલે 4 વાગ્યે appointment જોઈએ છે","expect":{"lang":"gu","mixed":true}}
+{"id":"gu-n-03","cat":"native","setup":"biz:qty","text":"બે જોઈએ","expect":{"lang":"gu","slots":{"quantity":2}}}
+{"id":"en-in-01","cat":"indian-english","setup":"biz:when","text":"Kindly fix it for tomorrow 10 am","expect":{"lang":"en","slots":{"when":"tomorrow 10am"}}}
+{"id":"en-in-02","cat":"indian-english","setup":"biz:when","text":"I am out of station, please keep it for day after tomorrow evening","expect":{"lang":"en","slots":{"when":"day after tomorrow evening"}}}
+{"id":"en-in-03","cat":"indian-english","setup":"biz:when","text":"Do the needful and book for 4 pm today itself","expect":{"lang":"en","slots":{"when":"today 4pm"}}}
+{"id":"en-in-04","cat":"indian-english","setup":"biz:name","text":"My good name is Venkatesh","expect":{"lang":"en","slots":{"name":"venkatesh"}}}
+{"id":"en-in-05","cat":"indian-english","setup":"biz:qty","text":"Two pieces only","expect":{"lang":"en","slots":{"quantity":2}}}
+{"id":"en-in-06","cat":"indian-english","setup":"biz:when","text":"Same day itself can you come? Evening 5 o'clock","expect":{"lang":"en","slots":{"when":"today 5pm"}}}
+{"id":"en-in-07","cat":"indian-english","setup":"biz:when","text":"Can you prepone it to tomorrow morning 9?","expect":{"lang":"en","slots":{"when":"tomorrow 9am"}}}
+{"id":"en-in-08","cat":"indian-english","setup":"biz:name","text":"This side Lakshmi","expect":{"lang":"en","slots":{"name":"lakshmi"}}}
+{"id":"en-in-09","cat":"indian-english","setup":"biz:qty","text":"Give me one dozen","expect":{"lang":"en","slots":{"quantity":12}}}
+{"id":"en-in-10","cat":"indian-english","setup":"biz:when","text":"Half past three tomorrow","expect":{"lang":"en","slots":{"when":"tomorrow 3:30pm"}}}
+{"id":"en-in-11","cat":"indian-english","setup":"biz:when","text":"Quarter to eleven tomorrow morning","expect":{"lang":"en","slots":{"when":"tomorrow 10:45am"}}}
+{"id":"num-01","cat":"numbers","setup":"per:amount","text":"dedh lakh ka loan hai","expect":{"slots":{"amount":150000}}}
+{"id":"num-02","cat":"numbers","setup":"per:amount","text":"paanch lakh rupaye","expect":{"slots":{"amount":500000}}}
+{"id":"num-03","cat":"numbers","setup":"per:amount","text":"dhai lakh tak mil jayega","expect":{"slots":{"amount":250000}}}
+{"id":"num-04","cat":"numbers","setup":"per:amount","text":"5 lakh","expect":{"slots":{"amount":500000}}}
+{"id":"num-05","cat":"numbers","setup":"per:amount","text":"1.5 lakh rupees","expect":{"slots":{"amount":150000}}}
+{"id":"num-06","cat":"numbers","setup":"per:amount","text":"ek crore ka home loan","expect":{"slots":{"amount":10000000}}}
+{"id":"num-07","cat":"numbers","setup":"per:amount","text":"Rs 2,50,000","expect":{"slots":{"amount":250000}}}
+{"id":"num-08","cat":"numbers","setup":"per:rate","text":"interest rate saade gyarah percent hai","expect":{"slots":{"rate":11.5}}}
+{"id":"num-09","cat":"numbers","setup":"per:rate","text":"14 percent per annum sir","expect":{"slots":{"rate":14}}}
+{"id":"num-10","cat":"numbers","setup":"per:rate","text":"rate barah percent hai","expect":{"slots":{"rate":12}}}
+{"id":"num-11","cat":"numbers","setup":"per:rate","text":"10.99% only sir","expect":{"slots":{"rate":10.99}}}
+{"id":"num-12","cat":"numbers","setup":"biz:qty","text":"ek dozen","expect":{"slots":{"quantity":12}}}
+{"id":"num-13","cat":"numbers","setup":"biz:qty","text":"paanch","expect":{"slots":{"quantity":5}}}
+{"id":"num-14","cat":"numbers","setup":"biz:qty","text":"bees chahiye","expect":{"slots":{"quantity":20}}}
+{"id":"num-15","cat":"numbers","setup":"biz:qty","text":"aidu kavali","expect":{"slots":{"quantity":5}}}
+{"id":"num-16","cat":"numbers","setup":"biz:qty","text":"anju venum","expect":{"slots":{"quantity":5}}}
+{"id":"num-17","cat":"numbers","setup":"biz:qty","text":"aath","expect":{"slots":{"quantity":8}}}
+{"id":"num-18","cat":"numbers","setup":"biz:qty","text":"pachaas piece","expect":{"slots":{"quantity":50}}}
+{"id":"time-01","cat":"time","setup":"biz:when","text":"shaam ko 6 baje","expect":{"slots":{"when":"6pm"}}}
+{"id":"time-02","cat":"time","setup":"biz:when","text":"dopahar 2 baje","expect":{"slots":{"when":"2pm"}}}
+{"id":"time-03","cat":"time","setup":"biz:when","text":"raat 9 baje","expect":{"slots":{"when":"9pm"}}}
+{"id":"time-04","cat":"time","setup":"biz:when","text":"kal subah saade das baje","expect":{"slots":{"when":"tomorrow 10:30am"}}}
+{"id":"time-05","cat":"time","setup":"biz:when","text":"kal 4 baje","expect":{"slots":{"when":"tomorrow 4pm"}}}
+{"id":"time-06","cat":"time","setup":"biz:when","text":"next Monday morning 10","expect":{"slots":{"when":"monday 10am"}}}
+{"id":"time-07","cat":"time","setup":"biz:when","text":"evening 5 o'clock","expect":{"slots":{"when":"5pm"}}}
+{"id":"time-08","cat":"time","setup":"biz:when","text":"day after tomorrow 11am","expect":{"slots":{"when":"day after tomorrow 11am"}}}
+{"id":"time-09","cat":"time","setup":"biz:when","text":"repu saayantram 5 gantalaki","expect":{"slots":{"when":"tomorrow 5pm"}}}
+{"id":"time-10","cat":"time","setup":"biz:when","text":"naalai madhiyam 2 mani","expect":{"slots":{"when":"tomorrow 2pm"}}}
+{"id":"time-11","cat":"time","setup":"biz:when","text":"udya sandhyakali 6 vajta","expect":{"slots":{"when":"tomorrow 6pm"}}}
+{"id":"time-12","cat":"time","setup":"biz:when","text":"sawa das baje kal","expect":{"slots":{"when":"tomorrow 10:15am"}}}
+{"id":"time-13","cat":"time","setup":"biz:when","text":"parso 11 baje","expect":{"slots":{"when":"day after tomorrow 11am"}}}
+{"id":"time-14","cat":"time","setup":"biz:when","text":"aaj raat 8 baje","expect":{"slots":{"when":"today 8pm"}}}
+{"id":"time-15","cat":"time","setup":"biz:when","text":"Sunday subah","expect":{"slots":{"when":"sunday morning"}}}
+{"id":"yes-01","cat":"yesno","setup":"biz:confirm","text":"haan ji","expect":{"confirm":"yes"}}
+{"id":"yes-02","cat":"yesno","setup":"biz:confirm","text":"haan haan bilkul","expect":{"confirm":"yes"}}
+{"id":"yes-03","cat":"yesno","setup":"biz:confirm","text":"theek hai","expect":{"confirm":"yes"}}
+{"id":"yes-04","cat":"yesno","setup":"biz:confirm","text":"sahi hai","expect":{"confirm":"yes"}}
+{"id":"yes-05","cat":"yesno","setup":"biz:confirm","text":"chalega","expect":{"confirm":"yes"}}
+{"id":"yes-06","cat":"yesno","setup":"biz:confirm","text":"avunu","expect":{"confirm":"yes"}}
+{"id":"yes-07","cat":"yesno","setup":"biz:confirm","text":"sare andi","expect":{"confirm":"yes"}}
+{"id":"yes-08","cat":"yesno","setup":"biz:confirm","text":"correct andi","expect":{"confirm":"yes"}}
+{"id":"yes-09","cat":"yesno","setup":"biz:confirm","text":"aamaa","expect":{"confirm":"yes"}}
+{"id":"yes-10","cat":"yesno","setup":"biz:confirm","text":"sari sari","expect":{"confirm":"yes"}}
+{"id":"yes-11","cat":"yesno","setup":"biz:confirm","text":"athe","expect":{"confirm":"yes"}}
+{"id":"yes-12","cat":"yesno","setup":"biz:confirm","text":"sheri","expect":{"confirm":"yes"}}
+{"id":"yes-13","cat":"yesno","setup":"biz:confirm","text":"ho","expect":{"confirm":"yes"}}
+{"id":"yes-14","cat":"yesno","setup":"biz:confirm","text":"ho, barobar aahe","expect":{"confirm":"yes"}}
+{"id":"yes-15","cat":"yesno","setup":"biz:confirm","text":"ha, barabar che","expect":{"confirm":"yes"}}
+{"id":"yes-16","cat":"yesno","setup":"biz:confirm","text":"yes yes correct","expect":{"confirm":"yes"}}
+{"id":"yes-17","cat":"yesno","setup":"biz:confirm","text":"ji","expect":{"confirm":"yes"}}
+{"id":"yes-18","cat":"yesno","setup":"biz:confirm","text":"ok done","expect":{"confirm":"yes"}}
+{"id":"yes-19","cat":"yesno","setup":"biz:confirm","text":"हाँ जी","expect":{"confirm":"yes"}}
+{"id":"yes-20","cat":"yesno","setup":"biz:confirm","text":"ठीक है","expect":{"confirm":"yes"}}
+{"id":"yes-21","cat":"yesno","setup":"biz:confirm","text":"అవును","expect":{"confirm":"yes"}}
+{"id":"yes-22","cat":"yesno","setup":"biz:confirm","text":"సరే","expect":{"confirm":"yes"}}
+{"id":"yes-23","cat":"yesno","setup":"biz:confirm","text":"ஆமா","expect":{"confirm":"yes"}}
+{"id":"yes-24","cat":"yesno","setup":"biz:confirm","text":"അതെ","expect":{"confirm":"yes"}}
+{"id":"yes-25","cat":"yesno","setup":"biz:confirm","text":"होय","expect":{"confirm":"yes"}}
+{"id":"yes-26","cat":"yesno","setup":"biz:confirm","text":"હા","expect":{"confirm":"yes"}}
+{"id":"yes-27","cat":"yesno","setup":"biz:confirm","text":"hmm haan","expect":{"confirm":"yes"}}
+{"id":"no-01","cat":"yesno","setup":"biz:confirm","text":"nahi","expect":{"confirm":"no"}}
+{"id":"no-02","cat":"yesno","setup":"biz:confirm","text":"nahi ji, galat hai","expect":{"confirm":"no"}}
+{"id":"no-03","cat":"yesno","setup":"biz:confirm","text":"ledu","expect":{"confirm":"no"}}
+{"id":"no-04","cat":"yesno","setup":"biz:confirm","text":"ledu andi, tappu","expect":{"confirm":"no"}}
+{"id":"no-05","cat":"yesno","setup":"biz:confirm","text":"illa","expect":{"confirm":"no"}}
+{"id":"no-06","cat":"yesno","setup":"biz:confirm","text":"illa, thappu","expect":{"confirm":"no"}}
+{"id":"no-07","cat":"yesno","setup":"biz:confirm","text":"alla","expect":{"confirm":"no"}}
+{"id":"no-08","cat":"yesno","setup":"biz:confirm","text":"nako","expect":{"confirm":"no"}}
+{"id":"no-09","cat":"yesno","setup":"biz:confirm","text":"nahi, chukicha aahe","expect":{"confirm":"no"}}
+{"id":"no-10","cat":"yesno","setup":"biz:confirm","text":"na, khotu che","expect":{"confirm":"no"}}
+{"id":"no-11","cat":"yesno","setup":"biz:confirm","text":"नहीं","expect":{"confirm":"no"}}
+{"id":"no-12","cat":"yesno","setup":"biz:confirm","text":"లేదు","expect":{"confirm":"no"}}
+{"id":"no-13","cat":"yesno","setup":"biz:confirm","text":"இல்ல","expect":{"confirm":"no"}}
+{"id":"no-14","cat":"yesno","setup":"biz:confirm","text":"ഇല്ല","expect":{"confirm":"no"}}
+{"id":"no-15","cat":"yesno","setup":"biz:confirm","text":"નહીં","expect":{"confirm":"no"}}
+{"id":"no-16","cat":"yesno","setup":"biz:confirm","text":"no no, time galat hai","expect":{"confirm":"no"}}
+{"id":"ph-01","cat":"phone","setup":"unit:phone","text":"mera number 98490 01234 hai","expect":{"phone":"+919849001234"}}
+{"id":"ph-02","cat":"phone","setup":"unit:phone","text":"nine eight four nine zero zero one two three four","expect":{"phone":"+919849001234"}}
+{"id":"ph-03","cat":"phone","setup":"unit:phone","text":"double nine four eight triple five six seven eight","expect":{"phone":"+919948555678"}}
+{"id":"ph-04","cat":"phone","setup":"unit:phone","text":"plus nine one 98490 01234","expect":{"phone":"+919849001234"}}
+{"id":"ph-05","cat":"phone","setup":"unit:phone","text":"call me on 9849001234","expect":{"phone":"+919849001234"}}
+{"id":"ph-06","cat":"phone","setup":"unit:phone","text":"0 98490 01234","expect":{"phone":"+919849001234"}}
+{"id":"es-01","cat":"regression","setup":"biz:when","text":"mañana a las 11 de la mañana","expect":{"lang":"es","slots":{"when":"tomorrow 11am"}}}
+{"id":"en-01","cat":"regression","setup":"biz:when","text":"tomorrow at 3pm","expect":{"lang":"en","slots":{"when":"tomorrow 3pm"}}}
+{"id":"en-02","cat":"regression","setup":"biz:name","text":"It's Dana Smith","expect":{"lang":"en","slots":{"name":"dana smith"}}}
+{"id":"en-03","cat":"regression","setup":"biz:confirm","text":"Yep, that's right","expect":{"confirm":"yes"}}
+{"id":"en-04","cat":"regression","setup":"biz:qty","text":"I need three","expect":{"slots":{"quantity":3}}}
+{"id":"en-in-12","cat":"indian-english","setup":"per:amount","text":"Up to five lakh rupees.","expect":{"lang":"en","mixed":false,"slots":{"amount":500000}}}
+{"id":"en-in-13","cat":"indian-english","setup":"per:rate","text":"The interest rate is 14 percent per annum.","expect":{"lang":"en","slots":{"rate":14}}}
+{"id":"en-in-14","cat":"indian-english","setup":"biz:name","text":"Yes ji, my name is Arjun","expect":{"lang":"en","slots":{"name":"arjun"}}}
+{"id":"en-in-15","cat":"indian-english","setup":"biz:qty","text":"I need two dozen, it is for a function","expect":{"lang":"en","slots":{"quantity":24}}}

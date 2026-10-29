@@ -5,6 +5,39 @@ Small businesses miss a large share of their inbound calls, and most callers who
 
 **Wedge:** Start with home services (plumbing, HVAC, electrical). These businesses take a high volume of calls, each job is worth a lot, owners are on job sites and can't answer, and emergencies justify the "transfer to me" feature. Expand to clinics, salons and professional services using the industry templates that are already built.
 
+## India-first plan (current)
+
+| Phase | Outcome | Status |
+|---|---|---|
+| 1 Indian speech | Accented and mixed-language callers understood; Indian voices reply | **1A done** (text understanding). 1B/1C need speech-vendor keys and real recordings |
+| 2 Real calls live | Indian number (Exotel/Plivo), replies start in ≤1.5s, 5–8 pilot users | Next |
+| 3 Android app | Play Store (Capacitor), WhatsApp alerts, Razorpay/UPI billing | — |
+| 4 Business tools | WhatsApp catalog/confirmations, UPI pay links, calendar, stock sync | — |
+| 5 Scale & compliance | DPDP Act, TRAI DLT for SMS, multi-instance | — |
+
+**Phase 1A, shipped:**
+- Hinglish, Tenglish, Tanglish, Manglish, Marathi and Gujarati in English letters are detected, and code-mixing is flagged.
+- Indian numbers: lakh, crore, dedh, dhai, saade, sawa, paune, and number words in 6 languages.
+- Indian dates and times: kal, parso, subah/shaam, "5 baje", "10 gantalaki", "half past".
+- Yes/no in every language, including polite endings like "-nga" and "-andi".
+- +91 phone numbers, including spoken digits ("double nine").
+- Replies match the caller's style: mixed or pure, native script or English letters.
+- On live calls, "haan" or "hmm" said over Vexa doesn't interrupt it (`BARGE_IN_MS`).
+- New `amount` slot type (₹, lakh).
+
+**Measured** (`npm run eval:nlu`, 157 cases plus a 50-case held-out set in new phrasings):
+
+| | Before | After |
+|---|---|---|
+| Offline (model slow or unavailable) | 15% | 99% (held-out 98%) |
+| With Claude Opus 5.5 | 80% | 100% (held-out 100%) |
+| Cost per caller utterance (Opus) | $0.0087 | $0.0114 |
+
+**Phase 1B/1C, needs inputs:**
+- Speech-vendor keys: Sarvam, plus Google Chirp or Azure Speech.
+- Recordings from real Indian speakers: about 40 call scripts × 8 languages, recorded on phones.
+- An OpenAI key, for a baseline of today's speech setup.
+
 ## What shipped in this pass
 
 | Area | Before | Now |

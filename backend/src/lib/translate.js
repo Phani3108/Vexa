@@ -24,10 +24,27 @@ function remember(key, value) {
   cache.set(key, value);
 }
 
+/**
+ * How the caller is talking, so the reply can match it:
+ *   mixed  — English words mixed in ("kal AC service chahiye") → reply the same everyday way
+ *   script — 'latin' when they type their language in English letters → reply in English letters
+ */
+const NATIVE = { hi: 'देवनागरी', mr: 'देवनागरी', te: 'తెలుగు', ta: 'தமிழ்', ml: 'മലയാളം', gu: 'ગુજરાતી' };
+
+function styleNote(lang, { mixed = false, script = 'native' } = {}) {
+  const name = languageName(lang);
+  const notes = [];
+  if (mixed) notes.push(`The caller mixes English into ${name} (code-mixing). Reply the same way: ${name} sentence structure, keeping the everyday English words people use on calls (appointment, booking, service, delivery, order, time, numbers and times like "11am") in English.`);
+  if (script === 'latin' && lang !== 'es') notes.push(`The caller writes ${name} in English letters, so write the reply in English letters too (romanized ${name}, the way people text), not in ${name} script.`);
+  else if (lang !== 'es') notes.push(`Write it in ${name} script${NATIVE[lang] ? ` (${NATIVE[lang]})` : ''}, not in English letters.`);
+  return notes.join(' ');
+}
+
 /** Translate one line from English into `lang`. Returns the original on any failure. */
-export async function translateText(text, lang, { timeoutMs = 8000 } = {}) {
+export async function translateText(text, lang, { timeoutMs = 8000, mixed = false, script = 'native' } = {}) {
   if (!text || !lang || lang === 'en' || !llmAvailable()) return text;
-  const key = `${lang}::${text}`;
+  const style = styleNote(lang, { mixed, script });
+  const key = `${lang}${mixed ? ':mixed' : ''}${script === 'latin' ? ':latin' : ''}::${text}`;
   if (cache.has(key)) return cache.get(key);
   try {
     const out = await structuredJson({
@@ -36,7 +53,7 @@ export async function translateText(text, lang, { timeoutMs = 8000 } = {}) {
       timeoutMs,
       purposeModel: 'fast',
       schema: strictObject({ translation: { type: 'string' } }),
-      system: `Translate the receptionist's line from English into ${languageName(lang)}. ${STYLE}`,
+      system: `Translate the receptionist's line from English into ${languageName(lang)}. ${STYLE}${style ? `\n${style}` : ''}`,
       user: text
     });
     const result = out.translation?.trim() || text;

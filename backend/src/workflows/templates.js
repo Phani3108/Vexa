@@ -281,10 +281,10 @@ const PERSONAL = [
     slots: [
       { key: 'bank', label: 'Bank', type: 'company', prompt: 'May I know which bank you are calling from?' },
       { key: 'product', label: 'Offer', type: 'choice', prompt: 'What is the offer about — a personal loan, a credit card, or something else?', options: [{ value: 'personal loan', synonyms: ['loan', 'personal'] }, { value: 'credit card', synonyms: ['card'] }, { value: 'other', synonyms: ['insurance', 'investment', 'something else'] }] },
-      { key: 'amount', label: 'Amount', type: 'text', prompt: 'What loan amount is being offered?', opening: false },
+      { key: 'amount', label: 'Amount', type: 'amount', prompt: 'What loan amount is being offered?', opening: false },
       { key: 'rate', label: 'Interest rate (%)', type: 'number', prompt: 'And what is the interest rate?' },
       { key: 'tenure', label: 'Tenure', type: 'text', prompt: 'For what tenure?' },
-      { key: 'finalRate', label: 'Negotiated rate', type: 'text', prompt: '{{rate}} percent is on the high side. Could you bring it down to {{counterRate}} percent?' }
+      { key: 'finalRate', label: 'Negotiated rate (%)', type: 'number', prompt: '{{rate}} percent is on the high side. Could you bring it down to {{counterRate}} percent?' }
     ],
     steps: [
       { id: 's1', type: 'collect', slot: 'bank' },
@@ -295,7 +295,7 @@ const PERSONAL = [
       { id: 's6', type: 'collect', slot: 'tenure' },
       { id: 's7', type: 'collect', slot: 'finalRate' },
       { id: 's8', type: 'action', action: 'create_lead', params: { kind: 'offer' } },
-      { id: 's9', type: 'end', text: 'Thank you. Please send the final offer — {{amount}} at {{finalRate}} for {{tenure}} — by SMS. {{ownerFirst}} will review it and call back only if interested. I\'m disconnecting the call now.' },
+      { id: 's9', type: 'end', text: 'Thank you. Please send the final offer — {{amount}} at {{finalRate}}% for {{tenure}} — by SMS. {{ownerFirst}} will review it and call back only if interested. I\'m disconnecting the call now.' },
       { id: 's10', type: 'action', action: 'tag_spam' },
       { id: 's11', type: 'end', text: 'Thanks, but {{ownerFirst}} is not interested. Please remove this number from your list. I\'m disconnecting the call now.' }
     ]
@@ -380,6 +380,22 @@ const PERSONAL = [
 function stamp(list, mode) {
   return list.map(w => ({ enabled: true, builtIn: true, mode, maxTurns: 10, ...structuredClone(w) }));
 }
+
+/**
+ * How callers ask for each built-in flow in Indian languages (typed in English letters
+ * or native script). Added to the flow's own keywords at routing time, so accounts
+ * whose flows were saved before these existed still get them.
+ */
+export const LOCAL_TRIGGERS = {
+  emergency: ['aag', 'aag lagi', 'madad', 'bachao', 'jaldi aao', 'shock', 'pani bhar', 'gas leak', 'mantalu', 'thee', 'aaga', 'आग', 'बचाओ', 'मदद', 'మంటలు', 'தீ', 'തീ'],
+  p_emergency: ['madad', 'bachao', 'hospital', 'accident ho gaya', 'मदद', 'बचाओ'],
+  booking: ['slot', 'aa jaiye', 'aa sakte', 'aana hai', 'bulana', 'vastara', 'ravali', 'varuveengala', 'varumo', 'varanam', 'yeta ka', 'yaal ka', 'aavi shako', 'aavjo', 'अपॉइंटमेंट', 'అపాయింట్మెంట్', 'அப்பாயிண்ட்மென்ட்', 'അപ്പോയിന്റ്മെന്റ്', 'એપોઇન્ટમેન્ટ'],
+  product_inquiry: ['hai kya', 'milega', 'milegi', 'milenge', 'available hai', 'stock mein', 'kitne ka', 'kitna hai', 'kimat', 'keemat', 'unnaya', 'unnaayi', 'dorukutunda', 'dhara', 'irukka', 'kidaikkuma', 'vilai', 'undo', 'kittumo', 'vila', 'aahe ka', 'miltil ka', 'kimmat', 'male che', 'malse', 'है क्या', 'मिलेगा', 'కావాలి', 'ఉన్నాయా', 'இருக்கா', 'ഉണ്ടോ', 'आहे का', 'મળશે'],
+  info_request: ['kahan', 'kahan hai', 'kahan pe', 'kidhar', 'address kya', 'kab khulta', 'kab tak', 'timing', 'ekkada', 'ekkada undi', 'enga', 'enga irukku', 'evide', 'evideya', 'kuthe', 'kuthe aahe', 'kya che', 'kyaan', 'कहाँ', 'कहां', 'ఎక్కడ', 'எங்கே', 'എവിടെ', 'कुठे', 'ક્યાં'],
+  reschedule: ['time badalna', 'change karna', 'cancel karna', 'postpone', 'prepone', 'marchandi', 'maathunga', 'maattanam', 'badla'],
+  p_delivery: ['delivery', 'parcel', 'order aaya', 'courier', 'gate pe', 'gate daggara', 'saamaan', 'डिलीवरी', 'పార్సెల్', 'டெலிவரி'],
+  p_loan: ['loan', 'karz', 'rin', 'emi', 'लोन', 'ऋण', 'లోన్', 'கடன்', 'ലോൺ']
+};
 
 export function defaultWorkflows(accountType = 'business') {
   return accountType === 'personal' ? stamp(PERSONAL, 'personal') : stamp(BUSINESS, 'business');

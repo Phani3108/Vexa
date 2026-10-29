@@ -1,543 +1,915 @@
 1
-00:00:00,600 --> 00:00:06,635
-Narrator: This is Vexa: an AI receptionist that answers your calls, follows step by step playbooks, and
+00:00:00,600 --> 00:00:06,835
+Narrator: This is Vexa: an AI receptionist that answers your calls, follows step by step playbooks, speaks
 
 2
-00:00:06,635 --> 00:00:08,971
-Narrator: only interrupts you when it matters.
+00:00:06,835 --> 00:00:10,991
+Narrator: your caller’s language, and only interrupts you when it matters.
 
 3
-00:00:09,421 --> 00:00:14,567
+00:00:11,441 --> 00:00:16,607
 Narrator: Every call you are about to see was handled live by Claude, with real understanding and
 
 4
-00:00:14,567 --> 00:00:18,352
+00:00:16,607 --> 00:00:20,407
 Narrator: real token costs. The voices are synthesized for this recording.
 
 5
-00:00:20,102 --> 00:00:23,473
+00:00:22,157 --> 00:00:25,503
 Narrator: We start in Personal mode. This is your home screen:
 
 6
-00:00:23,473 --> 00:00:28,011
+00:00:25,503 --> 00:00:30,008
 Narrator: a brief of what Vexa handled, and shields to control who gets through.
 
 7
-00:00:30,261 --> 00:00:37,042
+00:00:32,258 --> 00:00:39,002
 Narrator: Scenario one. A delivery executive calls. Vexa asks where they are, guides them to Jasmine 77,
 
 8
-00:00:37,042 --> 00:00:42,885
+00:00:39,002 --> 00:00:44,814
 Narrator: Serene County, tells them what to say at the security gate, and hands the call to
 
 9
-00:00:42,885 --> 00:00:44,544
-Narrator: you only for the O T P.
+00:00:44,814 --> 00:00:46,320
+Narrator: you only for the OTP.
 
 10
-00:00:46,594 --> 00:00:50,888
+00:00:48,370 --> 00:00:52,664
 Vexa: Hello! You've reached Phani's assistant. May I know who's calling please?
 
 11
-00:00:51,238 --> 00:00:54,837
+00:00:53,014 --> 00:00:56,613
 Delivery executive: Hello, I'm calling from Swiggy. I have a food delivery for Phani.
 
 12
-00:00:56,187 --> 00:00:59,160
+00:00:57,963 --> 00:01:00,936
 Vexa: Sure, I will guide you. Where are you right now?
 
 13
-00:00:59,510 --> 00:01:02,361
+00:01:01,286 --> 00:01:04,137
 Delivery executive: I'm in Gachibowli right now, near the main bus stop.
 
 14
-00:01:03,711 --> 00:01:09,603
-Vexa: Okay, you're near the main bus stop in Gachibowli, so head towards Telecom Nagar, near Urdu
+00:01:05,487 --> 00:01:11,153
+Vexa: Okay, you're at the main bus stop in Gachibowli, so head towards Telecom Nagar near Urdu
 
 15
-00:01:09,603 --> 00:01:16,078
+00:01:11,153 --> 00:01:17,592
 Vexa: University, MANUU. Once you reach Telecom Nagar, ask for Serene County, the gated community near the
 
 16
-00:01:16,078 --> 00:01:19,834
-Vexa: university, then go to the Jasmine block, house number 77.
+00:01:17,592 --> 00:01:23,773
+Vexa: university, then go to the Jasmine block. The full address is Jasmine 77, Serene County, Telecom
 
 17
-00:01:19,834 --> 00:01:25,273
-Vexa: The full address is Jasmine 77, Serene County, Telecom Nagar, Gachibowli, Hyderabad.
+00:01:23,773 --> 00:01:27,894
+Vexa: Nagar, Gachibowli, Hyderabad, house number 77. Before you go in:
 
 18
-00:01:25,273 --> 00:01:30,583
-Vexa: Before you go in: tell the security guard at the main gate that you are delivering
+00:01:27,894 --> 00:01:33,174
+Vexa: tell the security guard at the main gate that you are delivering to Jasmine 77 for
 
 19
-00:01:30,583 --> 00:01:34,921
-Vexa: to Jasmine 77 for Phani, and sign the visitor register if they ask.
+00:01:33,174 --> 00:01:36,329
+Vexa: Phani, and sign the visitor register if they ask.
 
 20
-00:01:34,921 --> 00:01:37,835
+00:01:36,329 --> 00:01:39,227
 Vexa: Do you need an OTP or a signature from Phani?
 
 21
-00:01:38,185 --> 00:01:40,957
+00:01:39,577 --> 00:01:42,349
 Delivery executive: Yes, the customer has to share the OTP with me.
 
 22
-00:01:42,307 --> 00:01:46,386
+00:01:43,699 --> 00:01:47,778
 Vexa: No problem, I am connecting you to Phani for the OTP right now.
 
 23
-00:01:46,386 --> 00:01:47,746
+00:01:47,778 --> 00:01:49,138
 Vexa: Transferring you now.
 
 24
-00:01:48,396 --> 00:01:52,438
+00:01:49,788 --> 00:01:53,830
 Narrator: Here is the handoff. Your phone shows who is calling and Vexa’s brief.
 
 25
-00:01:52,438 --> 00:01:56,075
+00:01:53,830 --> 00:01:57,467
 Narrator: You tap pick up, and you are connected straight to the courier.
 
 26
-00:01:56,775 --> 00:02:00,963
+00:01:58,167 --> 00:02:02,355
 You (Phani): Hi, this is Phani. The OTP is 4 7 2 9.
 
 27
-00:02:01,263 --> 00:02:05,122
+00:02:02,655 --> 00:02:06,514
 Delivery executive: Got it sir, 4 7 2 9. I will be there in five minutes.
 
 28
-00:02:05,122 --> 00:02:05,850
+00:02:06,514 --> 00:02:07,242
 Delivery executive: Thank you!
 
 29
-00:02:06,550 --> 00:02:12,425
-Narrator: Call summary: A Swiggy delivery agent called with your food order and was near the Gachibowli
+00:02:07,942 --> 00:02:13,726
+Narrator: Call summary: A Swiggy delivery partner called with a food order for Phani and was given
 
 30
-00:02:12,425 --> 00:02:18,173
-Narrator: main bus stop. The AI gave directions to Jasmine 77, Serene County and transferred the call
+00:02:13,726 --> 00:02:17,998
+Narrator: directions from Gachibowli bus stop to Jasmine 77, Serene County.
 
 31
-00:02:18,173 --> 00:02:20,762
-Narrator: to you so you can share the delivery OTP.
+00:02:17,998 --> 00:02:22,270
+Narrator: They need the delivery OTP, so the call was transferred to Phani.
 
 32
-00:02:23,962 --> 00:02:27,071
+00:02:25,470 --> 00:02:28,579
 Narrator: Scenario two. A bank calls with a personal loan.
 
 33
-00:02:27,071 --> 00:02:32,575
+00:02:28,579 --> 00:02:34,083
 Narrator: Instead of hanging up, Vexa collects the offer, asks for the rate and the tenure, and
 
 34
-00:02:32,575 --> 00:02:34,194
+00:02:34,083 --> 00:02:35,702
 Narrator: negotiates the rate down.
 
 35
-00:02:36,244 --> 00:02:40,537
+00:02:37,752 --> 00:02:42,045
 Vexa: Hello! You've reached Phani's assistant. May I know who's calling please?
 
 36
-00:02:40,887 --> 00:02:43,459
+00:02:42,395 --> 00:02:44,967
 Bank agent: Good evening sir, this is Neha from Apex Bank.
 
 37
-00:02:43,459 --> 00:02:45,919
+00:02:44,967 --> 00:02:47,427
 Bank agent: You have a pre-approved personal loan offer.
 
 38
-00:02:47,269 --> 00:02:49,048
+00:02:48,777 --> 00:02:50,557
 Vexa: What loan amount is being offered?
 
 39
-00:02:49,398 --> 00:02:50,806
+00:02:50,907 --> 00:02:52,314
 Bank agent: Up to five lakh rupees.
 
 40
-00:02:52,156 --> 00:02:53,674
+00:02:53,664 --> 00:02:55,182
 Vexa: And what is the interest rate?
 
 41
-00:02:54,024 --> 00:02:56,328
+00:02:55,532 --> 00:02:57,836
 Bank agent: The interest rate is 14 percent per annum.
 
 42
-00:02:57,678 --> 00:02:58,656
+00:02:59,186 --> 00:03:00,164
 Vexa: For what tenure?
 
 43
-00:02:59,006 --> 00:03:00,011
+00:03:00,514 --> 00:03:01,519
 Bank agent: Five years, sir.
 
 44
-00:03:01,361 --> 00:03:05,647
+00:03:02,869 --> 00:03:07,155
 Vexa: 14 percent is on the high side. Could you bring it down to 12 percent?
 
 45
-00:03:05,997 --> 00:03:09,308
+00:03:07,505 --> 00:03:10,816
 Bank agent: Sir, the best I can do is 12.5 percent.
 
 46
-00:03:10,658 --> 00:03:15,691
-Vexa: Thank you. Please send the final offer — up to five lakh rupees at 12.5 percent
+00:03:12,166 --> 00:03:17,769
+Vexa: Thank you. Please send the final offer — ₹5,00,000 at 12.5% for 5 years — by
 
 47
-00:03:15,691 --> 00:03:20,724
-Vexa: for five years — by SMS. Phani will review it and call back only if interested.
+00:03:17,769 --> 00:03:22,119
+Vexa: SMS. Phani will review it and call back only if interested.
 
 48
-00:03:20,724 --> 00:03:22,700
+00:03:22,119 --> 00:03:24,405
 Vexa: I'm disconnecting the call now.
 
 49
-00:03:23,450 --> 00:03:29,989
+00:03:25,155 --> 00:03:31,778
 Narrator: Call summary: Neha from Apex Bank called with a pre-approved personal loan offer of up to
 
 50
-00:03:29,989 --> 00:03:35,427
-Narrator: ₹5 lakh for 5 years. The AI negotiated the rate down from 14% to 12.5% and
+00:03:31,778 --> 00:03:38,104
+Narrator: ₹5,00,000 for 5 years. The AI negotiated the interest rate down from 14% to 12.5% and
 
 51
-00:03:35,427 --> 00:03:38,439
+00:03:38,104 --> 00:03:41,155
 Narrator: asked her to send the final offer by SMS.
 
 52
-00:03:41,539 --> 00:03:47,664
-Narrator: After the call you see exactly what Vexa captured, including the negotiated rate, and what the
+00:03:44,255 --> 00:03:49,987
+Narrator: After the call you see exactly what Vexa captured, including the loan amount in lakh, the
 
 53
-00:03:47,664 --> 00:03:48,315
-Narrator: call cost.
+00:03:49,987 --> 00:03:52,564
+Narrator: negotiated rate, and what the call cost.
 
 54
-00:03:50,565 --> 00:03:56,211
-Narrator: Scenario three. You tell Vexa you are busy, and will be available after 7 P M.
+00:03:54,814 --> 00:04:00,830
+Narrator: Scenario three. You tell Vexa you are busy, and will be available after 7 PM today.
 
 55
-00:03:56,661 --> 00:04:03,135
-Narrator: This was recorded at 9:41 pm in Hyderabad, after 7 P M, so Vexa sets Focus
+00:04:01,280 --> 00:04:07,885
+Narrator: This was recorded at 4:35 pm in Hyderabad, so Vexa turns on Focus until 7 PM
 
 56
-00:04:03,135 --> 00:04:06,109
-Narrator: until 7 P M tomorrow, and says so.
+00:04:07,885 --> 00:04:08,407
+Narrator: today.
 
 57
-00:04:07,859 --> 00:04:13,365
+00:04:10,157 --> 00:04:15,663
 Narrator: You just say it in plain words. Vexa turns on Focus, with the right end time.
 
 58
-00:04:16,215 --> 00:04:20,780
+00:04:18,513 --> 00:04:23,077
 Narrator: Your phone lights up: your mother is calling, and you are in Focus.
 
 59
-00:04:20,780 --> 00:04:23,505
+00:04:23,077 --> 00:04:25,802
 Narrator: You can pick up — or let Vexa handle it.
 
 60
-00:04:23,505 --> 00:04:25,412
+00:04:25,802 --> 00:04:27,710
 Narrator: You tap: let Vexa handle it.
 
 61
-00:04:25,712 --> 00:04:28,067
+00:04:28,010 --> 00:04:30,365
 Vexa: Hi Amma! This is Phani's assistant.
 
 62
-00:04:28,417 --> 00:04:33,052
+00:04:30,715 --> 00:04:35,350
 Amma: Hello, I wanted to talk to Phani about the family function this Sunday.
 
 63
-00:04:34,402 --> 00:04:38,460
-Vexa: Phani is busy right now and will be available after 7:00 PM tomorrow.
+00:04:36,700 --> 00:04:40,626
+Vexa: Phani is busy right now and will be available after 7:00 PM today.
 
 64
-00:04:38,460 --> 00:04:41,870
+00:04:40,626 --> 00:04:44,077
 Vexa: I have passed your message on, so please reach Phani then.
 
 65
-00:04:41,870 --> 00:04:43,693
+00:04:44,077 --> 00:04:45,921
 Vexa: I'm disconnecting the call now.
 
 66
-00:04:44,443 --> 00:04:50,388
+00:04:46,671 --> 00:04:52,825
 Narrator: Call summary: Your mother (Amma) called wanting to talk about the family function this Sunday.
 
 67
-00:04:50,388 --> 00:04:53,930
-Narrator: The AI told her you're available after 7:00 PM tomorrow.
+00:04:52,825 --> 00:04:55,902
+Narrator: She was told you're available after 7 PM today.
 
 68
-00:04:57,030 --> 00:05:00,162
+00:04:59,002 --> 00:05:02,135
 Narrator: And this is the message you get on your phone:
 
 69
-00:05:00,162 --> 00:05:03,431
+00:05:02,135 --> 00:05:05,403
 Narrator: who called, why, and exactly what Vexa told her.
 
 70
-00:05:03,431 --> 00:05:04,997
+00:05:05,403 --> 00:05:06,970
 Narrator: Call back with one tap.
 
 71
-00:05:07,247 --> 00:05:10,756
+00:05:09,220 --> 00:05:12,729
 Narrator: Now let us switch to Business, right from the home screen.
 
 72
-00:05:12,506 --> 00:05:13,345
+00:05:14,479 --> 00:05:15,317
 Narrator: One tap.
 
 73
-00:05:14,895 --> 00:05:21,038
+00:05:16,867 --> 00:05:23,011
 Narrator: The same assistant is now the receptionist for Serene Home Essentials, with your catalog, hours and
 
 74
-00:05:21,038 --> 00:05:21,907
+00:05:23,011 --> 00:05:23,879
 Narrator: booking flows.
 
 75
-00:05:24,157 --> 00:05:29,926
+00:05:26,129 --> 00:05:31,829
 Narrator: Four A: an appointment. Vexa picks up the service, the date and the time from one
 
 76
-00:05:29,926 --> 00:05:35,196
-Narrator: sentence, asks only for the name, confirms, and creates a booking request.
+00:05:31,829 --> 00:05:37,528
+Narrator: sentence, asks only for what is missing, confirms, and creates a booking request.
 
 77
-00:05:37,246 --> 00:05:41,764
+00:05:39,578 --> 00:05:44,096
 Vexa: Thanks for calling Serene Home Essentials! This is the virtual receptionist.
 
 78
-00:05:41,764 --> 00:05:43,250
+00:05:44,096 --> 00:05:45,583
 Vexa: How can I help you today?
 
 79
-00:05:43,600 --> 00:05:48,659
+00:05:45,933 --> 00:05:50,992
 Customer: Hi, I'd like to book an AC service for tomorrow at 11 in the morning.
 
 80
-00:05:50,009 --> 00:05:51,912
+00:05:52,342 --> 00:05:54,245
 Vexa: Could I get your name, please?
 
 81
-00:05:52,262 --> 00:05:53,652
+00:05:54,595 --> 00:05:55,985
 Customer: It's Ravi Kumar.
 
 82
-00:05:55,002 --> 00:05:59,737
-Vexa: AC service, tomorrow 11am, under Ravi Kumar — is that right?
+00:05:57,335 --> 00:06:02,185
+Vexa: AC servicing, tomorrow 11am, under Ravi Kumar — is that right?
 
 83
-00:06:00,087 --> 00:06:01,770
+00:06:02,535 --> 00:06:04,218
 Customer: Yes, that's right.
 
 84
-00:06:03,120 --> 00:06:08,108
+00:06:05,568 --> 00:06:10,557
 Vexa: You are all set, Ravi. I have requested tomorrow 11am for you, and the team will
 
 85
-00:06:08,108 --> 00:06:11,600
+00:06:10,557 --> 00:06:14,048
 Vexa: confirm by text shortly. I'm disconnecting the call now.
 
 86
-00:06:12,350 --> 00:06:17,023
+00:06:14,798 --> 00:06:19,387
 Narrator: Call summary: Ravi Kumar called to book an AC service for tomorrow at 11am.
 
 87
-00:06:17,023 --> 00:06:21,384
-Narrator: The AI requested the slot and told him the team would confirm by text.
+00:06:19,387 --> 00:06:23,670
+Narrator: The AI logged the request and told him the team would confirm by text.
 
 88
-00:06:24,484 --> 00:06:29,149
+00:06:26,770 --> 00:06:31,435
 Narrator: The request lands in Bookings. One tap confirms it and texts the customer.
 
 89
-00:06:31,399 --> 00:06:38,706
+00:06:33,685 --> 00:06:40,992
 Narrator: Four B: directions. Vexa answers from your business profile, the address, the landmark and the parking,
 
 90
-00:06:38,706 --> 00:06:40,266
+00:06:40,992 --> 00:06:42,552
 Narrator: and your Sunday hours.
 
 91
-00:06:42,316 --> 00:06:46,835
+00:06:44,602 --> 00:06:49,121
 Vexa: Thanks for calling Serene Home Essentials! This is the virtual receptionist.
 
 92
-00:06:46,835 --> 00:06:48,321
+00:06:49,121 --> 00:06:50,607
 Vexa: How can I help you today?
 
 93
-00:06:48,671 --> 00:06:52,082
+00:06:50,957 --> 00:06:54,368
 Customer: Hi, where exactly is your shop? How do I get there?
 
 94
-00:06:53,432 --> 00:06:59,008
-Vexa: We're at Shop 4, Telecom Nagar Main Road, Gachibowli, Hyderabad, a short walk from Urdu University
+00:06:55,718 --> 00:07:00,456
+Vexa: We're at Shop 4, Telecom Nagar Main Road, Gachibowli, Hyderabad — on the main road a
 
 95
-00:06:59,008 --> 00:07:04,755
-Vexa: on the main road; look for the green Serene Home Essentials signboard, with two-wheeler parking right
+00:07:00,456 --> 00:07:06,660
+Vexa: short walk from Urdu University; look for the green Serene Home Essentials signboard, with two-wheeler parking
 
 96
-00:07:04,755 --> 00:07:07,771
-Vexa: in front. Is there anything else I can help you with?
+00:07:06,660 --> 00:07:09,987
+Vexa: right in front. Is there anything else I can help you with?
 
 97
-00:07:08,121 --> 00:07:10,318
+00:07:10,337 --> 00:07:12,534
 Customer: Okay. And are you open on Sunday?
 
 98
-00:07:11,668 --> 00:07:14,360
-Vexa: Yes, we're open on Sunday from 10 AM to 8 PM.
+00:07:13,884 --> 00:07:17,020
+Vexa: Yes, we are open on Sunday from 10:00 AM to 8:00 PM.
 
 99
-00:07:14,360 --> 00:07:16,932
+00:07:17,020 --> 00:07:19,613
 Vexa: Is there anything else I can help you with?
 
 100
-00:07:17,282 --> 00:07:19,320
+00:07:19,963 --> 00:07:22,001
 Customer: No, that's all. Thank you!
 
 101
-00:07:20,670 --> 00:07:24,178
+00:07:23,351 --> 00:07:26,859
 Vexa: Thanks for calling Serene Home Essentials, have a great day!
 
 102
-00:07:24,178 --> 00:07:25,990
+00:07:26,859 --> 00:07:28,671
 Vexa: I'm disconnecting the call now.
 
 103
-00:07:26,740 --> 00:07:32,460
+00:07:29,421 --> 00:07:35,111
 Narrator: Call summary: Caller asked for directions to the shop and whether it's open on Sunday;
 
 104
-00:07:32,460 --> 00:07:36,317
+00:07:35,111 --> 00:07:38,949
 Narrator: the AI provided the address and Sunday hours (10 AM–8 PM).
 
 105
-00:07:36,317 --> 00:07:37,980
-Narrator: Likely a walk-in visitor.
+00:07:38,949 --> 00:07:40,603
+Narrator: No further action needed.
 
 106
-00:07:41,180 --> 00:07:47,031
+00:07:43,803 --> 00:07:49,653
 Narrator: Four C: stock and price. Vexa checks your catalog live, quotes the unit price and the
 
 107
-00:07:47,031 --> 00:07:49,096
+00:07:49,653 --> 00:07:51,718
 Narrator: total, and reserves the order.
 
 108
-00:07:51,146 --> 00:07:55,664
+00:07:53,768 --> 00:07:58,287
 Vexa: Thanks for calling Serene Home Essentials! This is the virtual receptionist.
 
 109
-00:07:55,664 --> 00:07:57,150
+00:07:58,287 --> 00:07:59,773
 Vexa: How can I help you today?
 
 110
-00:07:57,500 --> 00:08:00,548
+00:08:00,123 --> 00:08:03,171
 Customer: Do you have 1200 millimetre ceiling fans in stock?
 
 111
-00:08:00,548 --> 00:08:01,340
+00:08:03,171 --> 00:08:03,963
 Customer: I need three.
 
 112
-00:08:02,690 --> 00:08:08,829
+00:08:05,313 --> 00:08:11,451
 Vexa: Yes, the 1200mm ceiling fan is in stock — we have 8, at ₹2,450 each.
 
 113
-00:08:08,829 --> 00:08:12,169
+00:08:11,451 --> 00:08:14,791
 Vexa: For 3, that comes to ₹7,350 in total.
 
 114
-00:08:12,169 --> 00:08:16,953
+00:08:14,791 --> 00:08:19,575
 Vexa: Would you like me to reserve them for you to pick up?
 
 115
-00:08:17,303 --> 00:08:18,871
+00:08:19,925 --> 00:08:21,494
 Customer: Yes please, reserve them for me.
 
 116
-00:08:20,221 --> 00:08:22,124
+00:08:22,844 --> 00:08:24,747
 Vexa: Could I get your name, please?
 
 117
-00:08:22,474 --> 00:08:23,152
+00:08:25,097 --> 00:08:25,775
 Customer: It's Suresh.
 
 118
-00:08:24,502 --> 00:08:31,094
+00:08:27,125 --> 00:08:33,717
 Vexa: Done! I have reserved 3 units of the 1200mm ceiling fan under Suresh — ₹7,350 in
 
 119
-00:08:31,094 --> 00:08:36,945
+00:08:33,717 --> 00:08:39,567
 Vexa: total, payable at pickup. See you soon! I'm disconnecting the call now.
 
 120
-00:08:37,695 --> 00:08:47,911
-Narrator: Call summary: Suresh asked about 1200mm ceiling fans and reserved 3 units (₹7,350 total, payable at
+00:08:40,317 --> 00:08:50,618
+Narrator: Call summary: Suresh called asking about 1200mm ceiling fans and reserved 3 units (₹7,350 total, payable
 
 121
-00:08:47,911 --> 00:08:48,737
-Narrator: pickup).
+00:08:50,618 --> 00:08:51,708
+Narrator: at pickup).
 
 122
-00:08:51,837 --> 00:08:56,388
+00:08:54,808 --> 00:08:59,359
 Narrator: Prices and stock come from your catalog, so Vexa never guesses a number.
 
 123
-00:08:58,638 --> 00:09:02,292
-Narrator: How it works. Claude understands what the caller says.
+00:09:01,609 --> 00:09:10,610
+Narrator: Vexa now speaks eight languages: English, Hindi, Telugu, Tamil, Malayalam, Marathi, Gujarati and Spanish.
 
 124
-00:09:02,292 --> 00:09:08,179
-Narrator: A flow engine then decides exactly what to ask next, when to confirm, when to transfer,
+00:09:11,060 --> 00:09:16,364
+Narrator: In this call the customer starts in Telugu, gives their name in Hindi, and confirms in
 
 125
-00:09:08,179 --> 00:09:12,645
-Narrator: and when to hang up. That keeps calls predictable, fast and cheap.
+00:09:16,364 --> 00:09:22,162
+Narrator: English. Vexa follows every switch, and replies in the language the caller is using right now.
 
 126
-00:09:14,395 --> 00:09:17,354
-Narrator: Flows are playbooks for each kind of call:
+00:09:24,212 --> 00:09:28,730
+Vexa: Thanks for calling Serene Home Essentials! This is the virtual receptionist.
 
 127
-00:09:17,354 --> 00:09:25,317
-Narrator: deliveries, bank offers, family, bookings, directions, stock. You can see how many questions Vexa skipped because
+00:09:28,730 --> 00:09:30,217
+Vexa: How can I help you today?
 
 128
-00:09:25,317 --> 00:09:27,431
-Narrator: callers already answered them.
+00:09:30,567 --> 00:09:35,300
+Customer · Telugu: Hello, I need to book an AC service for tomorrow at 11 in the morning.
 
 129
-00:09:29,581 --> 00:09:32,963
-Narrator: Every step can be edited from your phone:
+00:09:36,650 --> 00:09:38,929
+Vexa · Telugu: Could I get your name, please?
 
 130
-00:09:32,963 --> 00:09:36,097
-Narrator: ask, confirm, branch, act or transfer.
+00:09:39,279 --> 00:09:41,189
+Customer · Hindi: My name is Ravi Kumar.
 
 131
-00:09:38,247 --> 00:09:43,835
-Narrator: Activity shows every call with its summary, the flow it followed, and what needs your follow-up.
+00:09:42,539 --> 00:09:48,204
+Vexa · Hindi: AC servicing, tomorrow 11am, under Ravi Kumar — is that right?
 
 132
-00:09:45,985 --> 00:09:51,788
-Narrator: Each call shows the facts Vexa captured, the actions it took, a ready to send reply,
+00:09:48,554 --> 00:09:50,237
+Customer: Yes, that's correct.
 
 133
-00:09:51,788 --> 00:09:53,308
-Narrator: and the exact AI cost.
+00:09:51,587 --> 00:09:56,575
+Vexa: You are all set, Ravi. I have requested tomorrow 11am for you, and the team will
 
 134
-00:09:55,558 --> 00:10:04,215
-Narrator: Finally, what it cost. All six calls, plus the Ask Vexa command, used 46,567 tokens on
+00:09:56,575 --> 00:10:00,067
+Vexa: confirm by text shortly. I'm disconnecting the call now.
 
 135
-00:10:04,215 --> 00:10:11,967
-Narrator: Claude Opus 5.5, for a total of about 25.1 cents, roughly 4.2 cents per call.
+00:10:00,817 --> 00:10:05,431
+Narrator: Call summary: Ravi Kumar called to book an AC service for tomorrow at 11am.
 
 136
-00:10:12,417 --> 00:10:18,352
-Narrator: Vexa: every call answered, every lead captured, and you are only interrupted when it matters.
+00:10:05,431 --> 00:10:09,677
+Narrator: The AI logged the request and told him the team will confirm by text.
+
+137
+00:10:12,777 --> 00:10:18,032
+Narrator: After the call, you get the summary in English, and in the caller’s language, with the
+
+138
+00:10:18,032 --> 00:10:19,254
+Narrator: languages they used.
+
+139
+00:10:21,404 --> 00:10:27,197
+Narrator: The transcript keeps every line exactly as it was spoken, with the English right under it.
+
+140
+00:10:27,197 --> 00:10:30,286
+Narrator: Switch between both, as spoken, or English only.
+
+141
+00:10:32,436 --> 00:10:36,696
+Narrator: And you can read the whole call in any of the eight languages.
+
+142
+00:10:36,696 --> 00:10:42,124
+Narrator: Here it is in Gujarati. That took one request, about 1.2 cents, and it is saved
+
+143
+00:10:42,124 --> 00:10:43,085
+Narrator: for next time.
+
+144
+00:10:45,335 --> 00:10:52,321
+Narrator: Most callers in India mix languages. This customer speaks Hinglish, Hindi and English together, typed in
+
+145
+00:10:52,321 --> 00:10:56,553
+Narrator: English letters. Vexa understands it, and replies the same way.
+
+146
+00:10:58,603 --> 00:11:03,122
+Vexa: Thanks for calling Serene Home Essentials! This is the virtual receptionist.
+
+147
+00:11:03,122 --> 00:11:04,608
+Vexa: How can I help you today?
+
+148
+00:11:04,958 --> 00:11:07,777
+Customer · Hindi: Brother, do you have LED bulbs? I need ten.
+
+149
+00:11:09,127 --> 00:11:14,861
+Vexa · Hindi: Yes, the 9W LED bulb is in stock — we have 120, at ₹99 each.
+
+150
+00:11:14,861 --> 00:11:18,302
+Vexa · Hindi: For 10, that comes to ₹990 in total.
+
+151
+00:11:18,302 --> 00:11:23,368
+Vexa · Hindi: Would you like me to reserve them for you to pick up?
+
+152
+00:11:23,718 --> 00:11:25,465
+Customer · Hindi: Yes, please reserve it
+
+153
+00:11:26,815 --> 00:11:29,879
+Vexa · Hindi: Could I get your name, please?
+
+154
+00:11:30,229 --> 00:11:31,770
+Customer · Hindi: My name is Rohit
+
+155
+00:11:33,120 --> 00:11:39,828
+Vexa · Hindi: Done! I have reserved 10 units of the 9W LED bulb under Rohit — ₹990 in
+
+156
+00:11:39,828 --> 00:11:46,537
+Vexa · Hindi: total, payable at pickup. See you soon! I'm disconnecting the call now.
+
+157
+00:11:47,287 --> 00:11:54,319
+Narrator: Call summary: Rohit asked about LED bulbs and reserved 10 units of the 9W LED bulb
+
+158
+00:11:54,319 --> 00:11:57,064
+Narrator: (₹990 total, payable at pickup).
+
+159
+00:12:00,164 --> 00:12:03,531
+Narrator: Hinglish in, Hinglish out, and the English for you.
+
+160
+00:12:05,781 --> 00:12:14,235
+Narrator: Six more callers, one question each: Telugu mixed with English, Tamil, Malayalam, Marathi, Gujarati and Spanish.
+
+161
+00:12:14,235 --> 00:12:19,972
+Narrator: This Mac has no Malayalam or Gujarati voice, so those two are shown as text.
+
+162
+00:12:22,022 --> 00:12:26,540
+Vexa: Thanks for calling Serene Home Essentials! This is the virtual receptionist.
+
+163
+00:12:26,540 --> 00:12:28,026
+Vexa: How can I help you today?
+
+164
+00:12:28,376 --> 00:12:32,565
+Customer · Telugu: I need AC service tomorrow evening at 5 o'clock
+
+165
+00:12:33,915 --> 00:12:36,150
+Vexa · Telugu: Could I get your name, please?
+
+166
+00:12:40,900 --> 00:12:45,418
+Vexa: Thanks for calling Serene Home Essentials! This is the virtual receptionist.
+
+167
+00:12:45,418 --> 00:12:46,904
+Vexa: How can I help you today?
+
+168
+00:12:47,254 --> 00:12:49,984
+Customer · Tamil: Hello, where is your shop located?
+
+169
+00:12:51,334 --> 00:12:58,269
+Vexa · Tamil: We are at Shop 4, Telecom Nagar Main Road, Gachibowli, Hyderabad, a short walk from Urdu
+
+170
+00:12:58,269 --> 00:13:03,313
+Vexa · Tamil: University; look for the green Serene Home Essentials signboard.
+
+171
+00:13:03,313 --> 00:13:06,702
+Vexa · Tamil: Is there anything else I can help you with?
+
+172
+00:13:11,452 --> 00:13:15,971
+Vexa: Thanks for calling Serene Home Essentials! This is the virtual receptionist.
+
+173
+00:13:15,971 --> 00:13:17,457
+Vexa: How can I help you today?
+
+174
+00:13:17,807 --> 00:13:20,207
+Customer · Malayalam: Will the shop be open on Sunday?
+
+175
+00:13:21,557 --> 00:13:24,553
+Vexa · Malayalam: Yes, we are open on Sunday from 10am to 8pm.
+
+176
+00:13:24,553 --> 00:13:27,480
+Vexa · Malayalam: Is there anything else I can help you with?
+
+177
+00:13:32,230 --> 00:13:36,748
+Vexa: Thanks for calling Serene Home Essentials! This is the virtual receptionist.
+
+178
+00:13:36,748 --> 00:13:38,235
+Vexa: How can I help you today?
+
+179
+00:13:38,585 --> 00:13:43,374
+Customer · Marathi: Hello, I need a plumber tomorrow evening at 5 o'clock.
+
+180
+00:13:44,724 --> 00:13:46,929
+Vexa · Marathi: Could I get your name, please?
+
+181
+00:13:51,679 --> 00:13:56,197
+Vexa: Thanks for calling Serene Home Essentials! This is the virtual receptionist.
+
+182
+00:13:56,197 --> 00:13:57,684
+Vexa: How can I help you today?
+
+183
+00:13:58,034 --> 00:14:01,726
+Customer · Gujarati: Hello, do you have LED bulbs? I need ten.
+
+184
+00:14:03,076 --> 00:14:06,700
+Vexa · Gujarati: Yes, the 9W LED bulb is in stock — we have 120, at ₹99 each.
+
+185
+00:14:06,700 --> 00:14:08,875
+Vexa · Gujarati: For 10, that comes to ₹990 in total.
+
+186
+00:14:08,875 --> 00:14:12,076
+Vexa · Gujarati: Would you like me to reserve them for you to pick up?
+
+187
+00:14:16,826 --> 00:14:21,344
+Vexa: Thanks for calling Serene Home Essentials! This is the virtual receptionist.
+
+188
+00:14:21,344 --> 00:14:22,831
+Vexa: How can I help you today?
+
+189
+00:14:23,181 --> 00:14:27,464
+Customer · Spanish: Hello, do you have 1200 mm ceiling fans?
+
+190
+00:14:27,464 --> 00:14:28,856
+Customer · Spanish: I need three.
+
+191
+00:14:30,206 --> 00:14:36,113
+Vexa · Spanish: Yes, the 1200mm ceiling fan is in stock — we have 8, at ₹2,450 each.
+
+192
+00:14:36,113 --> 00:14:39,327
+Vexa · Spanish: For 3, that comes to ₹7,350 in total.
+
+193
+00:14:39,327 --> 00:14:43,932
+Vexa · Spanish: Would you like me to reserve them for you to pick up?
+
+194
+00:14:48,482 --> 00:14:52,004
+Narrator: Phone calls are now recorded. Both sides, in stereo:
+
+195
+00:14:52,004 --> 00:14:57,424
+Narrator: the caller on the left, Vexa on the right, straight from the phone line, with no
+
+196
+00:14:57,424 --> 00:14:58,847
+Narrator: extra telephony cost.
+
+197
+00:15:00,597 --> 00:15:03,690
+Narrator: Here is the recording of the language switching call.
+
+198
+00:15:03,690 --> 00:15:07,191
+Narrator: Tap any line in the transcript, and it jumps to that moment.
+
+199
+00:15:07,491 --> 00:15:21,491
+Recording: Playing the call recording — caller on the left, Vexa on the right
+
+200
+00:15:22,791 --> 00:15:28,235
+Narrator: You decide: record or not, tell callers the call may be recorded, and how long to
+
+201
+00:15:28,235 --> 00:15:32,604
+Narrator: keep the audio. Transcripts stay, audio is deleted automatically.
+
+202
+00:15:34,754 --> 00:15:39,189
+Narrator: Pick the language Vexa greets in. It switches the moment your caller does.
+
+203
+00:15:41,439 --> 00:15:46,795
+Narrator: Callers in India mix languages, type them in English letters, and count in lakhs.
+
+204
+00:15:46,795 --> 00:15:52,548
+Narrator: Vexa now understands all of that: dates like kal and parso, numbers like dedh lakh, yes
+
+205
+00:15:52,548 --> 00:15:55,524
+Narrator: and no in every language, and Indian English.
+
+206
+00:15:55,524 --> 00:16:00,020
+Narrator: And a quick haan or hmm while Vexa is talking no longer cuts it off.
+
+207
+00:16:03,570 --> 00:16:09,386
+Narrator: We measured it. On one hundred and fifty seven test sentences, Vexa without the model went
+
+208
+00:16:09,386 --> 00:16:15,397
+Narrator: from fifteen percent to ninety nine. With Claude, from eighty to one hundred percent, and the
+
+209
+00:16:15,397 --> 00:16:18,434
+Narrator: same on fifty new phrasings we never tuned for.
+
+210
+00:16:18,434 --> 00:16:23,281
+Narrator: Next: Indian speech engines, measured on real voices over real phone lines.
+
+211
+00:16:26,831 --> 00:16:32,505
+Narrator: How it works. Claude understands what the caller says, in any of the eight languages.
+
+212
+00:16:32,505 --> 00:16:38,313
+Narrator: A flow engine then decides exactly what to ask next, when to confirm, when to transfer,
+
+213
+00:16:38,313 --> 00:16:42,719
+Narrator: and when to hang up. That keeps calls predictable, fast and cheap.
+
+214
+00:16:44,469 --> 00:16:47,428
+Narrator: Flows are playbooks for each kind of call:
+
+215
+00:16:47,428 --> 00:16:55,390
+Narrator: deliveries, bank offers, family, bookings, directions, stock. You can see how many questions Vexa skipped because
+
+216
+00:16:55,390 --> 00:16:57,504
+Narrator: callers already answered them.
+
+217
+00:16:59,654 --> 00:17:03,036
+Narrator: Every step can be edited from your phone:
+
+218
+00:17:03,036 --> 00:17:06,171
+Narrator: ask, confirm, branch, act or transfer.
+
+219
+00:17:08,321 --> 00:17:13,908
+Narrator: Activity shows every call with its summary, the flow it followed, and what needs your follow-up.
+
+220
+00:17:16,058 --> 00:17:21,862
+Narrator: Each call shows the facts Vexa captured, the actions it took, a ready to send reply,
+
+221
+00:17:21,862 --> 00:17:23,382
+Narrator: and the exact AI cost.
+
+222
+00:17:25,632 --> 00:17:34,594
+Narrator: Finally, what it cost. All 14 calls, plus the two extra requests, used 138,467 tokens on
+
+223
+00:17:34,594 --> 00:17:39,381
+Narrator: Claude Opus 5.5, for a total of about 74 cents.
+
+224
+00:17:39,381 --> 00:17:45,187
+Narrator: That is roughly 5.2 cents per call, or about 4.34 rupees.
+
+225
+00:17:45,637 --> 00:17:51,050
+Narrator: A multilingual call costs a little more, because Vexa also translates its replies.
+
+226
+00:17:55,100 --> 00:18:00,890
+Narrator: What is next: Indian speech engines and Indian voices, then a real Indian phone number with
+
+227
+00:18:00,890 --> 00:18:06,362
+Narrator: replies inside one and a half seconds, then the Android app with WhatsApp and UPI, and
+
+228
+00:18:06,362 --> 00:18:07,316
+Narrator: business tools.
+
+229
+00:18:07,766 --> 00:18:14,027
+Narrator: Vexa: every call answered, in your caller’s language, and you are only interrupted when it matters.
