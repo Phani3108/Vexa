@@ -13,6 +13,9 @@ services:
     environment:
       MONGODB_URI: mongodb://mongo:27017/vexa
       JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET}
+      RECORDINGS_DIR: /data/recordings
+    volumes: [recordings:/data/recordings]   # call recordings survive rebuilds
     depends_on: [mongo]
 volumes:
   mongo-data:
+  recordings:

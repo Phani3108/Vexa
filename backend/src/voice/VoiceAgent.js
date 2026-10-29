@@ -17,6 +17,7 @@ import ConversationAnalyzer, { NAME_INTRO } from './ConversationAnalyzer.js';
 import { takeTurn, whisper as flowWhisper } from '../workflows/callSession.js';
 import { CallRecorder } from '../lib/recorder.js';
 import { isBackchannel } from '../lib/indic.js';
+import { verifyStreamToken, streamAuthEnabled } from '../lib/streamToken.js';
 
 // Flow calls: how long the caller must keep talking over Vexa before it stops.
 // Shorter sounds ("haan", "hmm", "achha", "ok") are listening, not interrupting.
@@ -103,6 +104,10 @@ class VoiceAgent extends EventEmitter {
     let lastAssistantItem = null;
     let markQueue = [];
     let responseStartTimestampTwilio = null;
+    // A stream that never sends a valid "start" within 5 s is not a real call
+    const startTimer = setTimeout(() => {
+      if (!streamSid) { console.warn('🚫 Media stream closed: no start frame within 5s'); ws.close(1008, 'no start'); }
+    }, 5000);
     
     // Set up OpenAI Realtime connection
     const setupAzureConnection = async () => {
@@ -393,6 +398,17 @@ class VoiceAgent extends EventEmitter {
         const data = JSON.parse(message);
         
         if (data.event === 'start') {
+          // Only the provider that received our signed instructions can open this call's audio
+          if (streamAuthEnabled()) {
+            const check = verifyStreamToken(data.start.customParameters?.token, data.start.callSid);
+            if (!check.ok) {
+              console.warn(`🚫 Media stream rejected for ${data.start.callSid || 'unknown call'}: ${check.reason}`);
+              clearTimeout(startTimer);
+              ws.close(1008, 'unauthorized');
+              return;
+            }
+          }
+          clearTimeout(startTimer);
           streamSid = data.start.streamSid;
           callSid = data.start.callSid;
           
@@ -580,6 +596,7 @@ class VoiceAgent extends EventEmitter {
     ws.on('close', () => {
       console.log('📞 Twilio media stream disconnected');
       // Mark as ending so the Azure close handler doesn't fire a spurious hangup
+      clearTimeout(startTimer);
       if (callContext) { callContext.isEnding = true; clearTimeout(callContext._bargeInTimer); }
       if (azureWs && azureWs.readyState === WebSocket.OPEN) {
         azureWs.close();

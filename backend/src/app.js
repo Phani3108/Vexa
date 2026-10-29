@@ -1,6 +1,8 @@
 // Must be the first import: ESM evaluates imports before module code, so a
 // later dotenv.config() would run AFTER modules had already read process.env.
 import 'dotenv/config';
+// Second: scrub API keys and tokens from every log line in the process
+import './lib/redact.js';
 
 import express from 'express';
 import cors from 'cors';
@@ -135,16 +137,24 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Public capability flags the dashboard uses to show setup state
+// Capability flags the app uses to show setup state. Platform phone details only for signed-in users.
 app.get('/api/meta', (req, res) => {
+  const header = req.headers.authorization || '';
+  let signedIn = false;
+  if (header.startsWith('Bearer ')) {
+    try { verifyAccessToken(header.slice(7)); signedIn = true; } catch { /* anonymous */ }
+  }
   res.json({
     name: 'Vexa',
     voiceEnabled: !!voiceConfig,
     aiEnabled: llmAvailable(),
     aiProvider: llmLabel(),
     smsEnabled: isProd || process.env.OTP_FORCE_SMS === 'true',
-    twilioNumber: process.env.TWILIO_PHONE_NUMBER || null,
-    webhookUrl: process.env.WEBHOOK_URL || null,
+    twilioNumber: signedIn ? process.env.TWILIO_PHONE_NUMBER || null : null,
+    webhookUrl: signedIn ? process.env.WEBHOOK_URL || null : null,
+    // The Android app compares its own version to these to prompt or force an update
+    minAppVersion: process.env.MIN_APP_VERSION || null,
+    latestAppVersion: process.env.LATEST_APP_VERSION || null,
     demoDataEnabled: demoDataEnabled(),
     languages: LANGUAGES,
     nluEnabled: llmAvailable() && process.env.NLU_DISABLED !== 'true',

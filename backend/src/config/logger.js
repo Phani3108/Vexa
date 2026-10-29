@@ -4,21 +4,31 @@
  */
 
 import winston from 'winston';
+import { redact } from '../lib/redact.js';
 
 const { combine, timestamp, printf, colorize, errors } = winston.format;
 
+// API keys and tokens never reach a log transport
+const scrub = winston.format((info) => {
+  if (typeof info.message === 'string') info.message = redact(info.message);
+  if (typeof info.stack === 'string') info.stack = redact(info.stack);
+  return info;
+});
+
 const devFormat = combine(
+  errors({ stack: true }),
+  scrub(),
   colorize(),
   timestamp({ format: 'HH:mm:ss' }),
-  errors({ stack: true }),
   printf(({ level, message, timestamp: ts, stack }) => {
     return `${ts} ${level}: ${stack || message}`;
   })
 );
 
 const prodFormat = combine(
-  timestamp(),
   errors({ stack: true }),
+  scrub(),
+  timestamp(),
   winston.format.json()
 );
 
