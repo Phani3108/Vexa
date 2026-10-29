@@ -13,6 +13,7 @@ import admin from 'firebase-admin';
 import UserConfig from '../models/mongodb/UserConfig.js';
 import { isMongoConnected } from '../config/mongodb.js';
 import logger from '../config/logger.js';
+import { sendWebPush } from '../lib/webPush.js';
 
 // ── Initialize Firebase ────────────────────────────────────────────────────
 
@@ -49,10 +50,22 @@ initFirebase();
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
-async function getDeviceTokens(userId) {
-  if (!isMongoConnected()) return [];
-  const user = await UserConfig.findOne({ userId }).select('deviceTokens').lean();
-  return user?.deviceTokens || [];
+async function getTargets(userId) {
+  if (!isMongoConnected()) return { tokens: [], subs: [] };
+  const user = await UserConfig.findOne({ userId }).select('deviceTokens pushSubscriptions').lean();
+  return { tokens: user?.deviceTokens || [], subs: user?.pushSubscriptions || [] };
+}
+
+/** Every device the owner has: native app (FCM) and installed web app / browser (Web Push). */
+async function deliver(userId, notification, data = {}) {
+  const { tokens, subs } = await getTargets(userId);
+  if (!tokens.length && !subs.length) return { success: false, reason: 'no_tokens' };
+  const [fcm, web] = await Promise.all([
+    tokens.length ? sendToTokens(tokens, notification, data) : { success: false },
+    sendWebPush(subs, { title: notification.title, body: notification.body, url: data.callId ? `/call/${encodeURIComponent(data.callId)}` : '/', tag: data.type, urgent: data.priority === 'critical' || data.type === 'scam_blocked' || data.type === 'urgent_call' })
+  ]);
+  if (web.stale.length) await UserConfig.updateOne({ userId }, { $pull: { pushSubscriptions: { endpoint: { $in: web.stale } } } }).catch(() => {});
+  return { success: !!fcm.success || web.sent > 0, fcm, web: { sent: web.sent } };
 }
 
 async function sendToTokens(tokens, notification, data = {}) {
@@ -120,17 +133,11 @@ async function sendToTokens(tokens, notification, data = {}) {
  * Send push notification for an incoming/active call
  */
 export const sendLiveCallNotification = async (userId, callData) => {
-  const tokens = await getDeviceTokens(userId);
-  if (tokens.length === 0) {
-    logger.debug(`No device tokens for ${userId} — skipping push`);
-    return { success: false, reason: 'no_tokens' };
-  }
-
   const callerDisplay = callData.callerName && callData.callerName !== 'Unknown'
     ? callData.callerName
     : callData.callerNumber || 'Unknown';
 
-  return sendToTokens(tokens, {
+  return deliver(userId, {
     title: `📞 Call from ${callerDisplay}`,
     body: callData.context || 'Your AI assistant is handling a call',
     sound: 'default',
@@ -148,15 +155,12 @@ export const sendLiveCallNotification = async (userId, callData) => {
  * Send push notification with call summary after call ends
  */
 export const sendCallSummaryNotification = async (userId, callSummary) => {
-  const tokens = await getDeviceTokens(userId);
-  if (tokens.length === 0) return { success: false, reason: 'no_tokens' };
-
   const callerDisplay = callSummary.callerName || callSummary.callerNumber || 'Unknown';
   const summary = callSummary.summary
     ? callSummary.summary.slice(0, 200)
     : 'Tap to view call details';
 
-  return sendToTokens(tokens, {
+  return deliver(userId, {
     title: `Call from ${callerDisplay}`,
     body: summary,
   }, {
@@ -170,10 +174,8 @@ export const sendCallSummaryNotification = async (userId, callSummary) => {
  * Send urgent/priority push (e.g. emergency keyword detected)
  */
 export const sendUrgentCallNotification = async (userId, callData) => {
-  const tokens = await getDeviceTokens(userId);
-  if (tokens.length === 0) return { success: false, reason: 'no_tokens' };
 
-  return sendToTokens(tokens, {
+  return deliver(userId, {
     title: `🚨 Urgent call from ${callData.callerName || callData.callerNumber}`,
     body: callData.reason || 'Emergency keyword detected — tap to join',
     sound: 'critical',
@@ -191,9 +193,7 @@ export const sendUrgentCallNotification = async (userId, callData) => {
  * Scam shield fired: tell the owner (or a guardian) what was blocked and why.
  */
 export const sendScamAlertNotification = async (userId, data) => {
-  const tokens = await getDeviceTokens(userId);
-  if (tokens.length === 0) return { success: false, reason: 'no_tokens' };
-  return sendToTokens(tokens, {
+  return deliver(userId, {
     title: `🛡️ Scam call blocked: ${data.label || 'likely scam'}`,
     body: data.phrase ? `“${String(data.phrase).slice(0, 110)}”` : `From ${data.callerNumber || 'unknown number'}`,
     badge: 1,
@@ -204,6 +204,12 @@ export const sendScamAlertNotification = async (userId, data) => {
     action: 'view_call',
   });
 };
+
+/**
+ * Any other owner notification (promise reminders, family alerts, Vexa Link chats).
+ * @param {{ title: string, body: string, type?: string, callId?: string }} n
+ */
+export const notifyUser = (userId, n) => deliver(userId, { title: n.title, body: n.body }, { type: n.type || 'notice', callId: n.callId || '' });
 
 /**
  * Generic push notification
@@ -227,4 +233,5 @@ export default {
   sendLiveCallNotification,
   sendUrgentCallNotification,
   sendScamAlertNotification,
+  notifyUser,
 };

@@ -90,6 +90,10 @@ export interface UserConfig {
   about: string
   businessProfile: BusinessProfile
   packs?: string[]
+  link?: { enabled?: boolean; slug?: string; dailyLimit?: number }
+  agentApi?: { enabled: boolean; keyLast4: string | null; createdAt: string | null }
+  pushDevices?: number
+  email?: string
   aiSettings: { voice?: string; tone?: string; greeting?: string; language?: string }
   recording?: { enabled?: boolean; announce?: boolean; retentionDays?: number }
   callCategories: CallCategory[]

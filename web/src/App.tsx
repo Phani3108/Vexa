@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { BrainCircuit, PhoneIncoming, ShieldCheck, Workflow } from 'lucide-react'
 import { useAuth } from './lib/auth'
 import { LiveProvider } from './lib/live'
@@ -18,6 +18,8 @@ import Me from './pages/Me'
 import Settings from './pages/Settings'
 import Bookings from './pages/Bookings'
 import Packs from './pages/Packs'
+import Talk from './pages/Talk'
+import LinkSettings from './pages/LinkSettings'
 
 /** Phone-sized app; on desktop it sits in a device frame. */
 function Stage({ children }: { children: ReactNode }) {
@@ -44,6 +46,12 @@ const full = (el: ReactNode) => <main className="screen full">{el}</main>
 
 export default function App() {
   const { token, config, loading } = useAuth()
+  const { pathname } = useLocation()
+
+  // Public pages: no sign-in (Vexa Link, interpreter guest)
+  if (pathname.startsWith('/l/')) {
+    return <Stage><Routes><Route path="/l/:slug" element={<main className="screen full"><Talk /></main>} /></Routes></Stage>
+  }
 
   if (!token) {
     return (
@@ -86,6 +94,7 @@ export default function App() {
           <Route path="/me/:section" element={full(<Settings />)} />
           <Route path="/bookings" element={full(<Bookings />)} />
           <Route path="/packs" element={full(<Packs />)} />
+          <Route path="/link" element={full(<LinkSettings />)} />
           <Route path="/onboarding" element={<Onboarding />} />
           <Route path="/login" element={<Navigate to="/" replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />

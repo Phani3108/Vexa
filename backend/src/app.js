@@ -26,6 +26,9 @@ import contextRoutes from './routes/context.js';
 import simulatorRoutes from './routes/simulator.js';
 import workflowRoutes from './routes/workflows.js';
 import packRoutes from './routes/packs.js';
+import pushRoutes from './routes/push.js';
+import { publicLinkRouter, linkSettingsRouter } from './routes/link.js';
+import { attachIO as attachLinkIO } from './services/linkService.js';
 import { assistantRouter, bookingsRouter } from './routes/assistant.js';
 import { attachIO as attachSimulatorIO } from './services/simulatorService.js';
 import { callMediaRouter, mediaRouter, enforceRecordingRetention } from './routes/media.js';
@@ -176,7 +179,11 @@ app.use('/api/workflows', workflowRoutes);
 app.use('/api/assistant', assistantRouter);
 app.use('/api/bookings', bookingsRouter);
 app.use('/api/packs', packRoutes);
+app.use('/api/push', pushRoutes);
+app.use('/api/link', linkSettingsRouter);
+app.use('/api/public/link/:slug', publicLinkRouter);
 attachSimulatorIO(io);
+attachLinkIO(io);
 
 if (voiceConfig) {
   initVoiceRoutes(voiceConfig, io);

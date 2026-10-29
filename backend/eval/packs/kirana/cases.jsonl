@@ -2,5 +2,5 @@
 {"id": "kirana-out-of-stock", "pack": "kirana", "turns": ["2 milk aur 1 atta deliver kar do"], "expect": {"flow": "home_order", "say": ["Milk.*not available"]}}
 {"id": "kirana-order-status", "pack": "kirana", "turns": ["where is my order K221"], "expect": {"flow": "order_status", "status": "completed", "say": ["out for delivery"], "notSay": ["Shop 4"]}}
 {"id": "kirana-status-stranger", "pack": "kirana", "caller": "+919822222222", "turns": ["order status K221"], "expect": {"flow": "order_status", "notSay": ["out for delivery"]}}
-{"id": "kirana-stock-question", "pack": "kirana", "turns": ["LED bulb hai kya?", "5"], "expect": {"say": ["bulb"]}}
+{"id": "kirana-stock-question", "pack": "kirana", "turns": ["LED bulb hai kya? kitne ka hai?", "5 bulb aur 1 sugar", "Flat 9, Hill View, Kondapur", "Meena", "yes"], "expect": {"flow": "home_order", "status": "completed", "say": ["in stock", "₹99", "₹543"]}}
 {"id": "kirana-upi", "pack": "kirana", "turns": ["do you accept UPI?"], "expect": {"say": ["UPI"]}}

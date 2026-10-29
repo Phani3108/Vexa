@@ -21,6 +21,7 @@ const callSchema = new mongoose.Schema({
   duration: { type: Number, default: 0 },                        // seconds
 
   // true for calls made from the dashboard "Test your receptionist" simulator
+  channel: { type: String, enum: ['phone', 'test', 'link', 'agent'], default: 'phone' },
   isTest: { type: Boolean, default: false, index: true },
 
   transcript: [{

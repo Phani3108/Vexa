@@ -6,6 +6,7 @@ export default {
   name: 'Kirana & hardware store',
   industry: 'retail',
   icon: 'store',
+  replaces: ['product_inquiry'],   // "LED bulb hai kya?" is answered inside the order flow, so the cart starts right away
   description: 'Checks stock and price, takes home-delivery orders with an exact total, texts a UPI payment link, and tells customers where their order is.',
   guardrails: { refuse: [] },
   flows: [
@@ -16,9 +17,9 @@ export default {
       icon: 'truck',
       priority: 2,
       maxTurns: 14,
-      trigger: { keywords: ['home delivery', 'deliver', 'delivery', 'bhej do', 'bhejo', 'bhej dijiye', 'send', 'ghar pe', 'pampandi', 'pampinchandi', 'anuppunga', 'ayachu tharu', 'pathva', 'mokli do', 'order'] },
+      trigger: { keywords: ['hai kya', 'do you have', 'available', 'stock', 'price', 'how much', 'kitne ka', 'home delivery', 'deliver', 'delivery', 'bhej do', 'bhejo', 'bhej dijiye', 'send', 'ghar pe', 'pampandi', 'pampinchandi', 'anuppunga', 'ayachu tharu', 'pathva', 'mokli do', 'order'] },
       slots: [
-        { key: 'items', label: 'Order', type: 'order', prompt: 'Sure! What would you like delivered?' },
+        { key: 'items', label: 'Order', type: 'order', prompt: 'What would you like delivered, and how many?' },
         { key: 'address', label: 'Delivery address', type: 'address', prompt: 'What\'s the delivery address?' },
         NAME
       ],

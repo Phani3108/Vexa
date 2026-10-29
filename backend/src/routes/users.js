@@ -23,6 +23,13 @@ function resolveUserId(req) {
   return req.user?.userId || null;
 }
 
+/** The owner's config minus server-only secrets (agent key hash, push endpoints, device tokens). */
+function publicConfig(c) {
+  if (!c) return c;
+  const { deviceTokens, pushSubscriptions, agentApi, googleSub, ...rest } = c;
+  return { ...rest, pushDevices: (pushSubscriptions?.length || 0) + (deviceTokens?.length || 0), agentApi: { enabled: !!agentApi?.enabled, keyLast4: agentApi?.keyLast4 || null, createdAt: agentApi?.createdAt || null } };
+}
+
 // ── Config ───────────────────────────────────────────────────────────────────
 
 // GET /api/users/config
@@ -31,7 +38,7 @@ router.get('/config', async (req, res) => {
     const userId = resolveUserId(req);
     const config = await userConfigService.getUser(userId);
     if (!config) return res.status(404).json({ error: 'User not found' });
-    res.json({ config });
+    res.json({ config: publicConfig(config) });
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch user config' });
   }
@@ -44,7 +51,7 @@ router.put('/config', async (req, res) => {
     const userId = resolveUserId(req);
     const config = await userConfigService.updateEditable(userId, req.body || {});
     if (!config) return res.status(404).json({ error: 'User not found' });
-    res.json({ config, message: 'Saved' });
+    res.json({ config: publicConfig(config), message: 'Saved' });
   } catch (err) {
     res.status(err.status || 500).json({ error: err.status ? err.message : 'Failed to save user config' });
   }
@@ -78,7 +85,7 @@ router.post('/onboarding', async (req, res) => {
         ...(businessProfile?.timezone ? { businessProfile: { timezone: businessProfile.timezone } } : {}),
         onboardingCompleted: true
       });
-      return res.json({ config, message: 'Your AI assistant is ready' });
+      return res.json({ config: publicConfig(config), message: 'Your AI assistant is ready' });
     }
     if (businessProfile.transferNumber && !isValidE164(businessProfile.transferNumber)) {
       return res.status(400).json({ error: 'Transfer number must be in E.164 format, e.g. +14155551234' });
@@ -93,7 +100,7 @@ router.post('/onboarding', async (req, res) => {
       ...(aiSettings ? { aiSettings } : {}),
       onboardingCompleted: true
     });
-    res.json({ config, message: 'Your AI receptionist is ready' });
+    res.json({ config: publicConfig(config), message: 'Your AI receptionist is ready' });
   } catch (err) {
     console.error('Onboarding error:', err);
     res.status(err.status || 500).json({ error: err.status ? err.message : 'Onboarding failed' });
@@ -116,7 +123,7 @@ router.post('/mode', async (req, res) => {
   } else {
     await userConfigService.updateUser(userId, { accountType: 'personal', callCategories: DEFAULT_CATEGORIES, workflows: null });
   }
-  res.json({ config: await userConfigService.getUser(userId) });
+  res.json({ config: publicConfig(await userConfigService.getUser(userId)) });
 });
 
 // POST /api/users/demo-data — load sample calls so the dashboard can be explored (dev/demo only)
