@@ -41,6 +41,12 @@ It works in two modes:
 | Memory hygiene | Storing secrets or scam content | `memoryService.saveFromCall` | Nothing from spam/scam calls; OTP/PIN/card-like text dropped; owner-only |
 | Google sign-in verification | Forged sign-in tokens | `routes/auth.js` `/google` | Signature, audience, expiry and verified email checked; off unless `GOOGLE_CLIENT_ID` |
 | Server-only fields | Leaking push endpoints or device tokens | `routes/users.js` `publicConfig` | Stripped from every config response |
+| Daily AI budget and kill switch | Runaway model cost | `services/quotaService.js`, `lib/llm.js` | $5/day per account (owner-set, max `MAX_DAILY_AI_BUDGET_USD`); alerts at 80% and 100%; over budget → offline rules; `AI_KILL_SWITCH` |
+| Call length ceiling | Endless or abusive live calls | `voice/VoiceAgent.js` | Wraps up and hangs up at `MAX_CALL_SECONDS` (900) |
+| Import URL allow-list | Server-side request forgery | `services/importService.js` `sheetCsvUrl` | Only `https://docs.google.com/spreadsheets/…` CSV exports; 900 KB, 2,000 rows, 15 s |
+| Booking transitions | Reopening cancelled bookings by mistake | `routes/assistant.js` | requested → confirmed/declined/cancelled; confirmed → cancelled; declined → requested; else 409 |
+| Your data | Data kept after an owner leaves | `services/accountService.js` | Export everything; delete account erases calls, recordings, memories, family links |
+| Supply chain and container | Vulnerable dependencies; root in the container | `.github/workflows/ci.yml`, `Dockerfile` | `npm audit --audit-level=high` fails CI (backend + web); image runs as `node` with a HEALTHCHECK |
 
 ### Evals and quality gates
 
@@ -48,8 +54,8 @@ It works in two modes:
 |---|---|---|---|---|
 | Indian-language understanding set (`backend/eval/nlu`) | Language, code-mixing, facts, yes/no, phone numbers across 8 languages (161 cases) | Every change in CI (offline, `--min 0.97`); `-- --mode claude` on demand | ≥ 97% offline (CI gate); ≥ 90% mixed-language target | Live · offline 99%, Claude 100% (157-case run) |
 | Held-out set (`holdout.jsonl`) | Same, 50 new phrasings never tuned against | Every change in CI (`--min 0.95`) | Should track the main set | Live · offline 98%, Claude 100% |
-| Pack + scam eval (`backend/eval/packs`) | 45 scripted calls across 7 packs (flow, outcome, actions, refusals, what must never be said) and 26 scam scripts plus lookalike genuine calls (precision, recall, leaks) | Every change in CI (offline, `--min 1`); `-- --mode claude` on demand | 100% and zero leaks (CI gate) | Live · offline 71/71, scam precision 1.0, recall 1.0, 0 leaks |
-| Backend unit tests | Flows, extractors, emergency, shields, Focus, sanitizer, recorder, Indian numbers/dates/yes-no, stream-token and log-redaction security, packs, orders, records, listings, refusals, scam shield, UPI links; memories, Ask Vexa parsing, link names, push subscriptions, interpreter fallback, agent tool schemas | `npm test` before release | All pass | Live · 69 tests passing, run in CI |
+| Pack + scam eval (`backend/eval/packs`) | 45 scripted calls across 7 packs (flow, outcome, actions, refusals, what must never be said) and 26 scam scripts plus lookalike genuine calls (precision, recall, leaks); accounts pass through the real database schema | Every change in CI (offline, `--min 1`); `-- --mode claude` on demand | 100% and zero leaks (CI gate) | Live · offline 71/71, scam precision 1.0, recall 1.0, 0 leaks |
+| Backend unit tests | Flows, extractors, emergency, shields, Focus, sanitizer, recorder, Indian numbers/dates/yes-no, stream-token and log-redaction security, packs, orders, records, listings, refusals, scam shield, UPI links; memories, Ask Vexa parsing, link names, push subscriptions, interpreter fallback, agent tool schemas; daily budget, CSV import and Sheets allow-list | `npm test` before release | All pass | Live · 71 tests passing, run in CI |
 | Mobile tests | App render, API client, transcript store | `jest` in `mobile/` | All pass | Partial · 9 tests |
 | Web app checks | Type safety and build | `tsc -b && vite build`, `oxlint` | No errors | Partial · no unit tests |
 | Runtime quality signals | Model used per turn, latency, tokens and cost by purpose, questions asked/skipped, risk, action status | Every call (saved on the call) | — | Live |
@@ -57,6 +63,8 @@ It works in two modes:
 | Speech eval on real Indian voices | Word error rate, language detection, facts from audio, reply latency | Planned (Phase 1B/1C) | ≥ 95% facts clean, ≥ 90% noisy, ≤ 1.5 s p95 | Planned |
 | CI pipeline | Backend tests, understanding gate, web lint and build, Docker build, dependency audit | GitHub Actions on every push and pull request (`.github/workflows/ci.yml`) | All jobs green | Live |
 | Live checks with Claude (manual, this release) | Vexa Link order → UPI button; memory quote and promise answered; Hindi⇄Telugu interpreter; family scam alert; agent-to-agent order; production Docker image with MongoDB | Before release | All pass | Partial · scripted, not in CI |
+| Fast-model comparison (`eval/nlu/FAST_MODELS.md`) | Understanding accuracy, facts, latency and cost per model | On demand when changing models | Choose the model with 100% facts | Live · Sonnet 5.5 98% / 100% facts at 2.1 s; Haiku 5.5 96% |
+| Dependency audit | High and critical advisories in production dependencies | Every change in CI (backend and web) | 0 high, 0 critical | Live · passes (8 moderate behind firebase-admin 14) |
 
 ---
 
@@ -66,12 +74,12 @@ How an owner sets Vexa up, how every call is answered, understood and acted on, 
 
 ![Vexa — end-to-end workflow](workflow.png)
 
-<sub>Source of truth: Phani3108/Vexa, branch wave1-rest (commit a2aa584, 29 Oct 2026) · Full readout with every table: [readout.html](readout.html) (open locally or download).</sub>
+<sub>Source of truth: Phani3108/Vexa, branch ship-wave1 (commit cdf7d07, 29 Oct 2026) · Full readout with every table: [readout.html](readout.html) (open locally or download).</sub>
 
 | | |
 |---|---|
 | **Scope** | UC1 Set up the assistant · UC2 Answer a call (live phone calls and in-app test calls) · UC3 After the call. Personal and Business modes share the same pipeline. · UC4 Beyond the phone line: Vexa Link, interpreter, agent API · Wave 1: packs, scam shield, memory, family guardian |
-| **Source of truth** | github.com/Phani3108/Vexa · branch `wave1-rest` · commit `a2aa584` · 29 Oct 2026 · backend/src, web/src, backend/.env.example, Dockerfile, docker-compose.yml, .github/workflows, backend/test, backend/eval |
+| **Source of truth** | github.com/Phani3108/Vexa · branch `ship-wave1` · commit `cdf7d07` · 29 Oct 2026 · backend/src, web/src, backend/.env.example, Dockerfile, docker-compose.yml, .github/workflows, backend/test, backend/eval |
 | **Planned items** | From ROADMAP.md (India-first plan): Indian speech engines and voices, Indian phone number, WhatsApp, UPI, calendar and CRM. Drawn as Not integrated. |
 | **Live status** | Text understanding, flows, analysis, translation and the app run end to end today. The live phone path (Twilio + OpenAI Realtime) is complete in code but has not been run on a real call: no Twilio or OpenAI keys are configured. |
 | **Prepared by** | Phani Marupaka with Claude Code · 29 Oct 2026 |
@@ -302,17 +310,19 @@ Claude is used for all text intelligence when `ANTHROPIC_API_KEY` is set (OpenAI
 | `GOOGLE_CLIENT_ID` | Shows "Continue with Google" and enables `/api/auth/google` | Unset (off) |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` | Web Push notifications | Generated in `backend/.data` in development; off in production until set |
 | `PUBLIC_URL` (or Render's `RENDER_EXTERNAL_URL`) | Allowed origin and webhook base | Unset |
+| `DAILY_AI_BUDGET_USD` / `MAX_DAILY_AI_BUDGET_USD` | Default and maximum daily AI budget per account | 5 / 50 |
+| `AI_KILL_SWITCH` | Turns every model call off (offline rules only) | Unset (off) |
+| `MAX_CALL_SECONDS` | Live call length ceiling | 900 |
 
 </details>
 
 <details><summary><b>Known gaps (from the code)</b></summary>
 
 - The live phone path (Twilio + OpenAI Realtime) is complete in code but has not run on a real call; no keys are configured.
-- Unused code and dependencies: `config/redis.js`, `pg`, `bcrypt`.
 - Per-turn replies take 2–9 s on Opus; a fast model (e.g. Haiku) is recommended for live calls.
 - Active calls, test sessions, Vexa Link sessions, interpreter rooms and rate-limit counters live in memory: one server instance only, and a restart drops them.
 - Hosting is configured (`render.yaml`, `docs/DEPLOY.md`) but needs the owner's Render, Atlas and Google accounts; demo v3 is scripted, not yet recorded.
-- Catalog, records and listings are entered in the app or loaded from a pack; CSV / Sheets import is not built yet.
+- Readiness review (README, Production Readiness): ready for the internet-first beta, not for live phone calls; 14 open items with owners.
 
 </details>
 
@@ -420,198 +430,235 @@ render.yaml         Render blueprint; docs/DEPLOY.md walks through hosting
 | Interpreter | Owner `POST /api/interpreter`, `GET /:room`, `POST /:room/say`, `PUT /:room/lang`, `DELETE /:room`; guest `/api/public/interpreter/:room` (`join`, `say`, `lang`) |
 | Agent API | Public `GET /api/agent/v1/:slug` (manifest + tools), `POST /api/agent/v1/:slug/call`; owner `GET/PUT /api/agent-settings` |
 | Push | `GET /api/push/key`, `POST/DELETE /api/push/subscribe`, `POST /api/push/test` |
+| Usage and budget | `GET /api/usage`, `PUT /api/usage/budget` `{ dailyAiUsd }` |
+| Import | `POST /api/import` `{ kind: catalog|records|listings, csv \| url (Google Sheets), mode, dryRun }` |
+| Your data | `GET /api/account/export`, `DELETE /api/account` `{ confirm: "DELETE" }` |
 | Mobile context | `POST /api/context/outgoing-call`, `GET/PUT /api/context/caller/:phoneNumber`, `GET/PUT /api/context/user-profile`, `GET /api/context/summary` |
 | Voice | Twilio webhooks `POST /voice/incoming-call`, `/voice/call-status` (signature-checked in production); owner actions `POST /voice/takeover`, `/voice/whisper`, `/voice/end-call`, `/voice/outbound-call` |
 
 All routes need `Authorization: Bearer <token>` except sign-in (`/api/auth/otp/*`, `/api/auth/google`, `/api/auth/refresh`), `GET /api/meta`, `GET /health`, the public Vexa Link, interpreter-guest and agent routes (rate-limited), Twilio webhooks and signed recording links. Socket.io connects with `io(url, { auth: { token } })`.
 
-Plans: [ROADMAP.md](ROADMAP.md).
+Plans: [ROADMAP.md](ROADMAP.md). Reporting a vulnerability: [SECURITY.md](SECURITY.md).
 
 ## Production Readiness
 
-> **Out of date — re-review pending.** This review covers commit `a5b69c5` (26 Oct). Since then: CI with release gates (`.github/workflows/ci.yml`), 69 backend tests, the pack + scam eval (71/71, 0 leaks), stream authentication, log redaction, rate limits and daily caps on public routes. Blockers 1 and 4 below are partly addressed; the rest still stand.
+**Review**
+- **Date:** 2026-10-29.
+- **Reviewer:** Claude Code, for Phani Marupaka.
+- **Scope:** branch `ship-wave1` (PR #7) at commit `cdf7d07`. This replaces the 2026-10-26 review of `a5b69c5`.
+- **Source and method:** repo files only, following `.claude/skills/project-completion-gate/SKILL.md`.
 
-Review date: 2026-10-26. Reviewer: Claude Code, for Phani Marupaka. Scope: repo at commit `a5b69c5` on `main`. Source: repo files only. Method: `.claude/skills/project-completion-gate/SKILL.md`.
+**Run in this review**
+- `cd backend && npm test`: 71 pass, 0 fail (7 files in `backend/test/`).
+- `npm run eval:packs -- --min 1`: 71/71, scam precision 1.0, recall 1.0, 0 leaks.
+- `npm run eval:nlu -- --min 0.97`: 98.8% (offline).
+- `npm audit --omit=dev --audit-level=high`: passes for backend and web.
+- `docker build`, then the container run as user `node` against MongoDB 7: health check `healthy`.
+- `npm run check:deploy`: Claude answers on both configured models.
 
-- Backend unit tests ran in this review: `cd backend && npm ci && npm test` gave 36 pass, 0 fail (`backend/test/*.test.js`).
-- Not run in this review: web build, mobile tests, Docker build, any live Twilio or OpenAI call.
+**Not run**
+- Any live phone call (Twilio/Exotel + OpenAI Realtime).
+- The hosted deployment, which isn't created yet.
+- Mobile tests.
 
-### Verdict: Not ready
+### Verdict
+**Ready for the internet-first beta. Not ready for live phone calls.**
 
-- Rule from the gate: Ready needs no Missing on Guardrails, Security or Human in the loop, and evals must gate the release.
-- No dimension is Missing on Guardrails, Security or Human in the loop. All three are Partial, with gaps listed below.
-- Evals do not gate a release: no CI exists (`.github/`: Not found in repo).
-- Blockers, in order:
-  1. No CI or release gate. Tests are never run automatically.
-  2. No per-call duration or cost ceiling on live calls.
-  3. Live voice path not run end to end (`ROADMAP.md`, "Known gaps").
-  4. No dependency or container scanning, no `SECURITY.md`.
-  5. No tracing, error alerting or cost alerting.
+The gate's rule: no Missing on Guardrails, Security or Human in the loop, and evals gate the release.
+- **It holds for the internet-first beta.** That is what `docs/DEPLOY.md` hosts: the installed web app, Vexa Link, the interpreter and the agent API, with no phone line.
+  - Guardrails, Security and Human in the loop are all Partial; none is Missing.
+  - Three CI gates block a release (`.github/workflows/ci.yml`): the understanding eval, the pack + scam eval, and the dependency audit.
+- **It does not hold for live phone calls.** The voice path has never run end to end, so no eval covers it.
+
+**Blockers for live phone calls, in order:**
+1. **Live voice path never run end to end** (`ROADMAP.md`, L0 note). Latency, barge-in, transfer and recording are unproven on a real line.
+2. **No error alerting or tracing.** A failing call is only visible by reading logs.
+3. **Shared state is in process memory.** This covers active calls, rate limits, Link sessions and interpreter rooms. One instance only; a restart drops live calls.
+
+**Before inviting beta users:** deploy, then repeat the hosted checks (open items 1–2).
 
 ### Scorecard
 
 | Dimension | Status | Main evidence |
 |---|---|---|
-| Guardrails | Partial | `backend/src/workflows/engine.js`, `backend/src/voice/PromptGenerator.js`, `backend/src/app.js` |
-| Evals | Partial | `backend/test/*.test.js` |
-| Observability | Partial | `backend/src/config/logger.js`, `backend/src/lib/usage.js` |
-| Security | Partial | `backend/src/middleware/auth.js`, `backend/src/routes/voice.js` |
-| Human in the loop | Partial | `backend/src/routes/assistant.js`, `backend/src/routes/voice.js` |
-| Architecture diagrams | Present (this section) | Derived from the files cited under each diagram |
+| Guardrails | Partial | `workflows/engine.js`, `workflows/scam.js`, `packs/*`, `services/quotaService.js`, `app.js`, `routes/link.js`, `routes/agent.js` |
+| Evals | Present (text); Missing (voice) | `backend/test/*`, `eval/nlu/*`, `eval/packs/*`, `.github/workflows/ci.yml` |
+| Observability | Partial | `config/logger.js`, `lib/redact.js`, `lib/usage.js`, `models/mongodb/UsageDay.js` |
+| Security | Partial | `middleware/auth.js`, `routes/auth.js`, `lib/streamToken.js`, `services/importService.js`, `SECURITY.md`, `Dockerfile` |
+| Human in the loop | Partial | `routes/assistant.js` (bookings), `workflows/outcomes.js`, `services/agentService.js`, `services/familyService.js`, `routes/voice.js` |
+| Architecture diagrams | Present (below) | Derived from the files cited under each diagram |
+| README | Present | Run, test, deploy, API, guardrails/evals tables, this section |
 
 ### 1. Guardrails: Partial
 
 Present:
-- Request size and rate limits: JSON body 1 MB, `/api/` 600 per 15 min, `/voice/outbound-call` 10 per min, simulator 40 per min, Ask Vexa 30 per min, OTP request and verify limiters (`backend/src/app.js`, `backend/src/routes/simulator.js`, `backend/src/routes/assistant.js`, `backend/src/routes/auth.js`).
-- Prompt-injection handling for owner-supplied text: `_sanitize` strips markdown characters and replaces known phrases such as "ignore previous instructions" (`backend/src/voice/PromptGenerator.js`). It is a phrase list, not a full defence.
-- Flow engine decides each reply; the realtime model only speaks it (`create_response: false`, per `ROADMAP.md`). Flows are validated before use (`backend/src/workflows/validate.js`).
-- Turn cap per flow: `maxTurns`, clamped to 2-20, default 10 (`backend/src/workflows/validate.js`, `backend/src/workflows/engine.js` line 675).
-- Output schema: Claude calls use `json_schema` structured output (`backend/src/lib/claude.js`).
-- Fallback: NLU timeout (`NLU_TIMEOUT_MS`, default 5000 ms) falls back to the offline extractors (`backend/src/workflows/nlu.js`). Claude client uses `maxRetries: 1`.
-- Allow-listed actions: `create_lead`, `book_request`, `send_sms`, `notify_owner`, `tag_spam` (`backend/src/workflows/validate.js`, `backend/src/workflows/outcomes.js`).
+- **Size and rate limits:**
+  - JSON body 1 MB; `/api/` 600 per 15 minutes (`app.js`).
+  - Vexa Link: 10 starts per hour and 30 messages per minute per IP, 40 messages per chat, and an owner daily limit (`routes/link.js`, `services/linkService.js`).
+  - Agent API: 60 requests per minute per IP and a daily write cap (`routes/agent.js`, `services/agentService.js`).
+  - Interpreter: 20 messages per minute and 300 per room (`routes/interpreter.js`).
+  - Import: 900 KB and 2,000 rows (`services/importService.js`).
+- **Cost and loop ceilings:**
+  - Daily AI budget per account, alerts at 80% and 100%; over budget, model calls are refused at the client and flows run on offline rules (`services/quotaService.js`, `lib/llm.js`).
+  - `AI_KILL_SWITCH` turns every model call off.
+  - Live calls end at `MAX_CALL_SECONDS` (default 900) (`voice/VoiceAgent.js`).
+  - Flow `maxTurns` is 2–20 (`workflows/validate.js`), and the engine has a 50-step loop guard (`workflows/engine.js`).
+- **Prompt boundaries:**
+  - The understanding and interpreter prompts state that caller and speaker words are data, never instructions (`workflows/nlu.js`, `services/interpreterService.js`).
+  - Owner text is sanitised (`voice/PromptGenerator.js`).
+  - Structured JSON-schema output (`lib/claude.js`).
+- **Fallbacks:** on a timeout, refusal or budget stop, understanding falls back to offline rules (`workflows/nlu.js`), analysis to keyword rules (`voice/ConversationAnalyzer.js`), and translation to English (`lib/translate.js`).
+- **Refusals:** each pack has its own refusal rules, such as no medical advice, allergen promises, fixed quotes, guaranteed marks, or filtering by religion or caste (`packs/*.js`, `engine.js` `refusalFor`). The scam shield ends fraud scripts and OTP/PIN requests (`workflows/scam.js`).
+- **Allow-listed actions:** `create_lead`, `book_request`, `send_sms`, `notify_owner`, `tag_spam`, `pay_link` (`workflows/validate.js`, `workflows/outcomes.js`).
+- **Grounding:**
+  - Prices and stock come only from the catalog.
+  - Records are read out only to the phone number on them (`engine.js` `lookupRecord`).
+  - The agent `ask` tool answers only from published information, or "unknown" (`services/agentService.js`).
+  - Memory answers come only from saved notes (`services/memoryService.js`).
 
 Gaps and what can go wrong:
-- Per-call duration cap and per-call cost ceiling: Not found in repo (`TODO.md` section 9 lists them unchecked). A stuck or abusive call can run and bill until the caller or Twilio ends it.
-- Caller speech is passed to the model as the user message in `backend/src/workflows/nlu.js`. Injection handling there rests on structured output only; `_sanitize` is not applied to it. A caller could try to steer extraction. Structured output limits the damage; it does not remove it.
-- OpenAI fallback path: schema is described in the prompt only (`backend/src/lib/llm.js`). Output can fail to match the schema.
-- PII filtering on output or on stored transcripts: Not found in repo. Transcripts hold whatever callers say.
-- Voice-to-flow transfer is triggered by matching the phrase "transferring you now" in the AI's own words (`backend/src/voice/VoiceAgent.js` line 674). A paraphrase would not trigger a transfer.
+- **OpenAI fallback path:** the schema is only described in the prompt (`lib/llm.js`), so output can fail to match it. This path is used only when no Claude key is set.
+- **Transcripts are stored as spoken.** Memories drop OTP/PIN-like text (`memoryService.js`); transcripts don't.
+- **Voice transfer depends on a phrase:** it fires when the realtime model says "transferring you now" (`voice/VoiceAgent.js`, around line 728). A paraphrase would not transfer.
 
-Action: add a hard call-duration limit in `VoiceAgent` and a per-call cost ceiling using the ledger in `backend/src/lib/usage.js`.
+Action: run a red-team pass of caller-injection attempts through `eval/packs` (scam set format), with a CI threshold.
 
-### 2. Evals: Partial
+### 2. Evals: Present for text and flows, Missing for live voice
 
 Present:
-- 36 backend tests with expected outcomes: engine conversations, extractors, Ask Vexa grammar, hours, multilingual (`backend/test/core.test.js`, `backend/test/workflows.test.js`, `backend/test/multilingual.test.js`). They passed in this review.
-- Mobile tests: `mobile/__tests__/` (3 files). Not run in this review.
-- Per-call cost and latency are recorded (`backend/src/lib/usage.js`), and sample costs are in `demo/output/COSTS.md`.
+- **Unit tests:** 71 backend tests across `core`, `indic`, `multilingual`, `security`, `workflows`, `packs` and `wave1b`, run in CI.
+- **Understanding eval:** 161 cases plus 50 held out, in 8 languages. CI gates at ≥ 97% and ≥ 95% offline (`eval/nlu/run.mjs`, `ci.yml`). The model mode is run on demand; results are in `eval/nlu/FAST_MODELS.md`.
+- **Pack + scam eval:** 71 scripted calls through the real Mongoose schema, gated at 100% with 0 leaks (`eval/packs/run.mjs`, `ci.yml`). It caught the stock-default bug (`FAST_MODELS.md` notes; commit `995bd5f`).
+- **Cost and latency:** recorded on every call (`lib/usage.js`), with a per-day total (`UsageDay`).
 
 Gaps and what can go wrong:
-- CI: Not found in repo (no `.github/`, no other CI config). A broken change can merge and ship unnoticed.
-- Test set for model-backed behaviour (Claude extraction, translation, post-call analysis) with pass thresholds: Not found in repo. Tests cover the offline engine; model quality can regress silently.
-- Judge calibration: Not applicable, no LLM grader found in repo.
-- Web tests: Not found in repo (`web/package.json` has no test script).
-- Tests run against the live voice path: Not found in repo. `ROADMAP.md` says the voice path has not been run end to end.
+- **Live voice path tests:** Not found in repo. The realtime path can regress unnoticed.
+- **Web unit tests:** Not found in repo (`web/package.json` has no test script). CI type-checks, lints and builds the web app only.
+- **Mobile tests:** `mobile/__tests__/` (3 files) is not in CI. The launch plan retires `mobile/` (`docs/LAUNCH_PLAN.md`, L3).
+- **Model-mode evals are not in CI** (they cost money), so a model change is caught only if someone runs them.
+- **Judge calibration:** not applicable; no LLM grader in the repo.
 
-Action: add a GitHub Actions workflow that runs `npm test` in `backend/` and `web` build on every PR, and make it a required check.
+Action: add a recorded-audio harness for `/voice/media-stream` with a stub realtime server (`docs/LAUNCH_PLAN.md` verification section).
 
 ### 3. Observability: Partial
 
 Present:
-- Winston logger, JSON format in production, file transports with rotation (`backend/src/config/logger.js`).
-- Per-call AI usage ledger: tokens, cost, latency by purpose (`backend/src/lib/usage.js`).
-- `/health` endpoint returns 503 when MongoDB is down (`backend/src/app.js`).
-- Action results are stored on each call with a status (`backend/src/workflows/outcomes.js`).
+- **Logging:** Winston, JSON in production (`config/logger.js`). Every log line has keys and bearer tokens scrubbed (`lib/redact.js`).
+- **Per-call ledger:** model, tokens, cost and latency by purpose (`lib/usage.js`), with a daily total per account and owner alerts at 80% and 100% (`services/quotaService.js`).
+- **Health:** `/health` reports database state, and the Docker `HEALTHCHECK` uses it (`Dockerfile`).
+- **Action results:** each call stores the status of every action (`workflows/outcomes.js`).
 
 Gaps and what can go wrong:
-- Much of the code uses `console.log` (112 occurrences in `backend/src`) instead of the logger. Those lines are not JSON and not in the log files.
-- Request or run IDs in logs: Not found in repo. Tracing one call across services means searching by hand.
-- Traces and metrics export (OpenTelemetry, Prometheus, Sentry): Not found in repo (`ROADMAP.md` Phase 1 lists Sentry as open).
-- Alerts on failure or cost spikes: Not found in repo. A failing voice path or a cost spike is seen only if someone reads the logs.
-- Audit trail of who changed settings or flows: Not found in repo.
+- **Request or call IDs in log lines:** Not found in repo. 194 `console.*` calls in `backend/src` bypass the structured logger.
+- **Error alerting and tracing (Sentry, OpenTelemetry):** Not found in repo. A failing provider shows up only as offline-rule answers.
+- **Audit trail of settings, flow and booking changes, and who made them:** Not found in repo (`updatedAt` only). Family-link consent time is stored (`FamilyLink.consentAt`).
 
-Action: replace `console.*` with the logger, add a call ID to each log line, and add Sentry as listed in `ROADMAP.md`.
+Action: add Sentry with personal data scrubbed, and a call ID on every log line (L6 in `docs/LAUNCH_PLAN.md`).
 
 ### 4. Security: Partial
 
 Present:
-- Secrets via environment variables; `.env` is git-ignored; `backend/.env.example` has empty values. Production refuses to start without a strong `JWT_SECRET` (`backend/src/middleware/auth.js`).
-- JWT on `/api/*` and on owner voice actions; refresh tokens rejected as access tokens; calls checked against the owner (`backend/src/middleware/auth.js`, `backend/src/routes/voice.js` `ownedCall`).
-- Twilio signature check on webhooks, on by default in production (`backend/src/routes/voice.js`).
-- Socket.io requires a JWT; the server picks the room (`backend/src/app.js`).
-- OTP login: hashed codes, 10 min TTL, 5 attempts, rate limits (`backend/src/services/otpService.js`, `backend/src/routes/auth.js`).
-- `helmet`, CORS allow-list in production, signed 15-minute recording links (`backend/src/app.js`, `backend/src/routes/media.js`).
-- Recording retention 7-365 days, per-call recording delete, per-call delete (`backend/src/routes/media.js`, `backend/src/routes/calls.js`).
-- Demo data and WAV upload are disabled in production unless `ENABLE_DEMO_DATA=true`.
+- **Secrets:**
+  - `.env` and `.env.production` are git-ignored, and production refuses a weak `JWT_SECRET` (`middleware/auth.js`).
+  - `npm run check:deploy` validates production values without printing them.
+- **Authentication:** JWT on every `/api` route except sign-in, `/api/meta`, `/health` and the public Link, interpreter-guest and agent routes. Those are rate-limited and expose no records.
+- **Sign-in:** OTP codes are hashed and expire after 10 minutes with 5 attempts. Google ID tokens are verified for audience, signature, expiry and verified email (`routes/auth.js`).
+- **Call audio:** single-use stream token bound to the call (`lib/streamToken.js`). Twilio signatures are checked in production (`routes/voice.js`).
+- **Fetching URLs:** the import fetches only Google Sheets CSV exports, matched by host and path allow-list (`services/importService.js` `sheetCsvUrl`). No other user-supplied URL is fetched.
+- **Dependencies:** `npm audit --audit-level=high` is a failing CI gate for backend and web. Production dependencies have 0 high or critical findings (8 moderate behind `firebase-admin` 14).
+- **Container:** runs as the `node` user and has a health check (`Dockerfile`).
+- **Data rights:**
+  - Export and delete account, including recording files and family links (`services/accountService.js`, `routes/account.js`).
+  - Recording retention 1–3650 days (default 90) with 15-minute signed links (`routes/media.js`).
+- **Disclosure policy:** `SECURITY.md` (private reporting, response targets).
+- **Removed:** the old unauthenticated `routes/webhooks.js` (L0), and the unused `bcrypt`, `pg`, `redis` and `config/redis.js`.
 
 Gaps and what can go wrong:
-- `SECURITY.md`: Not found in repo. There is no stated way to report a vulnerability.
-- Dependency or container scanning (Dependabot, `npm audit` in CI, image scan): Not found in repo. Known-vulnerable packages can ship.
-- `backend/src/routes/webhooks.js` has unauthenticated POST routes (`/call-started`, `/call-ended`, `/transcript-update`) that trigger push notifications from request-body `userId`. The router is not mounted in `backend/src/app.js` today. If someone mounts it, anyone can send pushes to any user. Remove the file or add auth.
-- `/voice/media-stream` WebSocket has no signature check in `backend/src/app.js`; it relies on the `callSid` matching an active call (`backend/src/voice/VoiceAgent.js` line 369). Not tested here.
-- JWT lifetime is 7 days with no server-side revocation list (`backend/src/middleware/auth.js`). A leaked token works until it expires.
-- Recording link secret falls back to the dev secret when `JWT_SECRET` is unset (`backend/src/routes/media.js`). Production startup blocks this through `auth.js`, so the risk is limited to non-production.
-- CORS and Socket.io allow `*` outside production (`backend/src/app.js`).
-- CSP is disabled in `helmet` (`contentSecurityPolicy: false`).
-- Transcript retention: only recordings expire. Transcripts stay until the owner deletes a call. Account deletion endpoint: Not found in repo.
-- `mobile/android/app/debug.keystore` is committed and used for the build config (`mobile/android/app/build.gradle`). It is the default debug key; the file comment says a release keystore is still to be created. Do not ship a release with it.
-- Mobile token storage: not verified in this review (`mobile/src/services/api.ts` holds tokens in memory; persistence location not checked).
-- Docker: container runs as root, no `HEALTHCHECK` (`Dockerfile`). `docker-compose.yml` publishes port 3000 and MongoDB has no authentication configured in the file.
+- **Token revocation:** JWTs last 7 days (refresh tokens 30) with no revocation list (`middleware/auth.js`). A leaked token works until it expires.
+- **Content Security Policy** is disabled in `helmet` (`app.js`).
+- **Transcript retention:** only recordings expire. Transcripts stay until the owner deletes the call or the account.
+- **Rate-limit counters** are in memory, so limits reset on restart and aren't shared across instances.
+- **MongoDB in `docker-compose.yml` has no authentication.** It isn't published to the host, and the hosted setup uses Atlas with a user and password.
+- **`mobile/android/app/debug.keystore`** is committed. It's only a risk if `mobile/` is ever released; the plan retires it.
+- **Bring-your-own keys and a key vault (L1):** Not found in repo. Every account uses the server's AI key.
 
-Action: add `SECURITY.md`, enable Dependabot and `npm audit` in CI, delete or protect `backend/src/routes/webhooks.js`.
+Action: add revocable refresh sessions and turn on a CSP for the web app.
 
 ### 5. Human in the loop: Partial
 
 Present:
-- Booking requests need owner approval; the AI never confirms a slot (`backend/src/models/mongodb/Booking.js`, `backend/src/routes/assistant.js` `PATCH /api/bookings/:id`). The caller is texted after approval.
-- Owner can take over a live call (`POST /voice/takeover`), steer it (`/voice/whisper`), or end it (`/voice/end-call`) (`backend/src/routes/voice.js`).
-- Escalation: emergency flow, "wants human" flag, AI-triggered transfer to the owner or a front-desk number (`backend/src/workflows/nlu.js`, `backend/src/voice/VoiceAgent.js`).
-- Shield modes, including Silent and Focus, and a spam score of 80 or more in Aggressive mode rejects the call (`backend/src/routes/voice.js`).
-- Owner can turn flows off per account (`flowsDisabled`, `backend/src/routes/voice.js`).
-- Follow-up inbox with status for leads (`backend/src/routes/calls.js`).
+- **Bookings are requests:**
+  - The AI never confirms a slot. The owner approves, and the caller is texted (`routes/assistant.js`).
+  - Status changes follow fixed transitions; anything else gets a 409.
+- **Payment links:** above the owner's auto-send limit, a link waits for approval (`workflows/outcomes.js` `pay_link`).
+- **Agent API:** bookings and orders land in the inbox as requests (`services/agentService.js`).
+- **Live calls:** the owner can take over, steer or end a call (`routes/voice.js`). Emergencies and "wants a person" escalate, and urgent alerts go out mid-call.
+- **Family guardian:** the parent creates the code and chooses what is shared; either side can end the link (`services/familyService.js`).
+- **Overrides:** per-account flow toggles, shield modes (Focus, Silent, Aggressive), the AI kill switch, and the daily budget.
+- **Follow-up inbox** with a status per lead (`routes/calls.js`).
 
 Gaps and what can go wrong:
-- `send_sms` to the caller runs without owner approval (`backend/src/workflows/outcomes.js`). A wrong or unwanted text goes to a real number. Owner-set templates limit the content.
-- Rejected high-risk calls (score 80+) are not placed in a review queue (`backend/src/routes/voice.js`). A real caller scored high is lost without a trace beyond a log line. Not verified whether the rejection is stored in call history.
-- Reviewer decision record: booking status is stored; who changed it and when beyond `updatedAt` is Not found in repo.
-- Global kill switch for all voice handling (not per account): Not found in repo.
-- Low-confidence escalation: confidence is stored for category matching (`backend/src/models/mongodb/Call.js`); a rule that escalates on low confidence is Not found in repo.
+- **`send_sms` to the caller runs without approval** (`workflows/outcomes.js`). Owner templates limit the content.
+- **Rejected high-risk calls** (risk ≥ 80 in Aggressive mode) are logged, not stored for review (`routes/voice.js`, around line 248).
+- **Record of who approved or declined a booking:** Not found in repo (`updatedAt` only).
+- **Kill switch for voice handling itself** (as opposed to AI calls): Not found in repo.
 
-Action: add an owner setting that requires approval for outbound SMS, and store rejected calls.
+Action: store rejected calls with their risk reasons, so the owner can review them in Activity.
 
 ### 6. Architecture diagrams
 
-All diagrams are derived from the files named under each one. Parts the code does not have are marked, not drawn.
-
-Not drawn, code does not support them:
-- Swimlane and waterfall diagrams: not in the requested set for this review.
-- Multi-instance deployment: active calls are held in process memory (`backend/src/voice/VoiceAgent.js` `activeCalls`; `ROADMAP.md` "Known gaps"). `backend/src/config/redis.js` exists but no file imports it. Only a single instance is drawn.
+Derived from the files named under each diagram. Parts the code doesn't have are noted, not drawn. Only one instance is drawn, because shared state is in memory (`VoiceAgent.activeCalls`, `linkService` sessions, `interpreterService` rooms, rate-limit counters).
 
 #### C4 L1: System context
-
-Source: `README.md`, `backend/src/routes/voice.js`, `backend/src/lib/llm.js`, `backend/src/services/pushNotificationService.js`.
+Source: `backend/src/app.js`, `routes/voice.js`, `routes/link.js`, `routes/agent.js`, `lib/llm.js`, `lib/webPush.js`, `routes/auth.js`.
 
 ```mermaid
 flowchart LR
-  caller([Caller]):::p
-  owner([Owner: person or business]):::p
-  vexa[Vexa<br/>AI receptionist]:::s
+  caller([Phone caller]):::p
+  visitor([Customer on a browser<br/>Vexa Link / QR]):::p
+  agent([Customer's AI assistant]):::p
+  owner([Owner and family]):::p
+  vexa[Vexa]:::s
   twilio[Twilio<br/>voice, SMS, Verify]:::x
   openai[OpenAI Realtime<br/>live speech]:::x
-  claude[Anthropic Claude<br/>understanding, analysis]:::x
-  fcm[Firebase<br/>push notifications]:::x
-  caller -->|phone call| twilio
-  twilio <-->|webhooks, media stream| vexa
+  claude[Anthropic Claude<br/>understanding, analysis,<br/>translation, memory]:::x
+  push[Web Push + Firebase]:::x
+  google[Google Identity<br/>+ Sheets CSV]:::x
+  upi[UPI apps<br/>upi:// deep links]:::x
+  caller -->|call| twilio <-->|webhooks, media stream| vexa
   vexa <-->|audio| openai
+  visitor -->|HTTPS| vexa
+  agent -->|tool calls| vexa
+  owner -->|installed web app| vexa
   vexa -->|JSON requests| claude
-  vexa -->|push| fcm
-  owner -->|web app, mobile app| vexa
+  vexa -->|alerts| push
+  vexa -->|verify sign-in, import| google
+  vexa -.->|pay link| upi
   classDef p fill:#fff,stroke:#000,color:#000
   classDef s fill:#e8f0ff,stroke:#000,color:#000
   classDef x fill:#f2f2f2,stroke:#000,color:#000
 ```
 
 #### C4 L2: Containers
-
-Source: `docker-compose.yml`, `Dockerfile`, `backend/src/app.js`, `web/`, `mobile/`.
+Source: `Dockerfile`, `render.yaml`, `docker-compose.yml`, `web/`, `backend/src/app.js`.
 
 ```mermaid
 flowchart TB
-  owner([Owner]):::p
-  subgraph docker[Docker image: vexa]
-    api[Express API + Socket.io + WS media stream<br/>Node 22, backend/src/app.js]:::s
-    spa[Web app: React + Vite PWA<br/>built to web/dist, served by the API]:::s
+  users([Owners, visitors, agents]):::p
+  subgraph image[Docker image: node user, HEALTHCHECK /health]
+    api[Express API + Socket.io + WS media stream<br/>backend/src/app.js]:::s
+    spa[Installable web app: React + Vite PWA<br/>service worker, Web Push; built to web/dist]:::s
   end
-  mongo[(MongoDB 7)]:::d
-  rec[(Recordings dir<br/>RECORDINGS_DIR)]:::d
-  rn[Mobile app: React Native<br/>mobile/]:::s
-  ext[Twilio, OpenAI, Claude, Firebase]:::x
-  owner --> spa
-  owner --> rn
+  db[(MongoDB<br/>Atlas when hosted, embedded in dev)]:::d
+  rec[(Recordings volume<br/>RECORDINGS_DIR)]:::d
+  mem[[In memory: live calls, Link sessions,<br/>interpreter rooms, rate limits]]:::d
+  ext[Twilio, OpenAI, Claude, Push, Google]:::x
+  users --> spa
   spa -->|REST, Socket.io| api
-  rn -->|REST, Socket.io| api
-  api --> mongo
+  users -->|public Link / agent API| api
+  api --> db
   api --> rec
+  api --- mem
   api <--> ext
   classDef p fill:#fff,stroke:#000,color:#000
   classDef s fill:#e8f0ff,stroke:#000,color:#000
@@ -619,81 +666,101 @@ flowchart TB
   classDef x fill:#f2f2f2,stroke:#000,color:#000
 ```
 
-Note: in development MongoDB is embedded (`backend/src/config/mongodb.js`) and the web app runs on Vite port 5173.
+`mobile/` (React Native) isn't drawn; it is to be retired (`docs/LAUNCH_PLAN.md`, L3).
 
-#### C4 L3: Components of the API container
-
-Source: `backend/src/app.js`, `backend/src/routes/`, `backend/src/voice/`, `backend/src/workflows/`, `backend/src/services/`, `backend/src/lib/`.
+#### C4 L3: Components of the API
+Source: `backend/src/routes/`, `services/`, `workflows/`, `voice/`, `packs/`, `lib/`.
 
 ```mermaid
 flowchart TB
-  subgraph routes[Routes]
-    rAuth[auth.js]:::c
-    rVoice[voice.js<br/>Twilio webhooks + owner actions]:::c
-    rApi[users, calls, workflows,<br/>assistant, bookings, simulator, media]:::c
+  subgraph pub[Public routes, rate-limited]
+    rLink[link.js]:::c
+    rAgent[agent.js]:::c
+    rInt[interpreter.js guest]:::c
+    rVoice[voice.js Twilio webhooks]:::c
   end
-  mw[middleware/auth.js<br/>JWT]:::c
-  va[voice/VoiceAgent.js<br/>media stream bridge]:::c
-  pg[voice/PromptGenerator.js]:::c
-  ca[voice/ConversationAnalyzer.js]:::c
+  subgraph own[Owner routes, JWT]
+    rOwn[users, calls, workflows, assistant, bookings,<br/>packs, memory, family, usage, account, import, push]:::c
+  end
   cs[workflows/callSession.js]:::c
-  eng[workflows/engine.js<br/>flow engine]:::c
+  eng[workflows/engine.js<br/>flows, carts, records, refusals]:::c
+  scam[workflows/scam.js]:::c
   nlu[workflows/nlu.js]:::c
-  risk[workflows/risk.js]:::c
   out[workflows/outcomes.js]:::c
-  svc[services/*<br/>callHistory, userConfig, otp,<br/>twilio, push, assistant, simulator]:::c
-  llm[lib/llm.js, claude.js, openai.js, usage.js]:::c
-  rec[lib/recorder.js]:::c
+  packs[packs/*]:::c
+  va[voice/VoiceAgent.js]:::c
+  ca[voice/ConversationAnalyzer.js]:::c
+  svc[services: link, agent, interpreter, memory,<br/>family, quota, account, import, push, simulator]:::c
+  llm[lib/llm.js, claude.js, usage.js]:::c
   db[(MongoDB models)]:::d
-  rAuth --> svc
-  rApi --> mw
-  rApi --> svc
-  rVoice --> mw
-  rVoice --> cs
-  rVoice --> va
-  va --> cs
-  va --> pg
-  va --> rec
+  rVoice --> va --> cs
+  rLink --> svc --> cs
+  rAgent --> svc
+  rInt --> svc
+  rOwn --> svc
   cs --> eng
-  cs --> nlu
-  cs --> risk
-  cs --> out
-  cs --> ca
-  nlu --> llm
-  ca --> llm
-  out --> svc
+  eng --> scam
+  eng --> packs
+  cs --> nlu --> llm
+  cs --> ca --> llm
+  cs --> out --> svc
+  svc --> llm
   svc --> db
   classDef c fill:#e8f0ff,stroke:#000,color:#000
   classDef d fill:#fff4d6,stroke:#000,color:#000
 ```
 
-#### Data flow
-
-Source: `backend/src/routes/voice.js`, `backend/src/workflows/callSession.js`, `backend/src/workflows/outcomes.js`.
+#### Data flow: one caller turn (phone, test call or Vexa Link)
+Source: `workflows/callSession.js`, `workflows/engine.js`, `services/quotaService.js`, `services/memoryService.js`.
 
 ```mermaid
 flowchart LR
-  c([Caller audio]) --> tw[Twilio]
-  tw --> va[VoiceAgent]
-  va -->|speech to text| oa[OpenAI Realtime]
-  oa -->|caller transcript| va
-  va --> cs[callSession.takeTurn]
-  cs -->|utterance| nlu[NLU via Claude, 5 s timeout]
-  nlu -->|facts, language, translation| cs
-  cs --> eng[Flow engine: next line]
-  eng -->|text to speak| va
-  va -->|speech| oa
-  va -->|stereo WAV| rec[(Recordings dir)]
-  va -->|live events| sio[Socket.io to owner apps]
-  cs -->|call end| fin[finalizeCallSession]
-  fin --> an[Post-call analysis via Claude]
-  fin --> db[(MongoDB: Call, Caller, Booking)]
-  fin --> oc[Outcomes: lead, booking, SMS, push, spam tag]
+  words([Caller words:<br/>speech-to-text, typed, or browser speech]) --> cs[callSession.takeTurn]
+  cs --> q{Over daily<br/>AI budget?}
+  q -->|no| nlu[Claude understanding]
+  q -->|yes| off[Offline rules]
+  nlu --> eng[Engine]
+  off --> eng
+  eng --> s{Scam?}
+  s -->|yes| end1[End call, alert owner + family]
+  s -->|no| r[Refusal? / emergency? / flow step]
+  r --> say[Reply in the caller's language]
+  cs -->|call ends| fin[finalizeCallSession]
+  fin --> an[Claude analysis + memories]
+  fin --> db[(Call, Caller, Booking, Memory, UsageDay)]
+  fin --> oc[Outcomes: lead, booking request, SMS, UPI link, push]
 ```
 
-#### Sequence: incoming call
+#### Sequence: Vexa Link conversation
+Source: `routes/link.js`, `services/linkService.js`, `workflows/callSession.js`.
 
-Source: `backend/src/routes/voice.js` (`/incoming-call`), `backend/src/voice/VoiceAgent.js`, `backend/src/workflows/callSession.js`.
+```mermaid
+sequenceDiagram
+  participant B as Visitor's browser
+  participant L as linkService
+  participant S as callSession + engine
+  participant C as Claude
+  participant D as MongoDB
+  participant O as Owner app
+  B->>L: POST /api/public/link/:slug/start
+  L->>D: Owner by slug; today's count vs daily limit
+  L->>S: openCallSession(channel link, no caller ID)
+  L-->>O: call:started (Socket.io)
+  loop Each message (max 40)
+    B->>L: POST …/:sid/message
+    L->>S: takeTurn (budget check)
+    S->>C: Understand (or offline rules)
+    S-->>B: Reply (+ UPI pay button at the end of an order)
+    L-->>O: call:transcript
+  end
+  B->>L: POST …/:sid/end (or 20 min idle)
+  L->>S: finalizeCallSession (analysis, outcomes)
+  S->>D: Save call (channel link)
+  L-->>O: Summary push
+```
+
+#### Sequence: incoming phone call
+Source: `routes/voice.js`, `voice/VoiceAgent.js`, `lib/streamToken.js`.
 
 ```mermaid
 sequenceDiagram
@@ -703,148 +770,148 @@ sequenceDiagram
   participant V as VoiceAgent
   participant O as OpenAI Realtime
   participant L as Claude
-  participant D as MongoDB
-  C->>T: Calls business number
+  C->>T: Calls the Vexa number
   T->>A: POST /voice/incoming-call (signed)
-  A->>D: Find owner by Twilio number
-  A->>A: Blocked? reject
-  A->>A: openCallSession: context + risk score
-  A->>A: Aggressive shield and score 80+? reject
-  A->>V: handleIncomingCall
-  A-->>T: TwiML connect stream
-  T->>V: WS /voice/media-stream
-  V->>O: Open realtime session
-  loop Each caller turn
-    O-->>V: Transcript
-    V->>L: Understand utterance (timeout, offline fallback)
-    V->>V: Flow engine picks next line
-    V->>O: Speak this line
-    O-->>T: Audio
+  A->>A: Blocked? Aggressive shield and risk ≥ 80? reject
+  A-->>T: TwiML stream + single-use token
+  T->>V: WS /voice/media-stream (token checked within 5 s)
+  loop Each turn (call ends at MAX_CALL_SECONDS)
+    O-->>V: Caller transcript
+    V->>L: Understand (timeout, offline fallback)
+    V->>O: Speak the engine's line
   end
-  T->>A: POST /voice/call-status
   V->>L: Post-call analysis
-  V->>D: Save call, caller, outcomes
 ```
 
-#### State machine: flow session
+This path has not run on a real call (blocker 1).
 
-Source: `backend/src/workflows/engine.js`, `backend/src/workflows/validate.js` (step types: collect, confirm, say, branch, action, transfer, end, goto, lookup). The states below are the step types and end conditions; exact transitions inside `engine.js` are not all traced here.
+#### State machines
+Source: `workflows/engine.js` (flow session), `routes/assistant.js` (booking, enforced transitions), `models/mongodb/FamilyLink.js` and `services/familyService.js` (family link).
 
 ```mermaid
 stateDiagram-v2
-  [*] --> PickFlow
-  PickFlow --> Collect: flow chosen
-  Collect --> Collect: slot still missing
-  Collect --> Confirm: slots filled
-  Confirm --> Collect: caller changes a detail
-  Confirm --> Action: caller agrees
-  Collect --> Branch
-  Branch --> Collect
-  Branch --> Action
-  Action --> End
-  Collect --> Transfer: wants human or emergency
-  Collect --> End: max turns reached
-  Collect --> End: caller says goodbye
-  Transfer --> [*]
-  End --> [*]
+  state "Flow session" as F {
+    [*] --> Route
+    Route --> Collect: flow chosen
+    Route --> Scam: scam script
+    Collect --> Collect: slot missing / side question / refusal
+    Collect --> Confirm: slots filled
+    Confirm --> Collect: correction
+    Confirm --> Action: yes
+    Action --> End
+    Collect --> Transfer: emergency or wants a person
+    Collect --> End: max turns
+    Scam --> End
+  }
 ```
-
-#### State machine: booking
-
-Source: `backend/src/models/mongodb/Booking.js` (status enum), `backend/src/routes/assistant.js` (PATCH accepts any of the four statuses from any state; no transition rules found).
 
 ```mermaid
 stateDiagram-v2
-  [*] --> requested: flow creates booking
-  requested --> confirmed: owner approves
-  requested --> declined: owner declines
-  requested --> cancelled
-  confirmed --> cancelled
+  state "Booking (enforced)" as B {
+    [*] --> requested
+    requested --> confirmed
+    requested --> declined
+    requested --> cancelled
+    confirmed --> cancelled
+    declined --> requested
+  }
+  state "Family link" as L {
+    [*] --> pending: dependant creates code (24 h)
+    pending --> active: guardian enters code
+    active --> revoked: either side
+    pending --> revoked: new code / expiry
+  }
 ```
-
-Only `requested`, `confirmed`, `declined`, `cancelled` are in the code. The PATCH route does not restrict transitions, so the arrows above show the intended use, not an enforced rule.
 
 #### Deployment
-
-Source: `Dockerfile`, `docker-compose.yml`.
+Source: `render.yaml`, `Dockerfile`, `docs/DEPLOY.md`, `docker-compose.yml`.
 
 ```mermaid
 flowchart LR
-  subgraph host[Docker host: docker compose]
-    subgraph c1[container vexa :3000]
-      n[node src/app.js<br/>API + built web/dist]
-    end
-    subgraph c2[container mongo:7]
-      m[(mongo-data volume)]
-    end
-    n -->|mongodb://mongo:27017/vexa| m
+  subgraph render[Render web service, Singapore, free or Starter]
+    n[Docker image<br/>node src/app.js, user node]
   end
-  tw[Twilio] -->|HTTPS webhook + WSS| n
-  n --> ai[OpenAI, Claude, Firebase APIs]
-  user[Browser / mobile] --> n
+  atlas[(MongoDB Atlas M0<br/>AWS Mumbai)]
+  n -->|mongodb+srv, user + password| atlas
+  phones[Phones: installed app, Link visitors] -->|HTTPS| n
+  agents[Other AI assistants] -->|HTTPS| n
+  n --> ext[Claude, Web Push, Google]
+  tw[Twilio / Exotel] -.->|not connected yet| n
 ```
 
-Not shown because not in the repo: reverse proxy or TLS termination, cloud hosting target, volume for recordings (the compose file mounts only `mongo-data`, so recordings in the container are lost on rebuild).
+Not drawn because it isn't in the repo: a second instance (needs Redis), a CDN, and a phone provider connection (needs accounts). On the free plan the disk is ephemeral, so recordings don't survive a redeploy; there are no live calls on this path yet.
 
 #### Entity relationship
-
-Source: `backend/src/models/mongodb/*.js`. Links are by `userId` and phone number strings, not Mongo references.
+Source: `backend/src/models/mongodb/*.js`. Links are by `userId` or phone strings, not Mongo references.
 
 ```mermaid
 erDiagram
-  USERCONFIG ||--o{ CALL : "userId"
-  USERCONFIG ||--o{ CALLER : "userId"
-  USERCONFIG ||--o{ BOOKING : "userId"
-  CALLER ||--o{ CALL : "phoneNumber"
-  CALL ||--o{ BOOKING : "callId"
-  OTPCODE {
-    string phoneNumber
-    string codeHash
-    date expiresAt
-  }
+  USERCONFIG ||--o{ CALL : userId
+  USERCONFIG ||--o{ CALLER : userId
+  USERCONFIG ||--o{ BOOKING : userId
+  USERCONFIG ||--o{ MEMORY : userId
+  USERCONFIG ||--o{ USAGEDAY : userId
+  USERCONFIG ||--o{ FAMILYLINK : "dependantId / guardianId"
+  CALL ||--o{ BOOKING : callId
+  CALL ||--o{ MEMORY : callId
   USERCONFIG {
     string userId UK
-    string twilioNumber UK
+    string googleSub UK
+    string linkSlug UK
+    array packs
   }
   CALL {
     string callId
-    string userId
-    string phoneNumber
-    bool isTest
+    string channel "phone|test|link|agent"
+    object analysis "incl. scam evidence"
   }
-  CALLER {
-    string userId
-    string phoneNumber
+  MEMORY {
+    string kind "promise|quote|fact"
+    date dueAt
+    string status
+  }
+  FAMILYLINK {
+    string status
+    object share
+    date consentAt
+  }
+  USAGEDAY {
+    string day
+    number costUsd
   }
   BOOKING {
-    string userId
-    string callId
     string status
+  }
+  CALLER {
+    string phoneNumber
   }
 ```
 
 ### 7. README
-
-Present: what it is, quick start, API overview (this file). Test command is in `backend/package.json`; the README does not state `npm test` in the quick start (it appears under "Project layout"). Not found in repo: CI badge, `.github/`.
+Present: what Vexa is; the guardrails and evals tables; the workflow readout; local quick start including `npm test`, `eval:nlu` and `eval:packs`; hosting (`docs/DEPLOY.md`); project layout; the API reference; this section. Not found in repo: a CI status badge.
 
 ### Open items register
 
-| # | Item | Owner | Date |
+| # | Item | Owner | Raised |
 |---|---|---|---|
-| 1 | Add CI that runs backend tests and web build on every PR; make it a required check | Phani Marupaka | 2026-10-26 |
-| 2 | Add call-duration limit and per-call cost ceiling | Phani Marupaka | 2026-10-26 |
-| 3 | Run the live voice path end to end and record latency (`ROADMAP.md` Known gaps) | Phani Marupaka | 2026-10-26 |
-| 4 | Add `SECURITY.md`, Dependabot and `npm audit` in CI | Phani Marupaka | 2026-10-26 |
-| 5 | Delete or protect `backend/src/routes/webhooks.js` | Phani Marupaka | 2026-10-26 |
-| 6 | Add call IDs to logs, replace `console.*` with the logger, add error and cost alerts | Phani Marupaka | 2026-10-26 |
-| 7 | Add an eval set for Claude-backed extraction and analysis with a pass threshold | Phani Marupaka | 2026-10-26 |
-| 8 | Add owner approval option for outbound SMS; store rejected high-risk calls | Phani Marupaka | 2026-10-26 |
-| 9 | Add account deletion and transcript retention | Phani Marupaka | 2026-10-26 |
-| 10 | Create a release Android keystore; stop using `debug.keystore` for release | Phani Marupaka | 2026-10-26 |
-| 11 | Check `/voice/media-stream` WebSocket handling when no matching call exists | Phani Marupaka | 2026-10-26 |
-| 12 | Decide on mobile app: keep React Native or move to the PWA (`ROADMAP.md` recommends Capacitor) | Phani Marupaka | 2026-10-26 |
+| 1 | Create Atlas network access, the Google OAuth client and the Render service; run `check:deploy` (`docs/DEPLOY.md`) | Phani Marupaka | 2026-10-29 |
+| 2 | Verify the hosted site end to end (sign-in, Link, agent API, push, budget) before inviting beta users | Phani Marupaka | 2026-10-29 |
+| 3 | Run the live phone path end to end and record latency (Exotel/Twilio + OpenAI keys) | Phani Marupaka | 2026-10-29 |
+| 4 | Add Sentry (personal data scrubbed), call IDs in log lines, and move `console.*` to the logger | Phani Marupaka | 2026-10-29 |
+| 5 | Move shared state to Redis (rate limits, Link sessions, interpreter rooms, live calls) before running a second instance | Phani Marupaka | 2026-10-29 |
+| 6 | Revocable refresh sessions; a CSP for the web app | Phani Marupaka | 2026-10-29 |
+| 7 | Store rejected high-risk calls; offer owner approval for outbound SMS | Phani Marupaka | 2026-10-29 |
+| 8 | Transcript retention to match recording retention | Phani Marupaka | 2026-10-29 |
+| 9 | Web unit tests; retire `mobile/` (including `debug.keystore`) per L3 | Phani Marupaka | 2026-10-29 |
+| 10 | Upgrade `firebase-admin` to 14 (8 moderate advisories) | Phani Marupaka | 2026-10-29 |
+| 11 | Bring-your-own keys with an encrypted vault (L1) | Phani Marupaka | 2026-10-29 |
+| 12 | Audit trail: who changed settings, flows and bookings, and when | Phani Marupaka | 2026-10-29 |
+| 13 | Red-team caller-injection set in `eval/packs`, with a CI threshold | Phani Marupaka | 2026-10-29 |
+| 14 | Recorded-audio harness for the voice path, with a stub realtime server | Phani Marupaka | 2026-10-29 |
 
-Owner is Phani Marupaka for all items; the repo names no other owner. Dates are the review date; the repo gives no due dates, so each owner should set a real date.
+The repo names no other owner and no due dates. The owner should set a due date for each item.
+
+**Next step:** Phani Marupaka finishes items 1–2 (the account setup is already in progress), then shares the Render URL for the hosted verification.
 
 ## License
 

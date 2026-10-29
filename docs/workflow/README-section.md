@@ -33,6 +33,12 @@
 | Memory hygiene | Storing secrets or scam content | `memoryService.saveFromCall` | Nothing from spam/scam calls; OTP/PIN/card-like text dropped; owner-only |
 | Google sign-in verification | Forged sign-in tokens | `routes/auth.js` `/google` | Signature, audience, expiry and verified email checked; off unless `GOOGLE_CLIENT_ID` |
 | Server-only fields | Leaking push endpoints or device tokens | `routes/users.js` `publicConfig` | Stripped from every config response |
+| Daily AI budget and kill switch | Runaway model cost | `services/quotaService.js`, `lib/llm.js` | $5/day per account (owner-set, max `MAX_DAILY_AI_BUDGET_USD`); alerts at 80% and 100%; over budget → offline rules; `AI_KILL_SWITCH` |
+| Call length ceiling | Endless or abusive live calls | `voice/VoiceAgent.js` | Wraps up and hangs up at `MAX_CALL_SECONDS` (900) |
+| Import URL allow-list | Server-side request forgery | `services/importService.js` `sheetCsvUrl` | Only `https://docs.google.com/spreadsheets/…` CSV exports; 900 KB, 2,000 rows, 15 s |
+| Booking transitions | Reopening cancelled bookings by mistake | `routes/assistant.js` | requested → confirmed/declined/cancelled; confirmed → cancelled; declined → requested; else 409 |
+| Your data | Data kept after an owner leaves | `services/accountService.js` | Export everything; delete account erases calls, recordings, memories, family links |
+| Supply chain and container | Vulnerable dependencies; root in the container | `.github/workflows/ci.yml`, `Dockerfile` | `npm audit --audit-level=high` fails CI (backend + web); image runs as `node` with a HEALTHCHECK |
 
 ### Evals and quality gates
 
@@ -40,8 +46,8 @@
 |---|---|---|---|---|
 | Indian-language understanding set (`backend/eval/nlu`) | Language, code-mixing, facts, yes/no, phone numbers across 8 languages (161 cases) | Every change in CI (offline, `--min 0.97`); `-- --mode claude` on demand | ≥ 97% offline (CI gate); ≥ 90% mixed-language target | Live · offline 99%, Claude 100% (157-case run) |
 | Held-out set (`holdout.jsonl`) | Same, 50 new phrasings never tuned against | Every change in CI (`--min 0.95`) | Should track the main set | Live · offline 98%, Claude 100% |
-| Pack + scam eval (`backend/eval/packs`) | 45 scripted calls across 7 packs (flow, outcome, actions, refusals, what must never be said) and 26 scam scripts plus lookalike genuine calls (precision, recall, leaks) | Every change in CI (offline, `--min 1`); `-- --mode claude` on demand | 100% and zero leaks (CI gate) | Live · offline 71/71, scam precision 1.0, recall 1.0, 0 leaks |
-| Backend unit tests | Flows, extractors, emergency, shields, Focus, sanitizer, recorder, Indian numbers/dates/yes-no, stream-token and log-redaction security, packs, orders, records, listings, refusals, scam shield, UPI links; memories, Ask Vexa parsing, link names, push subscriptions, interpreter fallback, agent tool schemas | `npm test` before release | All pass | Live · 69 tests passing, run in CI |
+| Pack + scam eval (`backend/eval/packs`) | 45 scripted calls across 7 packs (flow, outcome, actions, refusals, what must never be said) and 26 scam scripts plus lookalike genuine calls (precision, recall, leaks); accounts pass through the real database schema | Every change in CI (offline, `--min 1`); `-- --mode claude` on demand | 100% and zero leaks (CI gate) | Live · offline 71/71, scam precision 1.0, recall 1.0, 0 leaks |
+| Backend unit tests | Flows, extractors, emergency, shields, Focus, sanitizer, recorder, Indian numbers/dates/yes-no, stream-token and log-redaction security, packs, orders, records, listings, refusals, scam shield, UPI links; memories, Ask Vexa parsing, link names, push subscriptions, interpreter fallback, agent tool schemas; daily budget, CSV import and Sheets allow-list | `npm test` before release | All pass | Live · 71 tests passing, run in CI |
 | Mobile tests | App render, API client, transcript store | `jest` in `mobile/` | All pass | Partial · 9 tests |
 | Web app checks | Type safety and build | `tsc -b && vite build`, `oxlint` | No errors | Partial · no unit tests |
 | Runtime quality signals | Model used per turn, latency, tokens and cost by purpose, questions asked/skipped, risk, action status | Every call (saved on the call) | — | Live |
@@ -49,6 +55,8 @@
 | Speech eval on real Indian voices | Word error rate, language detection, facts from audio, reply latency | Planned (Phase 1B/1C) | ≥ 95% facts clean, ≥ 90% noisy, ≤ 1.5 s p95 | Planned |
 | CI pipeline | Backend tests, understanding gate, web lint and build, Docker build, dependency audit | GitHub Actions on every push and pull request (`.github/workflows/ci.yml`) | All jobs green | Live |
 | Live checks with Claude (manual, this release) | Vexa Link order → UPI button; memory quote and promise answered; Hindi⇄Telugu interpreter; family scam alert; agent-to-agent order; production Docker image with MongoDB | Before release | All pass | Partial · scripted, not in CI |
+| Fast-model comparison (`eval/nlu/FAST_MODELS.md`) | Understanding accuracy, facts, latency and cost per model | On demand when changing models | Choose the model with 100% facts | Live · Sonnet 5.5 98% / 100% facts at 2.1 s; Haiku 5.5 96% |
+| Dependency audit | High and critical advisories in production dependencies | Every change in CI (backend and web) | 0 high, 0 critical | Live · passes (8 moderate behind firebase-admin 14) |
 
 ---
 
@@ -58,12 +66,12 @@ How an owner sets Vexa up, how every call is answered, understood and acted on, 
 
 ![Vexa — end-to-end workflow](workflow.png)
 
-<sub>Source of truth: Phani3108/Vexa, branch wave1-rest (commit a2aa584, 29 Oct 2026) · Full readout with every table: [readout.html](readout.html) (open locally or download).</sub>
+<sub>Source of truth: Phani3108/Vexa, branch ship-wave1 (commit cdf7d07, 29 Oct 2026) · Full readout with every table: [readout.html](readout.html) (open locally or download).</sub>
 
 | | |
 |---|---|
 | **Scope** | UC1 Set up the assistant · UC2 Answer a call (live phone calls and in-app test calls) · UC3 After the call. Personal and Business modes share the same pipeline. · UC4 Beyond the phone line: Vexa Link, interpreter, agent API · Wave 1: packs, scam shield, memory, family guardian |
-| **Source of truth** | github.com/Phani3108/Vexa · branch `wave1-rest` · commit `a2aa584` · 29 Oct 2026 · backend/src, web/src, backend/.env.example, Dockerfile, docker-compose.yml, .github/workflows, backend/test, backend/eval |
+| **Source of truth** | github.com/Phani3108/Vexa · branch `ship-wave1` · commit `cdf7d07` · 29 Oct 2026 · backend/src, web/src, backend/.env.example, Dockerfile, docker-compose.yml, .github/workflows, backend/test, backend/eval |
 | **Planned items** | From ROADMAP.md (India-first plan): Indian speech engines and voices, Indian phone number, WhatsApp, UPI, calendar and CRM. Drawn as Not integrated. |
 | **Live status** | Text understanding, flows, analysis, translation and the app run end to end today. The live phone path (Twilio + OpenAI Realtime) is complete in code but has not been run on a real call: no Twilio or OpenAI keys are configured. |
 | **Prepared by** | Phani Marupaka with Claude Code · 29 Oct 2026 |
@@ -294,16 +302,18 @@ Claude is used for all text intelligence when `ANTHROPIC_API_KEY` is set (OpenAI
 | `GOOGLE_CLIENT_ID` | Shows "Continue with Google" and enables `/api/auth/google` | Unset (off) |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` | Web Push notifications | Generated in `backend/.data` in development; off in production until set |
 | `PUBLIC_URL` (or Render's `RENDER_EXTERNAL_URL`) | Allowed origin and webhook base | Unset |
+| `DAILY_AI_BUDGET_USD` / `MAX_DAILY_AI_BUDGET_USD` | Default and maximum daily AI budget per account | 5 / 50 |
+| `AI_KILL_SWITCH` | Turns every model call off (offline rules only) | Unset (off) |
+| `MAX_CALL_SECONDS` | Live call length ceiling | 900 |
 
 </details>
 
 <details><summary><b>Known gaps (from the code)</b></summary>
 
 - The live phone path (Twilio + OpenAI Realtime) is complete in code but has not run on a real call; no keys are configured.
-- Unused code and dependencies: `config/redis.js`, `pg`, `bcrypt`.
 - Per-turn replies take 2–9 s on Opus; a fast model (e.g. Haiku) is recommended for live calls.
 - Active calls, test sessions, Vexa Link sessions, interpreter rooms and rate-limit counters live in memory: one server instance only, and a restart drops them.
 - Hosting is configured (`render.yaml`, `docs/DEPLOY.md`) but needs the owner's Render, Atlas and Google accounts; demo v3 is scripted, not yet recorded.
-- Catalog, records and listings are entered in the app or loaded from a pack; CSV / Sheets import is not built yet.
+- Readiness review (README, Production Readiness): ready for the internet-first beta, not for live phone calls; 14 open items with owners.
 
 </details>

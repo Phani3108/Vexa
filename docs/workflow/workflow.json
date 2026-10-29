@@ -8,7 +8,7 @@
     },
     {
       "k": "Source of truth",
-      "v": "github.com/Phani3108/Vexa · branch `wave1-rest` · commit `a2aa584` · 29 Oct 2026 · backend/src, web/src, backend/.env.example, Dockerfile, docker-compose.yml, .github/workflows, backend/test, backend/eval"
+      "v": "github.com/Phani3108/Vexa · branch `ship-wave1` · commit `cdf7d07` · 29 Oct 2026 · backend/src, web/src, backend/.env.example, Dockerfile, docker-compose.yml, .github/workflows, backend/test, backend/eval"
     },
     {
       "k": "Planned items",
@@ -591,7 +591,7 @@
       "badge": 49,
       "tag": "Eval · release",
       "title": "Test suites",
-      "body": "69 backend tests and the offline understanding gate (≥ 97%, held-out ≥ 95%) run in GitHub Actions with the web build and Docker image. 9 mobile tests. **Partial:** no web unit tests yet."
+      "body": "71 backend tests and the offline understanding gate (≥ 97%, held-out ≥ 95%) run in GitHub Actions with the web build and Docker image. 9 mobile tests. **Partial:** no web unit tests yet."
     },
     {
       "phase": "p2",
@@ -802,7 +802,7 @@
     }
   ],
   "footnote": "Flows decide; models only read and speak. Optional = needs a credential to switch on. In memory = lost on restart. Not integrated = planned, not in code.",
-  "source": "Source of truth: Phani3108/Vexa, branch wave1-rest (commit a2aa584, 29 Oct 2026)",
+  "source": "Source of truth: Phani3108/Vexa, branch ship-wave1 (commit cdf7d07, 29 Oct 2026)",
   "steps": [
     {
       "group": "UC1 · Sign in",
@@ -1664,6 +1664,42 @@
             "Leaking push endpoints or device tokens",
             "`routes/users.js` `publicConfig`",
             "Stripped from every config response"
+          ],
+          [
+            "Daily AI budget and kill switch",
+            "Runaway model cost",
+            "`services/quotaService.js`, `lib/llm.js`",
+            "$5/day per account (owner-set, max `MAX_DAILY_AI_BUDGET_USD`); alerts at 80% and 100%; over budget → offline rules; `AI_KILL_SWITCH`"
+          ],
+          [
+            "Call length ceiling",
+            "Endless or abusive live calls",
+            "`voice/VoiceAgent.js`",
+            "Wraps up and hangs up at `MAX_CALL_SECONDS` (900)"
+          ],
+          [
+            "Import URL allow-list",
+            "Server-side request forgery",
+            "`services/importService.js` `sheetCsvUrl`",
+            "Only `https://docs.google.com/spreadsheets/…` CSV exports; 900 KB, 2,000 rows, 15 s"
+          ],
+          [
+            "Booking transitions",
+            "Reopening cancelled bookings by mistake",
+            "`routes/assistant.js`",
+            "requested → confirmed/declined/cancelled; confirmed → cancelled; declined → requested; else 409"
+          ],
+          [
+            "Your data",
+            "Data kept after an owner leaves",
+            "`services/accountService.js`",
+            "Export everything; delete account erases calls, recordings, memories, family links"
+          ],
+          [
+            "Supply chain and container",
+            "Vulnerable dependencies; root in the container",
+            "`.github/workflows/ci.yml`, `Dockerfile`",
+            "`npm audit --audit-level=high` fails CI (backend + web); image runs as `node` with a HEALTHCHECK"
           ]
         ]
       }
@@ -1695,17 +1731,17 @@
           ],
           [
             "Pack + scam eval (`backend/eval/packs`)",
-            "45 scripted calls across 7 packs (flow, outcome, actions, refusals, what must never be said) and 26 scam scripts plus lookalike genuine calls (precision, recall, leaks)",
+            "45 scripted calls across 7 packs (flow, outcome, actions, refusals, what must never be said) and 26 scam scripts plus lookalike genuine calls (precision, recall, leaks); accounts pass through the real database schema",
             "Every change in CI (offline, `--min 1`); `-- --mode claude` on demand",
             "100% and zero leaks (CI gate)",
             "Live · offline 71/71, scam precision 1.0, recall 1.0, 0 leaks"
           ],
           [
             "Backend unit tests",
-            "Flows, extractors, emergency, shields, Focus, sanitizer, recorder, Indian numbers/dates/yes-no, stream-token and log-redaction security, packs, orders, records, listings, refusals, scam shield, UPI links; memories, Ask Vexa parsing, link names, push subscriptions, interpreter fallback, agent tool schemas",
+            "Flows, extractors, emergency, shields, Focus, sanitizer, recorder, Indian numbers/dates/yes-no, stream-token and log-redaction security, packs, orders, records, listings, refusals, scam shield, UPI links; memories, Ask Vexa parsing, link names, push subscriptions, interpreter fallback, agent tool schemas; daily budget, CSV import and Sheets allow-list",
             "`npm test` before release",
             "All pass",
-            "Live · 69 tests passing, run in CI"
+            "Live · 71 tests passing, run in CI"
           ],
           [
             "Mobile tests",
@@ -1755,6 +1791,20 @@
             "Before release",
             "All pass",
             "Partial · scripted, not in CI"
+          ],
+          [
+            "Fast-model comparison (`eval/nlu/FAST_MODELS.md`)",
+            "Understanding accuracy, facts, latency and cost per model",
+            "On demand when changing models",
+            "Choose the model with 100% facts",
+            "Live · Sonnet 5.5 98% / 100% facts at 2.1 s; Haiku 5.5 96%"
+          ],
+          [
+            "Dependency audit",
+            "High and critical advisories in production dependencies",
+            "Every change in CI (backend and web)",
+            "0 high, 0 critical",
+            "Live · passes (8 moderate behind firebase-admin 14)"
           ]
         ]
       }
@@ -1929,6 +1979,21 @@
             "`PUBLIC_URL` (or Render's `RENDER_EXTERNAL_URL`)",
             "Allowed origin and webhook base",
             "Unset"
+          ],
+          [
+            "`DAILY_AI_BUDGET_USD` / `MAX_DAILY_AI_BUDGET_USD`",
+            "Default and maximum daily AI budget per account",
+            "5 / 50"
+          ],
+          [
+            "`AI_KILL_SWITCH`",
+            "Turns every model call off (offline rules only)",
+            "Unset (off)"
+          ],
+          [
+            "`MAX_CALL_SECONDS`",
+            "Live call length ceiling",
+            "900"
           ]
         ]
       }
@@ -1937,11 +2002,10 @@
       "title": "Known gaps (from the code)",
       "bullets": [
         "The live phone path (Twilio + OpenAI Realtime) is complete in code but has not run on a real call; no keys are configured.",
-        "Unused code and dependencies: `config/redis.js`, `pg`, `bcrypt`.",
         "Per-turn replies take 2–9 s on Opus; a fast model (e.g. Haiku) is recommended for live calls.",
         "Active calls, test sessions, Vexa Link sessions, interpreter rooms and rate-limit counters live in memory: one server instance only, and a restart drops them.",
         "Hosting is configured (`render.yaml`, `docs/DEPLOY.md`) but needs the owner's Render, Atlas and Google accounts; demo v3 is scripted, not yet recorded.",
-        "Catalog, records and listings are entered in the app or loaded from a pack; CSV / Sheets import is not built yet."
+        "Readiness review (README, Production Readiness): ready for the internet-first beta, not for live phone calls; 14 open items with owners."
       ]
     }
   ]
