@@ -34,7 +34,7 @@ Use cases ([docs/USE_CASES.md](docs/USE_CASES.md) build order), alongside the la
 | 7 Interpreter | Phone-to-phone, any 2 of 8 languages | **Done** |
 | 8 Callable agent API | MCP-style tools; requests wait for the owner | **Done** |
 | 9 Installable app + hosting | PWA install, Web Push, Google sign-in, Render + Atlas blueprint | **Done** in code; hosting needs your Render/Atlas/Google accounts ([DEPLOY.md](docs/DEPLOY.md)) |
-| Demo v3 | Real phones on the hosted app | Script ready ([DEMO_V3.md](docs/DEMO_V3.md)); needs recording |
+| Demo v3 | Every Wave 1 capability on film | **Automated cut done** ([vexa-demo-v3.mp4](demo/output/vexa-demo-v3.mp4), local server, real Claude); real-phone take after hosting ([DEMO_V3.md](docs/DEMO_V3.md)) |
 
 Earlier Indian-speech phase:
 

@@ -1,5 +1,7 @@
 # Demo v3: recording script (real phones, hosted Vexa)
 
+> **An automated cut already exists:** [`demo/output/vexa-demo-v3.mp4`](../demo/output/vexa-demo-v3.mp4), 11 minutes, recorded on a local server with real Claude calls. `demo/v3-run.mjs` drives the real app pages; voices are synthesized. This script is for the real-phone version once Vexa is hosted.
+
 **Goal:** one take of every Wave 1 capability, filmed on real Android phones against the hosted app, about 12 minutes long. Every number shown is real: cost per conversation, eval scores, totals.
 
 **Before you start:** finish [DEPLOY.md](DEPLOY.md) (Render + Atlas + Google sign-in + notification keys).

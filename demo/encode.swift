@@ -1,13 +1,15 @@
 // Encodes build/frames/*.jpg + build/audio/mix.wav into an H.264/AAC MP4 using AVFoundation.
 //   swift demo/encode.swift <framesDir> <fps> <audio.wav> <out.mp4>
+//   swift demo/encode.swift <framesDir> <fps> <audio.m4a> <out.mp4> <videoBitsPerSecond>   (exact bitrate; audio already AAC)
 import AVFoundation
 import AppKit
 import CoreVideo
 
 let args = CommandLine.arguments
-guard args.count == 5, let fps = Int32(args[2]) else {
-  print("usage: encode.swift <framesDir> <fps> <audio.wav> <out.mp4>"); exit(1)
+guard args.count == 5 || args.count == 6, let fps = Int32(args[2]) else {
+  print("usage: encode.swift <framesDir> <fps> <audio.wav> <out.mp4> [videoBitsPerSecond]"); exit(1)
 }
+let bitrate = args.count == 6 ? (Int(args[5]) ?? 6_000_000) : 6_000_000
 let framesDir = URL(fileURLWithPath: args[1])
 let audioURL = URL(fileURLWithPath: args[3])
 let outURL = URL(fileURLWithPath: args[4])
@@ -24,7 +26,7 @@ let writer = try AVAssetWriter(outputURL: videoOnly, fileType: .mov)
 let settings: [String: Any] = [
   AVVideoCodecKey: AVVideoCodecType.h264,
   AVVideoWidthKey: W, AVVideoHeightKey: H,
-  AVVideoCompressionPropertiesKey: [AVVideoAverageBitRateKey: 6_000_000, AVVideoProfileLevelKey: AVVideoProfileLevelH264HighAutoLevel]
+  AVVideoCompressionPropertiesKey: [AVVideoAverageBitRateKey: bitrate, AVVideoProfileLevelKey: AVVideoProfileLevelH264HighAutoLevel]
 ]
 let input = AVAssetWriterInput(mediaType: .video, outputSettings: settings)
 input.expectsMediaDataInRealTime = false
@@ -73,7 +75,10 @@ let ca = comp.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersis
 let aDur = CMTimeMinimum(duration, aAsset.duration)
 try ca.insertTimeRange(CMTimeRange(start: .zero, duration: aDur), of: aTrack, at: .zero)
 
-guard let export = AVAssetExportSession(asset: comp, presetName: AVAssetExportPresetHighestQuality) else { print("no export session"); exit(1) }
+// With an explicit bitrate, keep the H.264 stream as encoded (pass an AAC .m4a as the audio);
+// otherwise re-encode at the highest-quality preset (v2 behaviour)
+let preset = args.count == 6 ? AVAssetExportPresetPassthrough : AVAssetExportPresetHighestQuality
+guard let export = AVAssetExportSession(asset: comp, presetName: preset) else { print("no export session"); exit(1) }
 export.outputURL = outURL
 export.outputFileType = .mp4
 export.shouldOptimizeForNetworkUse = true

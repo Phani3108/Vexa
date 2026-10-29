@@ -351,7 +351,21 @@ Claude is used for all text intelligence when `ANTHROPIC_API_KEY` is set (OpenAI
 
 ## Demo
 
-▶ [demo/output/vexa-demo.mp4](demo/output/vexa-demo.mp4) · 18 min · [subtitles](demo/output/vexa-demo.srt) · [cost of each call](demo/output/COSTS.md). Every call in it was handled live by Claude; the voices are synthesized.
+**v3 (Wave 1):** ▶ [demo/output/vexa-demo-v3.mp4](demo/output/vexa-demo-v3.mp4) · 11 min · [subtitles](demo/output/vexa-demo-v3.srt) · [costs](demo/output/COSTS-v3.md). Recorded on a local server with real Claude calls. The customer pages are the real app, driven automatically; the voices are synthesized.
+
+- **Business packs:** a clinic, a restaurant and a kirana shop, each set up in one tap.
+- **Vexa Link:**
+  - a Tamil customer gets a test price and the fasting rule, and is refused medical advice;
+  - a Hindi kirana order ends with a "Pay ₹368 with any UPI app" button.
+- **Scam shield:** a "digital arrest" call to Amma is blocked in one turn, and her son is alerted.
+- **Memory:** a supplier's quote and promise are saved, then asked about later.
+- **Interpreter:** Telugu ⇄ Hindi on two phones.
+- **AI agents:** Claude, acting as a customer's assistant, orders through the shop's tools.
+- **Owner screens:** the AI budget, import, and "your data". Then the CI gates and the bill.
+
+Script for re-recording on real phones once hosted: [docs/DEMO_V3.md](docs/DEMO_V3.md).
+
+**v2 (phone calls):** ▶ [demo/output/vexa-demo.mp4](demo/output/vexa-demo.mp4) · 18 min · [subtitles](demo/output/vexa-demo.srt) · [cost of each call](demo/output/COSTS.md). Every call in it was handled live by Claude; the voices are synthesized.
 
 - Personal: a courier guided to the door and handed to you for the OTP, a bank loan call negotiated from 14% to 12.5%, Amma told you're free after 7 PM.
 - Business: a booking, directions and Sunday hours, stock with price and total.
@@ -360,6 +374,8 @@ Claude is used for all text intelligence when `ANTHROPIC_API_KEY` is set (OpenAI
 <details><summary>Rebuild the video</summary>
 
 With the backend running: `node demo/run-scenarios.mjs`, `node demo/attach-recording.mjs`, `node demo/capture-screens.mjs`, `node demo/build-timeline.mjs`, `node demo/make-data.mjs`, `node demo/write-costs.mjs`, `node demo/render-frames.mjs`, then `swift demo/encode.swift demo/build/frames 12 demo/build/audio/mix.wav demo/output/vexa-demo.mp4`.
+
+v3: start the backend (development, `ANTHROPIC_FAST_MODEL=claude-sonnet-5-5`), then `VEXA_URL=http://localhost:<port> node demo/v3-run.mjs`, `node demo/v3-timeline.mjs`, `DEMO_BUILD=build-v3 node demo/make-data.mjs`, `DEMO_BUILD=build-v3 node demo/render-frames.mjs`, `swift demo/encode.swift demo/build-v3/frames 12 demo/build-v3/audio/mix.wav demo/output/vexa-demo-v3.mp4`.
 
 </details>
 
