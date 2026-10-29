@@ -17,6 +17,7 @@ import { applyOutcomes, leadFromRun } from './outcomes.js';
 import ConversationAnalyzer from '../voice/ConversationAnalyzer.js';
 import PromptGenerator from '../voice/PromptGenerator.js';
 import callHistoryService from '../services/callHistoryService.js';
+import memoryService from '../services/memoryService.js';
 import userConfigService from '../services/userConfigService.js';
 import pushService from '../services/pushNotificationService.js';
 import Call from '../models/mongodb/Call.js';
@@ -281,7 +282,7 @@ export async function finalizeCallSession({ session, user, callResult, io = null
 
   const analyzer = new ConversationAnalyzer(process.env);
   const englishView = lines.map(l => ({ ...l, text: l.textEn || l.text }));
-  const analysis = await withLedger(session.ledger, 'post-call analysis', () => analyzer.analyze(englishView, { categories: user.callCategories || [], accountType: user.accountType }));
+  const analysis = await withLedger(session.ledger, 'post-call analysis', () => analyzer.analyze(englishView, { categories: user.callCategories || [], accountType: user.accountType, now: callResult.startTime || new Date(), timezone: user.businessProfile?.timezone || user.priorityTime?.timezone }));
 
   // The flow's collected facts are authoritative; the analyzer fills gaps.
   const lead = leadFromRun(run, callResult.from);
@@ -329,6 +330,8 @@ export async function finalizeCallSession({ session, user, callResult, io = null
   }
 
   const final = await Call.findById(saved._id).lean();
+  // Promises, quotes and facts the owner can ask about later (never from spam or scam calls)
+  if (!run.scam && !analysis.isSpam) await memoryService.saveFromCall(final, analysis.memories).catch(err => console.error('Memory save failed:', err.message));
   io?.to(`user:${user.userId}`).emit('call:analyzed', {
     callId: final.callId,
     summary: final.analysis?.summary,

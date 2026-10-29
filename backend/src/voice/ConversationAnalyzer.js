@@ -10,6 +10,7 @@
 
 import { structuredJson, llmLabel } from '../lib/llm.js';
 import { nullableString, strictObject } from '../lib/claude.js';
+import { extractMemories } from '../lib/memoryExtract.js';
 
 const nullableBool = { anyOf: [{ type: 'boolean' }, { type: 'null' }] };
 const ANALYSIS_SCHEMA = strictObject({
@@ -33,7 +34,17 @@ const ANALYSIS_SCHEMA = strictObject({
     need: nullableString,
     preferredTime: nullableString,
     value: { anyOf: [{ type: 'string', enum: ['low', 'medium', 'high'] }, { type: 'null' }] }
-  })
+  }),
+  memories: {
+    type: 'array',
+    items: strictObject({
+      kind: { type: 'string', enum: ['promise', 'quote', 'fact'] },
+      text: { type: 'string' },
+      who: nullableString,
+      amount: { anyOf: [{ type: 'number' }, { type: 'null' }] },
+      due: nullableString
+    })
+  }
 });
 void nullableBool;
 
@@ -58,13 +69,13 @@ class ConversationAnalyzer {
     if (lines.length === 0) return this._empty();
 
     const categories = context.categories || [];
-    if (this.useLocal) return this._fallback(lines, categories);
+    if (this.useLocal) return this._fallback(lines, categories, context);
 
     try {
       return await this._callAPI(lines, categories, context);
     } catch (err) {
       console.error('❌ ConversationAnalyzer API error:', err.message);
-      return this._fallback(lines, categories);
+      return this._fallback(lines, categories, context);
     }
   }
 
@@ -134,8 +145,17 @@ Return a JSON object with EXACTLY these fields:
     "need": "<what they want, one line, or null>",
     "preferredTime": "<when they want a callback/appointment, or null>",
     "value": "<low|medium|high or null>"
-  }
+  },
+  "memories": [ things the owner may want to look up or be reminded of later, at most 5; [] if none:
+    { "kind": "promise" (the CALLER committed to do something: call back, deliver, send, pay, visit) | "quote" (a price or amount the caller stated) | "fact" (a durable detail: an account or order number, a model, a new address),
+      "text": "<one plain sentence for the owner, e.g. 'The SBI loan officer will call back about the top-up loan'>",
+      "who": "<person or company, or null>",
+      "amount": <number in the call's currency, or null>,
+      "due": "<ISO 8601 date-time with the owner's UTC offset when a promise has a time, else null>" }
+  ]
 }
+
+MEMORIES: only what was actually said. Never store OTPs, PINs, card or bank numbers, passwords, or anything from a scam call. The call took place ${context.now ? new Date(context.now).toISOString() : 'now'}${context.timezone ? ` (owner's timezone ${context.timezone})` : ''}; resolve "Monday", "kal", "tomorrow evening" against that.
 
 Return ONLY valid JSON.`;
 
@@ -164,7 +184,8 @@ Return ONLY valid JSON.`;
       actionRequired: !!raw.actionRequired,
       actionItems: Array.isArray(raw.actionItems) ? raw.actionItems : [],
       isSpam: !!raw.isSpam || SPAM_CATEGORY.test(raw.categoryId || ''),
-      lead: raw.lead && typeof raw.lead === 'object' ? { ...raw.lead, isLead: !!raw.lead.isLead && !raw.isSpam } : { isLead: false }
+      lead: raw.lead && typeof raw.lead === 'object' ? { ...raw.lead, isLead: !!raw.lead.isLead && !raw.isSpam } : { isLead: false },
+      memories: raw.isSpam ? [] : (Array.isArray(raw.memories) ? raw.memories.slice(0, 5) : [])
     };
   }
 
@@ -172,7 +193,7 @@ Return ONLY valid JSON.`;
   // Fallback (keyword matching)
   // ─────────────────────────────────────────────────────────────────────────
 
-  _fallback(transcripts, categories) {
+  _fallback(transcripts, categories, context = {}) {
     const callerLines = transcripts.filter(t => t.speaker === 'user' || t.speaker === 'caller').map(t => t.text);
     const callerText = callerLines.join(' ');
     const matched = this.detectCategoryQuick(callerText, categories);
@@ -217,6 +238,7 @@ Return ONLY valid JSON.`;
       actionItems: isLead ? [`Call back ${callerName || 'the caller'}`] : [],
       isSpam,
       lead: { isLead, name: callerName, need: isLead ? firstCallerLine.slice(0, 160) : null },
+      memories: isSpam ? [] : extractMemories(transcripts, { now: context.now ? new Date(context.now) : new Date(), callerName }),
       fallback: true
     };
   }

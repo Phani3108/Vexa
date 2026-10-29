@@ -361,3 +361,16 @@ export interface PackSummary {
   flows: string[]
   guardrails: string[]
 }
+
+export interface Memory {
+  _id: string
+  kind: 'promise' | 'quote' | 'fact'
+  text: string
+  who: string | null
+  amount: number | null
+  dueAt: string | null
+  status: 'open' | 'done' | 'dismissed'
+  callId: string | null
+  isTest: boolean
+  createdAt: string
+}

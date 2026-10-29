@@ -27,6 +27,8 @@ import simulatorRoutes from './routes/simulator.js';
 import workflowRoutes from './routes/workflows.js';
 import packRoutes from './routes/packs.js';
 import pushRoutes from './routes/push.js';
+import memoryRoutes from './routes/memory.js';
+import { startReminderLoop } from './services/memoryService.js';
 import { publicLinkRouter, linkSettingsRouter } from './routes/link.js';
 import { attachIO as attachLinkIO } from './services/linkService.js';
 import { assistantRouter, bookingsRouter } from './routes/assistant.js';
@@ -180,10 +182,12 @@ app.use('/api/assistant', assistantRouter);
 app.use('/api/bookings', bookingsRouter);
 app.use('/api/packs', packRoutes);
 app.use('/api/push', pushRoutes);
+app.use('/api/memory', memoryRoutes);
 app.use('/api/link', linkSettingsRouter);
 app.use('/api/public/link/:slug', publicLinkRouter);
 attachSimulatorIO(io);
 attachLinkIO(io);
+startReminderLoop();
 
 if (voiceConfig) {
   initVoiceRoutes(voiceConfig, io);
