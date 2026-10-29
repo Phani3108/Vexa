@@ -50,7 +50,7 @@ A key pair has been generated for you in `backend/.data/vapid-production.json`. 
 To make a new pair instead, run `npx web-push generate-vapid-keys`.
 
 ### Check everything before you deploy
-Create `backend/.env.production` (also git-ignored) with `MONGODB_URI`, `ANTHROPIC_API_KEY`, `ANTHROPIC_FAST_MODEL=claude-haiku-5-5`, `GOOGLE_CLIENT_ID` and `VAPID_SUBJECT`, then run:
+Create `backend/.env.production` (also git-ignored) with `MONGODB_URI`, `ANTHROPIC_API_KEY`, `ANTHROPIC_FAST_MODEL=claude-sonnet-5-5`, `GOOGLE_CLIENT_ID` and `VAPID_SUBJECT`, then run:
 ```bash
 cd backend && npm run check:deploy -- --env .env.production
 ```

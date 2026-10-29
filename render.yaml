@@ -24,7 +24,7 @@ services:
       - key: ANTHROPIC_MODEL
         value: claude-opus-5-5
       - key: ANTHROPIC_FAST_MODEL
-        value: claude-haiku-5-5   # per-turn understanding and translation: faster replies
+        value: claude-sonnet-5-5  # per-turn understanding: 100% facts, ~2 s (claude-haiku-5-5 is 20x cheaper but drops some facts; see backend/eval/nlu/FAST_MODELS.md)
       - key: GOOGLE_CLIENT_ID
         sync: false       # sign-in without SMS; see docs/DEPLOY.md step 3
       - key: VAPID_PUBLIC_KEY
