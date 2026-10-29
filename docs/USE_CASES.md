@@ -303,25 +303,25 @@ Each block follows the same template. Conversations are examples; real ones vary
 
 ## Build order (internet-first, no external accounts)
 
-| Step | Build | Use cases unlocked | Shown in demo v3 via |
-|---|---|---|---|
-| 1 | **Pack format + pack installer**; packs B4–B10 with seed data and eval sets | B4–B10 | Test calls + Vexa Link |
-| 2 | **Scam classifier step + sensitive-data guard + `p_scam` flow + evidence alert** | P4 (P5, P10 later) | Test call |
-| 3 | **Vexa Link** (public talk page + QR, rate-limited) | All 🌐 business packs, P12 | Real phone browser |
-| 4 | **Pay link action (UPI)** + order/record lookup from CSV | B7, B11, B12 | Test call / Vexa Link |
-| 5 | **Memory store + Ask Vexa questions + promise nudges** | P8 (P10 later) | App |
-| 6 | **Linked accounts (guardian)** + digest | P5 | Two accounts in the app |
-| 7 | **Two-way interpreter on Vexa Link** | P12 | Two phones |
-| 8 | **Callable agent API** | A1 | API call shown in the demo |
-| 9 | Installable app + web push + Google sign-in, then Render + Atlas | Real use | Real phone |
-| — | Waits for phone numbers / accounts | P6, P7, P9, P13, B13 real traffic; WhatsApp; Exotel | — |
+| Step | Build | Use cases unlocked | Shown in demo v3 via | Status |
+|---|---|---|---|---|
+| 1 | **Pack format + pack installer**; packs B4–B10 with seed data and eval sets | B4–B10 | Test calls + Vexa Link | Done |
+| 2 | **Scam classifier step + sensitive-data guard + `p_scam` flow + evidence alert** | P4 (P5, P10 later) | Test call | Done |
+| 3 | **Vexa Link** (public talk page + QR, rate-limited) | All 🌐 business packs, P12 | Real phone browser | — |
+| 4 | **Pay link action (UPI)** + order/record lookup from CSV | B7, B11, B12 | Test call / Vexa Link | Done (CSV import to come) |
+| 5 | **Memory store + Ask Vexa questions + promise nudges** | P8 (P10 later) | App | — |
+| 6 | **Linked accounts (guardian)** + digest | P5 | Two accounts in the app | — |
+| 7 | **Two-way interpreter on Vexa Link** | P12 | Two phones | — |
+| 8 | **Callable agent API** | A1 | API call shown in the demo | — |
+| 9 | Installable app + web push + Google sign-in, then Render + Atlas | Real use | Real phone | — |
+| — | Waits for phone numbers / accounts | P6, P7, P9, P13, B13 real traffic; WhatsApp; Exotel | — | — |
 
 Infrastructure from LAUNCH_PLAN (L1 keys and tenancy, L5a caps, L7a privacy) continues alongside. L1 and L5a must land before strangers use Vexa Link.
 
 ## Eval standard for every pack
 - `backend/eval/packs/<id>/cases.jsonl`: scripted multi-turn calls with expected slots, actions, refusals and the final outcome.
-- One runner (extends `eval/nlu/run.mjs`): offline mode in CI, model mode on demand. Reports slot accuracy, outcome accuracy, refusal compliance, and leaks (must be 0).
-- **Release gate:** a pack is enabled only when its set passes its thresholds. Thresholds live in the pack's `guardrails.md`.
+- One runner, `eval/packs/run.mjs` (built): offline mode in CI (`--min 1`), model mode on demand (`--mode claude`). Checks flow, outcome, actions, slots, refusals and forbidden phrases; reports scam precision, recall and leaks (must be 0).
+- **Release gate:** every pack's set must pass at 100% with zero leaks in CI before a change ships (`.github/workflows/ci.yml`).
 
 ## Demo v3: what it will show
 1. Install the app on a real phone; sign in with Google; choose a business pack (clinic).

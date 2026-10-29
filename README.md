@@ -31,6 +31,10 @@ It works in two modes:
 | Dev-only routes | Demo data in production | `users.js`, `media.js` | Off in production unless `ENABLE_DEMO_DATA=true` |
 | Secrets | Keys leaking through the repo or logs | `backend/.env` (git-ignored), `.dockerignore`, `lib/redact.js` | Only `.env.example` is tracked; every log line scrubbed of API keys and bearer tokens |
 | Test-call isolation | Rehearsals polluting real data | `simulatorService.js`, `callHistoryService.js`, `outcomes.js` | No caller memory, no real SMS |
+| Scam shield | Fraud scripts (digital arrest, fake courier, KYC/SIM block, impostor relative, prize) and OTP/PIN/remote-app requests reaching the owner or getting answers | `workflows/scam.js`, `engine.js` step 0, `callSession.js` alert | On for every account; skipped for VIPs and always-transfer callers; delivery OTPs at the door allowed |
+| Pack refusal rules | Medical advice, allergen promises, fixed quotes, mark guarantees, treatment-safety calls, religion/caste/diet property filters | `packs/*.js` `guardrails.refuse`, `engine.js` `refusalFor`, model `restricted` label | On when the pack is installed |
+| Record privacy | Order, report or fee status told to the wrong person | `engine.js` `lookupRecord` | Shared only when the caller's phone (or name, if the record has no phone) matches |
+| Payment link limit | The AI asking for large payments on its own | `outcomes.js` `pay_link` | Above `payLinkAutoLimit` (₹5,000 default) the link waits for owner approval; simulated on test calls |
 
 ### Evals and quality gates
 
@@ -38,7 +42,8 @@ It works in two modes:
 |---|---|---|---|---|
 | Indian-language understanding set (`backend/eval/nlu`) | Language, code-mixing, facts, yes/no, phone numbers across 8 languages (161 cases) | Every change in CI (offline, `--min 0.97`); `-- --mode claude` on demand | ≥ 97% offline (CI gate); ≥ 90% mixed-language target | Live · offline 99%, Claude 100% (157-case run) |
 | Held-out set (`holdout.jsonl`) | Same, 50 new phrasings never tuned against | Every change in CI (`--min 0.95`) | Should track the main set | Live · offline 98%, Claude 100% |
-| Backend unit tests | Flows, extractors, emergency, shields, Focus, sanitizer, recorder, Indian numbers/dates/yes-no, stream-token and log-redaction security | `npm test` before release | All pass | Live · 47 tests passing, run in CI |
+| Pack + scam eval (`backend/eval/packs`) | 45 scripted calls across 7 packs (flow, outcome, actions, refusals, what must never be said) and 26 scam scripts plus lookalike genuine calls (precision, recall, leaks) | Every change in CI (offline, `--min 1`); `-- --mode claude` on demand | 100% and zero leaks (CI gate) | Live · offline 71/71, scam precision 1.0, recall 1.0, 0 leaks |
+| Backend unit tests | Flows, extractors, emergency, shields, Focus, sanitizer, recorder, Indian numbers/dates/yes-no, stream-token and log-redaction security, packs, orders, records, listings, refusals, scam shield, UPI links | `npm test` before release | All pass | Live · 62 tests passing, run in CI |
 | Mobile tests | App render, API client, transcript store | `jest` in `mobile/` | All pass | Partial · 9 tests |
 | Web app checks | Type safety and build | `tsc -b && vite build`, `oxlint` | No errors | Partial · no unit tests |
 | Runtime quality signals | Model used per turn, latency, tokens and cost by purpose, questions asked/skipped, risk, action status | Every call (saved on the call) | — | Live |
@@ -52,14 +57,14 @@ It works in two modes:
 
 How an owner sets Vexa up, how every call is answered, understood and acted on, and what happens after it ends. Each box names the exact code path, model, API or data store involved; numbered badges match the step-by-step walkthrough below.
 
-![Vexa — end-to-end workflow](docs/workflow/workflow.png)
+![Vexa — end-to-end workflow](workflow.png)
 
-<sub>Source of truth: Phani3108/Vexa, branch launch-l0 (commit 10c45ad, 29 Oct 2026) · Full readout with every table: [docs/workflow/readout.html](docs/workflow/readout.html) (open locally or download).</sub>
+<sub>Source of truth: Phani3108/Vexa, branch wave1 (commit 3568e5d, 29 Oct 2026) · Full readout with every table: [readout.html](readout.html) (open locally or download).</sub>
 
 | | |
 |---|---|
-| **Scope** | UC1 Set up the assistant · UC2 Answer a call (live phone calls and in-app test calls) · UC3 After the call. Personal and Business modes share the same pipeline. |
-| **Source of truth** | github.com/Phani3108/Vexa · branch `launch-l0` · commit `10c45ad` · 29 Oct 2026 · backend/src, web/src, backend/.env.example, Dockerfile, docker-compose.yml, .github/workflows, backend/test, backend/eval |
+| **Scope** | UC1 Set up the assistant · UC2 Answer a call (live phone calls and in-app test calls) · UC3 After the call. Personal and Business modes share the same pipeline. · Wave 1: seven business packs and the scam shield (in-app test calls) |
+| **Source of truth** | github.com/Phani3108/Vexa · branch `wave1` · commit `3568e5d` · 29 Oct 2026 · backend/src, web/src, backend/.env.example, Dockerfile, docker-compose.yml, .github/workflows, backend/test, backend/eval |
 | **Planned items** | From ROADMAP.md (India-first plan): Indian speech engines and voices, Indian phone number, WhatsApp, UPI, calendar and CRM. Drawn as Not integrated. |
 | **Live status** | Text understanding, flows, analysis, translation and the app run end to end today. The live phone path (Twilio + OpenAI Realtime) is complete in code but has not been run on a real call: no Twilio or OpenAI keys are configured. |
 | **Prepared by** | Phani Marupaka with Claude Code · 29 Oct 2026 |
@@ -83,6 +88,7 @@ _Numbers match the badges in the diagram._
 8. Owners can also just say what they want ("I'm busy until 7 pm", "block that number"). Claude turns that into actions; a rule-based parser takes over if Claude is unavailable.
 9. Settings, the catalog, shields and notes for specific callers are stored in MongoDB.
 10. Only approved fields can be edited, commands are rate-limited and capped, and the built-in safety flows can't be removed.
+50. A business can install a ready-made pack for its trade. Its flows replace the generic ones and a sample business can be loaded to try it at once (`POST /api/packs/:id/install`).
 
 **UC2 · Ring and screen**
 
@@ -102,6 +108,7 @@ _Numbers match the badges in the diagram._
 21. The live call's state is kept in server memory and is lost if the server restarts.
 22. If Claude is slow or down, built-in rules understand Indian numbers, dates, yes/no and phone numbers in eight languages, so the call keeps going.
 23. This understanding is measured on 211 test sentences in eight languages, including 50 held back from tuning.
+51. Every sentence is first checked by the scam shield. A fraud script or a request for an OTP, PIN or screen-sharing app ends the call at once; nothing about the owner is shared, the owner is alerted and the phrases are saved as evidence.
 
 **UC2 · Decide and reply**
 
@@ -112,6 +119,8 @@ _Numbers match the badges in the diagram._
 28. On test calls, Claude translates the reply in text; on live calls the voice does it, which saves a request.
 29. Prices, stock, hours, address and FAQs come from the owner's profile, so Vexa never guesses a number.
 30. Calls are capped at 10 turns, unanswered questions end in a message for the owner, and answers are limited to the owner's own business information.
+52. Pack flows take orders item by item with an exact total, tell callers their order, report or fee status (only to the phone number on the record), and match property listings.
+53. Pack refusal rules stop Vexa giving medical advice, allergen promises, fixed quotes, guaranteed marks or discriminatory property filters; it refuses politely and carries on.
 
 **UC2 · Hand off or steer**
 
@@ -140,6 +149,8 @@ _Numbers match the badges in the diagram._
 47. Calendar booking, CRM sync, WhatsApp and UPI payment links are planned, not built.
 48. A person approves every booking, and recordings can only be played through short-lived links.
 49. Every change runs 47 backend tests, the understanding test gate, the web build and the Docker build in CI; 9 mobile tests also exist.
+54. For orders, Vexa texts a UPI payment link for the exact total; above the owner's limit the link waits for approval.
+55. Every change runs 71 scripted pack and scam calls in CI; any failure or leak blocks the release.
 
 <details><summary><b>Data and history calls</b></summary>
 
@@ -157,6 +168,8 @@ What Vexa reads and writes about past calls, callers and the owner, and what is 
 | Active calls, test sessions, translation cache, rate-limit counters | In memory | During calls | Lost on restart; a single server instance only (no Redis store). |
 | Redis (`config/redis.js`) | Not used | — | Client defined but never imported. |
 | Calendar, CRM, WhatsApp, UPI, Indian telephony | Not integrated | — | Planned in ROADMAP.md. |
+| Pack data (`UserConfig.businessProfile`: catalog, records, listings, UPI ID; `packs`) | Read / written | Pack install; every pack call | Records are answered only to the phone number on them; sample data is optional. |
+| Scam evidence (`Call.analysis.scam`) | Written | Scam call ends | Type, label and the caller's phrases; call tagged spam, category "Scam blocked". |
 
 </details>
 
@@ -166,7 +179,7 @@ Claude is used for all text intelligence when `ANTHROPIC_API_KEY` is set (OpenAI
 
 | Call (function) | Model | When it runs | What it produces | Switch / flag |
 |---|---|---|---|---|
-| Per-turn understanding · `nlu.understand()` | Claude fast model (`ANTHROPIC_FAST_MODEL`, else `ANTHROPIC_MODEL` = claude-opus-5-5) · low effort · 2,048 tokens | Every caller sentence | Flow, facts in English, answer from business info, emergency, wants a person, goodbye, language, code-mixing, English translation, yes/no | `NLU_TIMEOUT_MS` (5 s), `NLU_DISABLED` |
+| Per-turn understanding · `nlu.understand()` | Claude fast model (`ANTHROPIC_FAST_MODEL`, else `ANTHROPIC_MODEL` = claude-opus-5-5) · low effort · 2,048 tokens | Every caller sentence | Flow, facts in English, answer from business info, emergency, wants a person, goodbye, language, code-mixing, English translation, yes/no, scam label, restricted-request label (pack refusal rules) | `NLU_TIMEOUT_MS` (5 s), `NLU_DISABLED` |
 | Reply translation · `translateText()` | Claude fast model · 2,000 tokens | Test calls, greeting, owner notes | Reply in the caller's language and script (mixed if they mix) | Off on live calls (voice translates) |
 | Transcript translation · `translateLines()` | Claude main model · 8,000 tokens · 30 s | End of call; "Read in…" | Every line in English (or the chosen language) | — |
 | Summary translation · `translateText()` | Claude fast model · 20 s | End of call; "Read in…" | Summary in the caller's language and native script | — |
@@ -199,6 +212,7 @@ Claude is used for all text intelligence when `ANTHROPIC_API_KEY` is set (OpenAI
 | Firebase Cloud Messaging | `admin.messaging().send` | Push notifications | `FIREBASE_SERVICE_ACCOUNT` (optional) |
 | Vexa API (owner app) | `/api/auth/*`, `/api/users/*`, `/api/calls/*`, `/api/workflows/*`, `/api/assistant/*`, `/api/bookings/*`, `/api/simulator/*`, `/media/recordings/:token` | Everything the app does | JWT bearer; recording via signed link |
 | Socket.io | Events `call:transcript`, `call:language`, `call:handoff`, `call:urgent`, `call:analyzed`, `booking:requested` | Live updates to the owner | JWT in handshake |
+| UPI deep link (NPCI format) | `upi://pay?pa=…&am=…` sent inside a Twilio SMS | Payment link for an order total | None (no gateway); the owner's UPI ID |
 
 </details>
 
@@ -253,8 +267,6 @@ Claude is used for all text intelligence when `ANTHROPIC_API_KEY` is set (OpenAI
 
 </details>
 
-<sub>Regenerate: edit [docs/workflow/workflow.json](docs/workflow/workflow.json), then run the `workflow-readout` build.</sub>
-
 ---
 
 ## Highlights
@@ -268,6 +280,8 @@ Claude is used for all text intelligence when `ANTHROPIC_API_KEY` is set (OpenAI
 | **Screening** | Standard, Focus, Spam shield and Silent modes; a spam risk score before the phone rings; VIPs and emergencies can break through. |
 | **Outcomes** | Leads in your inbox, booking requests you approve with one tap (the caller is texted), live stock, price and totals from your catalog, urgent alerts during the call. |
 | **After the call** | Summary in English and in the caller's language, transcript as spoken with English under each line, "Read in…" any of 8 languages, stereo recording with tap-to-jump. |
+| **Business packs** | Seven ready-made receptionists: clinic, salon, restaurant, kirana, home services, coaching, real estate. Exact order totals read back, order/report/fee status (only to the number on the record), listing matches, UPI payment links, and refusal rules per trade (no medical advice, no allergen promises, no discriminatory filters). |
+| **Scam shield** | Spots "digital arrest", fake courier, KYC/SIM blocking, impostor relatives, prizes and any OTP/PIN request, in English, Hinglish and Indian languages. Ends the call, shares nothing, alerts you with the evidence and the 1930 helpline. |
 | **Cost on every call** | Exact Claude tokens and cost saved with each call: about $0.05 (₹4.34) per call in the demo, on Claude Opus 5.5. |
 
 ## Demo

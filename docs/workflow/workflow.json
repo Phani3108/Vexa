@@ -4,11 +4,11 @@
   "meta": [
     {
       "k": "Scope",
-      "v": "UC1 Set up the assistant · UC2 Answer a call (live phone calls and in-app test calls) · UC3 After the call. Personal and Business modes share the same pipeline."
+      "v": "UC1 Set up the assistant · UC2 Answer a call (live phone calls and in-app test calls) · UC3 After the call. Personal and Business modes share the same pipeline. · Wave 1: seven business packs and the scam shield (in-app test calls)"
     },
     {
       "k": "Source of truth",
-      "v": "github.com/Phani3108/Vexa · branch `launch-l0` · commit `10c45ad` · 29 Oct 2026 · backend/src, web/src, backend/.env.example, Dockerfile, docker-compose.yml, .github/workflows, backend/test, backend/eval"
+      "v": "github.com/Phani3108/Vexa · branch `wave1` · commit `3568e5d` · 29 Oct 2026 · backend/src, web/src, backend/.env.example, Dockerfile, docker-compose.yml, .github/workflows, backend/test, backend/eval"
     },
     {
       "k": "Planned items",
@@ -551,8 +551,8 @@
       "kind": "notintegrated",
       "badge": 47,
       "tag": "Not integrated · Planned (ROADMAP.md)",
-      "title": "Calendar, CRM, WhatsApp, UPI",
-      "body": "Bookings are requests, not calendar slots; no CRM sync, WhatsApp messages or payment links yet."
+      "title": "Calendar, CRM, WhatsApp",
+      "body": "Bookings are requests, not calendar slots; no CRM sync or WhatsApp messages yet."
     },
     {
       "phase": "p8",
@@ -570,11 +570,65 @@
       "badge": 49,
       "tag": "Eval · release",
       "title": "Test suites",
-      "body": "47 backend tests and the offline understanding gate (≥ 97%, held-out ≥ 95%) run in GitHub Actions with the web build and Docker image. 9 mobile tests. **Partial:** no web unit tests yet."
+      "body": "62 backend tests and the offline understanding gate (≥ 97%, held-out ≥ 95%) run in GitHub Actions with the web build and Docker image. 9 mobile tests. **Partial:** no web unit tests yet."
+    },
+    {
+      "phase": "p2",
+      "lane": "svc",
+      "kind": "service",
+      "badge": 50,
+      "tag": "Service · Packs",
+      "title": "Install a business pack",
+      "body": "`POST /api/packs/:id/install`: 7 packs (clinic, salon, restaurant, kirana, home services, coaching, real estate) lay their flows over the built-ins and can load a sample business (prices, records, listings, UPI ID)."
+    },
+    {
+      "phase": "p4",
+      "lane": "guard",
+      "kind": "guardrail",
+      "badge": 51,
+      "tag": "Guardrail · Every turn",
+      "title": "Scam shield",
+      "body": "Checked before anything else: model `scam` label, else `scam.js` two-signal detector (digital arrest, fake courier, KYC/SIM block, impostor relative, prize) or any OTP/PIN/AnyDesk request. Call ends, nothing shared, owner alerted (`call:scam`, push), evidence saved."
+    },
+    {
+      "phase": "p5",
+      "lane": "svc",
+      "kind": "service",
+      "badge": 52,
+      "tag": "Service · Engine",
+      "title": "Orders, records, listings",
+      "body": "Carts grow across turns (\"aur do lassi\") with exact totals; order/report/fee status read only to the phone on the record; listings matched by size, budget, area."
+    },
+    {
+      "phase": "p5",
+      "lane": "guard",
+      "kind": "guardrail",
+      "badge": 53,
+      "tag": "Guardrail · Packs",
+      "title": "Refusal rules",
+      "body": "Each pack names what Vexa must not do: medical advice, allergen promises, fixed quotes, mark guarantees, treatment safety, filtering homes by religion, caste or diet. Polite refusal, then the call carries on."
+    },
+    {
+      "phase": "p8",
+      "lane": "api",
+      "kind": "api",
+      "badge": 54,
+      "tag": "Integration · UPI",
+      "title": "Payment link by text",
+      "body": "`pay_link` builds a `upi://pay` link for the exact total and texts it (Twilio SMS). Above the account limit (₹5,000 default) it waits for the owner. No gateway; simulated on test calls."
+    },
+    {
+      "phase": "p8",
+      "lane": "guard",
+      "kind": "eval",
+      "badge": 55,
+      "tag": "Eval · CI gate",
+      "title": "Pack + scam eval",
+      "body": "71 scripted calls (`npm run eval:packs`): 45 across 7 packs, 26 scam scripts and lookalike genuine calls. Gate 100% with zero leaks; offline 71/71, scam precision and recall 1.0."
     }
   ],
   "footnote": "Flows decide; models only read and speak. Optional = needs a credential to switch on. In memory = lost on restart. Not integrated = planned, not in code.",
-  "source": "Source of truth: Phani3108/Vexa, branch launch-l0 (commit 10c45ad, 29 Oct 2026)",
+  "source": "Source of truth: Phani3108/Vexa, branch wave1 (commit 3568e5d, 29 Oct 2026)",
   "steps": [
     {
       "group": "UC1 · Sign in",
@@ -623,6 +677,10 @@
         {
           "n": 10,
           "text": "Only approved fields can be edited, commands are rate-limited and capped, and the built-in safety flows can't be removed."
+        },
+        {
+          "n": 50,
+          "text": "A business can install a ready-made pack for its trade. Its flows replace the generic ones and a sample business can be loaded to try it at once (`POST /api/packs/:id/install`)."
         }
       ]
     },
@@ -685,6 +743,10 @@
         {
           "n": 23,
           "text": "This understanding is measured on 211 test sentences in eight languages, including 50 held back from tuning."
+        },
+        {
+          "n": 51,
+          "text": "Every sentence is first checked by the scam shield. A fraud script or a request for an OTP, PIN or screen-sharing app ends the call at once; nothing about the owner is shared, the owner is alerted and the phrases are saved as evidence."
         }
       ]
     },
@@ -718,6 +780,14 @@
         {
           "n": 30,
           "text": "Calls are capped at 10 turns, unanswered questions end in a message for the owner, and answers are limited to the owner's own business information."
+        },
+        {
+          "n": 52,
+          "text": "Pack flows take orders item by item with an exact total, tell callers their order, report or fee status (only to the phone number on the record), and match property listings."
+        },
+        {
+          "n": 53,
+          "text": "Pack refusal rules stop Vexa giving medical advice, allergen promises, fixed quotes, guaranteed marks or discriminatory property filters; it refuses politely and carries on."
         }
       ]
     },
@@ -809,6 +879,14 @@
         {
           "n": 49,
           "text": "Every change runs 47 backend tests, the understanding test gate, the web build and the Docker build in CI; 9 mobile tests also exist."
+        },
+        {
+          "n": 54,
+          "text": "For orders, Vexa texts a UPI payment link for the exact total; above the owner's limit the link waits for approval."
+        },
+        {
+          "n": 55,
+          "text": "Every change runs 71 scripted pack and scam calls in CI; any failure or leak blocks the release."
         }
       ]
     }
@@ -884,6 +962,18 @@
             "Not integrated",
             "—",
             "Planned in ROADMAP.md."
+          ],
+          [
+            "Pack data (`UserConfig.businessProfile`: catalog, records, listings, UPI ID; `packs`)",
+            "Read / written",
+            "Pack install; every pack call",
+            "Records are answered only to the phone number on them; sample data is optional."
+          ],
+          [
+            "Scam evidence (`Call.analysis.scam`)",
+            "Written",
+            "Scam call ends",
+            "Type, label and the caller's phrases; call tagged spam, category \"Scam blocked\"."
           ]
         ]
       }
@@ -904,7 +994,7 @@
             "Per-turn understanding · `nlu.understand()`",
             "Claude fast model (`ANTHROPIC_FAST_MODEL`, else `ANTHROPIC_MODEL` = claude-opus-5-5) · low effort · 2,048 tokens",
             "Every caller sentence",
-            "Flow, facts in English, answer from business info, emergency, wants a person, goodbye, language, code-mixing, English translation, yes/no",
+            "Flow, facts in English, answer from business info, emergency, wants a person, goodbye, language, code-mixing, English translation, yes/no, scam label, restricted-request label (pack refusal rules)",
             "`NLU_TIMEOUT_MS` (5 s), `NLU_DISABLED`"
           ],
           [
@@ -1047,6 +1137,12 @@
             "Events `call:transcript`, `call:language`, `call:handoff`, `call:urgent`, `call:analyzed`, `booking:requested`",
             "Live updates to the owner",
             "JWT in handshake"
+          ],
+          [
+            "UPI deep link (NPCI format)",
+            "`upi://pay?pa=…&am=…` sent inside a Twilio SMS",
+            "Payment link for an order total",
+            "None (no gateway); the owner's UPI ID"
           ]
         ]
       }
@@ -1174,6 +1270,30 @@
             "Rehearsals polluting real data",
             "`simulatorService.js`, `callHistoryService.js`, `outcomes.js`",
             "No caller memory, no real SMS"
+          ],
+          [
+            "Scam shield",
+            "Fraud scripts (digital arrest, fake courier, KYC/SIM block, impostor relative, prize) and OTP/PIN/remote-app requests reaching the owner or getting answers",
+            "`workflows/scam.js`, `engine.js` step 0, `callSession.js` alert",
+            "On for every account; skipped for VIPs and always-transfer callers; delivery OTPs at the door allowed"
+          ],
+          [
+            "Pack refusal rules",
+            "Medical advice, allergen promises, fixed quotes, mark guarantees, treatment-safety calls, religion/caste/diet property filters",
+            "`packs/*.js` `guardrails.refuse`, `engine.js` `refusalFor`, model `restricted` label",
+            "On when the pack is installed"
+          ],
+          [
+            "Record privacy",
+            "Order, report or fee status told to the wrong person",
+            "`engine.js` `lookupRecord`",
+            "Shared only when the caller's phone (or name, if the record has no phone) matches"
+          ],
+          [
+            "Payment link limit",
+            "The AI asking for large payments on its own",
+            "`outcomes.js` `pay_link`",
+            "Above `payLinkAutoLimit` (₹5,000 default) the link waits for owner approval; simulated on test calls"
           ]
         ]
       }
@@ -1204,11 +1324,18 @@
             "Live · offline 98%, Claude 100%"
           ],
           [
+            "Pack + scam eval (`backend/eval/packs`)",
+            "45 scripted calls across 7 packs (flow, outcome, actions, refusals, what must never be said) and 26 scam scripts plus lookalike genuine calls (precision, recall, leaks)",
+            "Every change in CI (offline, `--min 1`); `-- --mode claude` on demand",
+            "100% and zero leaks (CI gate)",
+            "Live · offline 71/71, scam precision 1.0, recall 1.0, 0 leaks"
+          ],
+          [
             "Backend unit tests",
-            "Flows, extractors, emergency, shields, Focus, sanitizer, recorder, Indian numbers/dates/yes-no, stream-token and log-redaction security",
+            "Flows, extractors, emergency, shields, Focus, sanitizer, recorder, Indian numbers/dates/yes-no, stream-token and log-redaction security, packs, orders, records, listings, refusals, scam shield, UPI links",
             "`npm test` before release",
             "All pass",
-            "Live · 47 tests passing, run in CI"
+            "Live · 62 tests passing, run in CI"
           ],
           [
             "Mobile tests",

@@ -21,6 +21,15 @@ Full plan: [docs/LAUNCH_PLAN.md](docs/LAUNCH_PLAN.md). Use cases, designed in de
 | L7 Compliance | DPDP consent, export/delete, caller AI notice, TRAI-safe SMS and calls | — |
 | L8 Play Store | Public listing | — |
 
+Use cases ([docs/USE_CASES.md](docs/USE_CASES.md) build order), alongside the launch phases:
+
+| Step | Outcome | Status |
+|---|---|---|
+| 1 Business packs | 7 packs with flows, sample business, refusal rules and an eval set | **Done** (`wave1`) |
+| 2 Scam shield | Fraud scripts and OTP/PIN requests end the call; owner alerted with evidence | **Done** (`wave1`) |
+| 4 UPI payment links + record lookups | Exact-total UPI link by text; order/report/fee status | **Done** (CSV import still to come) |
+| 3, 5–9 | Vexa Link, memory, guardian, interpreter, callable API, installable app | Next: Vexa Link |
+
 Earlier Indian-speech phase:
 
 | Phase | Outcome | Status |
