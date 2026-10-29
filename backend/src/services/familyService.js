@@ -121,12 +121,12 @@ export async function calls(guardianId, dependantId, limit = 30) {
 }
 
 /** Scam or emergency on a dependant's call → every guardian who is sent alerts. */
-export async function alert(dependant, { kind, callId, label, phrase, detail }) {
+export async function alert(dependant, { kind, callId, label, phrase, detail, test = false }) {
   if (!isMongoConnected()) return;
   const links = await FamilyLink.find({ dependantId: dependant.userId, status: 'active', 'share.scamAlerts': true }).lean();
   const name = firstName(dependant);
   for (const l of links) {
-    const title = kind === 'scam' ? `🛡️ Scam call to ${name} blocked` : `🚨 Emergency call for ${name}`;
+    const title = `${test ? 'Test — ' : ''}${kind === 'scam' ? `🛡️ Scam call to ${name} blocked` : `🚨 Emergency call for ${name}`}`;
     const body = kind === 'scam' ? `${label || 'Likely scam'}${phrase ? `: “${String(phrase).slice(0, 90)}”` : ''}. Vexa shared nothing.` : (detail || 'Vexa is alerting them now.');
     ioRef?.to(`user:${l.guardianId}`).emit('family:alert', { kind, dependantId: dependant.userId, dependantName: name, callId, title, body });
     notifyUser(l.guardianId, { title, body, type: `family_${kind}` }).catch(() => {});

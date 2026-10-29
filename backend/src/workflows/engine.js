@@ -873,8 +873,11 @@ export class WorkflowSession {
       return this.result(this.run(out));
     }
 
-    // 4) Side question? Answer from business info, then continue the flow
-    const answer = nlu?.answer || (isQuestion(clean) ? this.answerQuestion(clean) : null);
+    // 4) Side question? Answer from business info, then continue the flow — unless the flow is about
+    //    to look up the very item asked about ("thyroid test price?"): its lookup is the answer
+    const lookupAhead = (this.active?.steps || []).slice(this.pointer).some(st => st.type === 'lookup' && st.source === 'catalog');
+    const flowAnswers = lookupAhead && this.mentionedItems(clean).length > 0;
+    const answer = flowAnswers ? null : nlu?.answer || (isQuestion(clean) ? this.answerQuestion(clean) : null);
     if (answer) {
       out.say.push(answer);
       this.log('answered', { question: clean.slice(0, 120) });

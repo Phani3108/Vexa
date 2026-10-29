@@ -48,10 +48,9 @@ export async function openCallSession({ user, callerNumber, isTest = false, io =
     if (action.type === 'notify_owner' && action.params?.kind === 'scam') {
       const scam = engine?.scam || {};
       io?.to(`user:${user.userId}`).emit('call:scam', { callId, type: scam.type, label: scam.label, phrases: scam.phrases || [] });
-      if (!isTest) {
-        pushService.sendScamAlertNotification(user.userId, { callId, callerNumber, label: scam.label, phrase: scam.phrases?.[0] }).catch(() => {});
-        familyService.alert(user, { kind: 'scam', callId, label: scam.label, phrase: scam.phrases?.[0] }).catch(() => {});
-      }
+      if (!isTest) pushService.sendScamAlertNotification(user.userId, { callId, callerNumber, label: scam.label, phrase: scam.phrases?.[0] }).catch(() => {});
+      // Family hears about it too — a test call sends a marked test alert, so the setup can be checked
+      familyService.alert(user, { kind: 'scam', callId, label: scam.label, phrase: scam.phrases?.[0], test: isTest }).catch(() => {});
       return;
     }
     // Urgent alerts can't wait for the call to end
