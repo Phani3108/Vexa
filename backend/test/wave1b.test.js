@@ -136,3 +136,16 @@ test('Ask Vexa: a phone number given as the person is used as the number', async
   const { extractPhone } = await import('../src/workflows/extractors.js');
   assert.equal(extractPhone(a.who).value, '+919876512345');
 });
+
+test('a caller who says goodbye is asked for a name once, then let go', async () => {
+  const { defaultWorkflows } = await import('../src/workflows/templates.js');
+  const user = { accountType: 'personal', name: 'Phani', callCategories: [], escalationKeywords: [], workflows: defaultWorkflows('personal') };
+  const s = new WorkflowSession({ user, callerNumber: '+919876512345', now: () => NOW });
+  s.turn('Hello, I wanted to talk about something');
+  // As on a real call: the model reads each turn
+  const bye = s.turn('Oh, that is all I needed. Thank you, bye!', { used: true, goodbye: true, slots: {} });
+  assert.match(bye.say, /could I get your name/);
+  const r = s.turn('Ravi.', { used: true, slots: { name: 'Ravi' } });
+  assert.equal(r.end, true);
+  assert.match(r.say, /Thanks, Ravi/);
+});

@@ -921,6 +921,12 @@ export class WorkflowSession {
 
     // 7) Fill slots (multi-slot) and advance
     this.fill(clean, nlu?.slots || {}, opening && !nlu?.used, !!nlu?.used);
+    // The caller already said goodbye and we only asked for their name: thank them and let them go
+    if (this.goodbyeNudged === true && this.slots.name) {
+      this.goodbyeNudged = 'done';
+      this.queueAction({ type: 'create_lead', params: { kind: 'partial' } });
+      return this.result(this.finish(out, 'end', `Thanks, {{firstName}}! I'll let ${this.isBusiness ? 'the team' : this.ownerFirst} know you called. I'm disconnecting the call now.`));
+    }
     if (this.turns >= (this.active?.maxTurns || 10)) {
       this.log('max_turns', {});
       this.queueAction({ type: 'create_lead', params: { kind: 'partial' } });
