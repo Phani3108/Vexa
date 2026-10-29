@@ -128,3 +128,11 @@ test('editing a flow keeps extraction hints; a callback time is only taken when 
   s.turn('This is Arjun from CoolFix, I will come on Monday at 11 am for the AC gas refill');
   assert.equal(s.slots.callbackTime, undefined, '"Monday 11 am" is when he comes, not when to call back');
 });
+
+test('Ask Vexa: a phone number given as the person is used as the number', async () => {
+  const { parseOffline } = await import('../src/services/assistantService.js');
+  const [a] = parseOffline('Tell +919876512345 their parcel is with the watchman');
+  assert.equal(a.type, 'note');
+  const { extractPhone } = await import('../src/workflows/extractors.js');
+  assert.equal(extractPhone(a.who).value, '+919876512345');
+});

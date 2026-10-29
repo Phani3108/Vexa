@@ -227,9 +227,14 @@ Fill unused fields with null. If nothing matches, return an empty actions array.
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function resolvePerson(userId, user, who, phone) {
+  // "Tell +91 98765 12345 …" — the person IS a number (the model sometimes puts it in "who")
+  const whoIsNumber = !!(who && extractPhone(String(who)));
+  if (!phone && whoIsNumber) phone = extractPhone(String(who)).value;
   if (phone) {
     const caller = await Caller.findOne({ userId, phoneNumber: phone }).lean();
-    return { phoneNumber: phone, name: caller?.callerName || who };
+    const known = caller?.callerName && caller.callerName !== 'Unknown' ? caller.callerName : null;
+    const named = who && !whoIsNumber ? String(who) : null;
+    return { phoneNumber: phone, name: known || named || phone, unnamed: !known && !named };
   }
   const name = String(who || '').replace(/^(the|my)\s+/i, '').trim();
   if (!name) return null;
@@ -307,7 +312,7 @@ export async function runCommand(userId, text) {
       case 'block':
       case 'unblock': {
         const person = await resolvePerson(userId, user, a.who, a.phone);
-        if (!person) { replies.push(`I couldn’t find “${a.who}”. Try their number.`); break; }
+        if (!person) { replies.push(`I couldn’t find “${a.who}”. Try their number, e.g. +91 98765 43210.`); break; }
         if (a.type === 'block') {
           if (!userConfigService.isBlocked(user, person.phoneNumber)) await userConfigService.addBlockedNumber(userId, person.phoneNumber).catch(() => {});
           replies.push(`Blocked ${person.name !== person.phoneNumber ? `${person.name} (${person.phoneNumber})` : person.phoneNumber}. Their calls will be rejected before I answer.`);
@@ -320,7 +325,7 @@ export async function runCommand(userId, text) {
       }
 
       case 'vip_add': {
-        if (!a.phone) { replies.push(`What’s ${a.name}’s number? Say “Add ${a.name} as VIP +1 555 123 4567”.`); break; }
+        if (!a.phone) { replies.push(`What’s ${a.name}’s number? Say “Add ${a.name} as VIP +91 98765 43210”.`); break; }
         const vips = (user.vipContacts || []).filter(v => !phonesMatch(v.phoneNumber, a.phone));
         await userConfigService.updateUser(userId, { vipContacts: [...vips, { name: a.name, phoneNumber: a.phone, relationship: '', notes: '' }] });
         replies.push(`${a.name} is now a VIP — warm greeting and an offer to put them through.`);
@@ -339,13 +344,13 @@ export async function runCommand(userId, text) {
 
       case 'note': {
         const person = await resolvePerson(userId, user, a.who, a.phone);
-        if (!person) { replies.push(`I don’t have a number for “${a.who}” yet. Add their number: “Tell ${a.who} +1 555… ${a.text}”.`); break; }
+        if (!person) { replies.push(`I don’t have a number for “${a.who}” yet. Add their number: “Tell ${a.who} +91 98765 43210 ${a.text}”.`); break; }
         await Caller.findOneAndUpdate(
           { userId, phoneNumber: person.phoneNumber },
-          { $push: { instructions: { text: String(a.text).slice(0, 300), once: a.once !== false, createdAt: new Date() } }, $setOnInsert: { callerName: person.name } },
+          { $push: { instructions: { text: String(a.text).slice(0, 300), once: a.once !== false, createdAt: new Date() } }, ...(person.unnamed ? {} : { $setOnInsert: { callerName: person.name } }) },
           { upsert: true }
         );
-        replies.push(`Got it. Next time ${person.name} calls, I’ll tell them: “${a.text}”.${person.ambiguous ? ' (I matched the most recent caller with that name.)' : ''}`);
+        replies.push(`Got it. Next time ${person.name} calls, I’ll tell them: “${String(a.text).replace(/[.!]+$/, '')}.”${person.ambiguous ? ' (I matched the most recent caller with that name.)' : ''}`);
         done.push({ type: 'note', phoneNumber: person.phoneNumber, text: a.text });
         break;
       }
