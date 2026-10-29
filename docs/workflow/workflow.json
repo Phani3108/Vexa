@@ -8,7 +8,7 @@
     },
     {
       "k": "Source of truth",
-      "v": "github.com/Phani3108/Vexa · branch `workflow-readout` · commit `0e827a5` · 29 Oct 2026 · backend/src, web/src, backend/.env.example, Dockerfile, docker-compose.yml, backend/test, backend/eval"
+      "v": "github.com/Phani3108/Vexa · branch `launch-l0` · commit `10c45ad` · 29 Oct 2026 · backend/src, web/src, backend/.env.example, Dockerfile, docker-compose.yml, .github/workflows, backend/test, backend/eval"
     },
     {
       "k": "Planned items",
@@ -273,7 +273,7 @@
       "badge": 16,
       "tag": "Guardrail",
       "title": "Signature, risk score, shields",
-      "body": "Twilio signature checked in production (`TWILIO_VALIDATE_SIGNATURE`). Risk score 0–100 (no caller ID, past spam, call bursts, spoofing). **Gap:** the media-stream WebSocket itself has no auth check."
+      "body": "Twilio signature checked in production (`TWILIO_VALIDATE_SIGNATURE`). Call audio stream accepted only with a single-use token signed for that call (`lib/streamToken.js`), else closed. Risk score 0–100 (no caller ID, past spam, call bursts, spoofing)."
     },
     {
       "phase": "p4",
@@ -498,7 +498,7 @@
       "badge": 41,
       "tag": "Disk · RECORDINGS_DIR",
       "title": "Call recording",
-      "body": "Stereo WAV, caller left and Vexa right, from the media stream; 2-hour cap. Deleted after `retentionDays` (default 90). **Gap:** not on a Docker volume."
+      "body": "Stereo WAV, caller left and Vexa right, from the media stream; 2-hour cap. Deleted after `retentionDays` (default 90). Docker keeps them on a `recordings` volume."
     },
     {
       "phase": "p7",
@@ -570,11 +570,11 @@
       "badge": 49,
       "tag": "Eval · release",
       "title": "Test suites",
-      "body": "42 backend tests (`npm test`), 9 mobile tests. **Partial:** no CI pipeline and no web tests yet."
+      "body": "47 backend tests and the offline understanding gate (≥ 97%, held-out ≥ 95%) run in GitHub Actions with the web build and Docker image. 9 mobile tests. **Partial:** no web unit tests yet."
     }
   ],
   "footnote": "Flows decide; models only read and speak. Optional = needs a credential to switch on. In memory = lost on restart. Not integrated = planned, not in code.",
-  "source": "Source of truth: Phani3108/Vexa, branch workflow-readout (commit 0e827a5, 29 Oct 2026)",
+  "source": "Source of truth: Phani3108/Vexa, branch launch-l0 (commit 10c45ad, 29 Oct 2026)",
   "steps": [
     {
       "group": "UC1 · Sign in",
@@ -651,7 +651,7 @@
         },
         {
           "n": 16,
-          "text": "Twilio signatures are verified in production, the risk score and the owner's shield decide how strict to be. Known gap: the audio WebSocket has no separate auth check."
+          "text": "Twilio signatures are verified in production, and the call's audio stream is only accepted with a single-use token signed for that exact call. The risk score and the owner's shield decide how strict to be."
         }
       ]
     },
@@ -771,7 +771,7 @@
         },
         {
           "n": 41,
-          "text": "The recording is saved as a stereo audio file and deleted automatically after the owner's retention period."
+          "text": "The recording is saved as a stereo audio file (on a persistent volume in Docker) and deleted automatically after the owner's retention period."
         },
         {
           "n": 42,
@@ -808,7 +808,7 @@
         },
         {
           "n": 49,
-          "text": "42 backend tests and 9 mobile tests guard releases today; there is no automatic CI pipeline yet."
+          "text": "Every change runs 47 backend tests, the understanding test gate, the web build and the Docker build in CI; 9 mobile tests also exist."
         }
       ]
     }
@@ -1083,7 +1083,13 @@
             "Twilio signature",
             "Forged call webhooks",
             "`routes/voice.js` `twilioWebhook`",
-            "On in production; `TWILIO_VALIDATE_SIGNATURE`. Media-stream WebSocket not covered (gap)"
+            "On in production; `TWILIO_VALIDATE_SIGNATURE`"
+          ],
+          [
+            "Call audio stream token",
+            "A stranger opening a call's audio socket and driving the AI",
+            "`lib/streamToken.js`, `VoiceAgent.handleMediaStream`",
+            "On (single-use, 2-minute, bound to the call id); socket closed if no valid start within 5 s; `STREAM_AUTH=off` ignored in production"
           ],
           [
             "Spam screening",
@@ -1159,9 +1165,9 @@
           ],
           [
             "Secrets",
-            "Keys leaking",
-            "`backend/.env` (git-ignored), `.dockerignore`",
-            "Only `.env.example` is tracked"
+            "Keys leaking through the repo or logs",
+            "`backend/.env` (git-ignored), `.dockerignore`, `lib/redact.js`",
+            "Only `.env.example` is tracked; every log line scrubbed of API keys and bearer tokens"
           ],
           [
             "Test-call isolation",
@@ -1186,23 +1192,23 @@
           [
             "Indian-language understanding set (`backend/eval/nlu`)",
             "Language, code-mixing, facts, yes/no, phone numbers across 8 languages (161 cases)",
-            "On demand: `npm run eval:nlu` (offline, free) or `-- --mode claude`",
-            "≥ 90% on mixed-language and English-letter cases (Phase 1 target)",
+            "Every change in CI (offline, `--min 0.97`); `-- --mode claude` on demand",
+            "≥ 97% offline (CI gate); ≥ 90% mixed-language target",
             "Live · offline 99%, Claude 100% (157-case run)"
           ],
           [
             "Held-out set (`holdout.jsonl`)",
             "Same, 50 new phrasings never tuned against",
-            "Same",
+            "Every change in CI (`--min 0.95`)",
             "Should track the main set",
             "Live · offline 98%, Claude 100%"
           ],
           [
             "Backend unit tests",
-            "Flows, extractors, emergency, shields, Focus, sanitizer, recorder, Indian numbers/dates/yes-no",
+            "Flows, extractors, emergency, shields, Focus, sanitizer, recorder, Indian numbers/dates/yes-no, stream-token and log-redaction security",
             "`npm test` before release",
             "All pass",
-            "Live · 42 tests passing"
+            "Live · 47 tests passing, run in CI"
           ],
           [
             "Mobile tests",
@@ -1241,10 +1247,10 @@
           ],
           [
             "CI pipeline",
-            "Tests and evals on every change",
-            "—",
-            "—",
-            "Planned · none configured"
+            "Backend tests, understanding gate, web lint and build, Docker build, dependency audit",
+            "GitHub Actions on every push and pull request (`.github/workflows/ci.yml`)",
+            "All jobs green",
+            "Live"
           ]
         ]
       }
@@ -1390,6 +1396,16 @@
             "`OTP_FORCE_SMS`",
             "Send real codes in development",
             "Off"
+          ],
+          [
+            "`STREAM_TOKEN_SECRET`",
+            "Signs the per-call audio stream token",
+            "Derived from `JWT_SECRET`"
+          ],
+          [
+            "`MIN_APP_VERSION` / `LATEST_APP_VERSION`",
+            "Android app forced / suggested update",
+            "Unset"
           ]
         ]
       }
@@ -1398,11 +1414,8 @@
       "title": "Known gaps (from the code)",
       "bullets": [
         "The live phone path (Twilio + OpenAI Realtime) is complete in code but has not run on a real call; no keys are configured.",
-        "The `/voice/media-stream` WebSocket has no auth check of its own.",
         "Active calls, test sessions and rate-limit counters live in memory: one server instance only, and a restart drops live calls.",
-        "Recordings are not on a Docker volume, so a container rebuild loses them.",
-        "No CI pipeline; no web unit tests.",
-        "Unused code and dependencies: `routes/webhooks.js` (never mounted), `config/redis.js`, `pg`, `bcrypt`.",
+        "Unused code and dependencies: `config/redis.js`, `pg`, `bcrypt`.",
         "Per-turn replies take 2–9 s on Opus; a fast model (e.g. Haiku) is recommended for live calls."
       ]
     }

@@ -7,7 +7,8 @@
 | Login and tokens | Account takeover, code guessing | `otpService.js`, `middleware/auth.js` | Hashed codes, 10 min, 5 tries; JWT 7 d / 30 d; production requires `JWT_SECRET` |
 | Rate limits | Abuse and runaway cost | `app.js`, `routes/auth.js`, `simulator.js`, `assistant.js` | API 600/15 min; codes 5/15 min; test calls 40/min; commands 30/min; outbound calls 10/min (in memory) |
 | Owner isolation | One owner seeing another's calls | Every query scoped by `req.userId`; `ownedCall()` for live calls | On |
-| Twilio signature | Forged call webhooks | `routes/voice.js` `twilioWebhook` | On in production; `TWILIO_VALIDATE_SIGNATURE`. Media-stream WebSocket not covered (gap) |
+| Twilio signature | Forged call webhooks | `routes/voice.js` `twilioWebhook` | On in production; `TWILIO_VALIDATE_SIGNATURE` |
+| Call audio stream token | A stranger opening a call's audio socket and driving the AI | `lib/streamToken.js`, `VoiceAgent.handleMediaStream` | On (single-use, 2-minute, bound to the call id); socket closed if no valid start within 5 s; `STREAM_AUTH=off` ignored in production |
 | Spam screening | Robocalls and spoofing reaching the owner | `workflows/risk.js`, `routes/voice.js` | Risk 0–100; blocked numbers rejected; aggressive shield rejects ≥ 80 |
 | Flow validation | Broken, looping or dead-end flows | `workflows/validate.js` | Known steps only, valid targets, end step required, `maxTurns` 2–20 |
 | Engine limits | Endless calls | `workflows/engine.js` | 10 turns, 2 re-asks, 50-step loop guard; partial message saved |
@@ -20,22 +21,22 @@
 | Transcript filters | Acting on noise or echoes | `VoiceAgent.js` transcript handler | Noise, echo, URL, gibberish, post-interruption fragments dropped; backchannels ignored |
 | Recording consent and retention | Recording without notice; keeping audio forever | `callSession.js`, `media.js` | Notice on; 90 days; per-call delete; 15-minute signed links |
 | Dev-only routes | Demo data in production | `users.js`, `media.js` | Off in production unless `ENABLE_DEMO_DATA=true` |
-| Secrets | Keys leaking | `backend/.env` (git-ignored), `.dockerignore` | Only `.env.example` is tracked |
+| Secrets | Keys leaking through the repo or logs | `backend/.env` (git-ignored), `.dockerignore`, `lib/redact.js` | Only `.env.example` is tracked; every log line scrubbed of API keys and bearer tokens |
 | Test-call isolation | Rehearsals polluting real data | `simulatorService.js`, `callHistoryService.js`, `outcomes.js` | No caller memory, no real SMS |
 
 ### Evals and quality gates
 
 | Eval | What it measures | When it runs | Threshold | Status |
 |---|---|---|---|---|
-| Indian-language understanding set (`backend/eval/nlu`) | Language, code-mixing, facts, yes/no, phone numbers across 8 languages (161 cases) | On demand: `npm run eval:nlu` (offline, free) or `-- --mode claude` | ≥ 90% on mixed-language and English-letter cases (Phase 1 target) | Live · offline 99%, Claude 100% (157-case run) |
-| Held-out set (`holdout.jsonl`) | Same, 50 new phrasings never tuned against | Same | Should track the main set | Live · offline 98%, Claude 100% |
-| Backend unit tests | Flows, extractors, emergency, shields, Focus, sanitizer, recorder, Indian numbers/dates/yes-no | `npm test` before release | All pass | Live · 42 tests passing |
+| Indian-language understanding set (`backend/eval/nlu`) | Language, code-mixing, facts, yes/no, phone numbers across 8 languages (161 cases) | Every change in CI (offline, `--min 0.97`); `-- --mode claude` on demand | ≥ 97% offline (CI gate); ≥ 90% mixed-language target | Live · offline 99%, Claude 100% (157-case run) |
+| Held-out set (`holdout.jsonl`) | Same, 50 new phrasings never tuned against | Every change in CI (`--min 0.95`) | Should track the main set | Live · offline 98%, Claude 100% |
+| Backend unit tests | Flows, extractors, emergency, shields, Focus, sanitizer, recorder, Indian numbers/dates/yes-no, stream-token and log-redaction security | `npm test` before release | All pass | Live · 47 tests passing, run in CI |
 | Mobile tests | App render, API client, transcript store | `jest` in `mobile/` | All pass | Partial · 9 tests |
 | Web app checks | Type safety and build | `tsc -b && vite build`, `oxlint` | No errors | Partial · no unit tests |
 | Runtime quality signals | Model used per turn, latency, tokens and cost by purpose, questions asked/skipped, risk, action status | Every call (saved on the call) | — | Live |
 | Per-flow stats | Runs, completed, transferred, average turns and questions (30 days) | `GET /api/workflows` | — | Live |
 | Speech eval on real Indian voices | Word error rate, language detection, facts from audio, reply latency | Planned (Phase 1B/1C) | ≥ 95% facts clean, ≥ 90% noisy, ≤ 1.5 s p95 | Planned |
-| CI pipeline | Tests and evals on every change | — | — | Planned · none configured |
+| CI pipeline | Backend tests, understanding gate, web lint and build, Docker build, dependency audit | GitHub Actions on every push and pull request (`.github/workflows/ci.yml`) | All jobs green | Live |
 
 ---
 
@@ -45,12 +46,12 @@ How an owner sets Vexa up, how every call is answered, understood and acted on, 
 
 ![Vexa — end-to-end workflow](workflow.png)
 
-<sub>Source of truth: Phani3108/Vexa, branch workflow-readout (commit 0e827a5, 29 Oct 2026) · Full readout with every table: [readout.html](readout.html) (open locally or download).</sub>
+<sub>Source of truth: Phani3108/Vexa, branch launch-l0 (commit 10c45ad, 29 Oct 2026) · Full readout with every table: [readout.html](readout.html) (open locally or download).</sub>
 
 | | |
 |---|---|
 | **Scope** | UC1 Set up the assistant · UC2 Answer a call (live phone calls and in-app test calls) · UC3 After the call. Personal and Business modes share the same pipeline. |
-| **Source of truth** | github.com/Phani3108/Vexa · branch `workflow-readout` · commit `0e827a5` · 29 Oct 2026 · backend/src, web/src, backend/.env.example, Dockerfile, docker-compose.yml, backend/test, backend/eval |
+| **Source of truth** | github.com/Phani3108/Vexa · branch `launch-l0` · commit `10c45ad` · 29 Oct 2026 · backend/src, web/src, backend/.env.example, Dockerfile, docker-compose.yml, .github/workflows, backend/test, backend/eval |
 | **Planned items** | From ROADMAP.md (India-first plan): Indian speech engines and voices, Indian phone number, WhatsApp, UPI, calendar and CRM. Drawn as Not integrated. |
 | **Live status** | Text understanding, flows, analysis, translation and the app run end to end today. The live phone path (Twilio + OpenAI Realtime) is complete in code but has not been run on a real call: no Twilio or OpenAI keys are configured. |
 | **Prepared by** | Phani Marupaka with Claude Code · 29 Oct 2026 |
@@ -82,7 +83,7 @@ _Numbers match the badges in the diagram._
 13. The OpenAI Realtime voice speaks the greeting written by the flow engine, including the recording notice.
 14. Twilio sends call events to Vexa's webhooks and streams the audio in both directions over a WebSocket.
 15. Caller history is read: their name, what past calls were about, any note the owner left for them, and whether they are usually spam.
-16. Twilio signatures are verified in production, the risk score and the owner's shield decide how strict to be. Known gap: the audio WebSocket has no separate auth check.
+16. Twilio signatures are verified in production, and the call's audio stream is only accepted with a single-use token signed for that exact call. The risk score and the owner's shield decide how strict to be.
 
 **UC2 · Listen and understand**
 
@@ -119,7 +120,7 @@ _Numbers match the badges in the diagram._
 38. Claude summarises the call: category, summary, urgency, whether it is a lead or spam.
 39. Claude translates the transcript into English and writes the summary in the caller's language too.
 40. Everything is saved in MongoDB as the call history that future calls draw on.
-41. The recording is saved as a stereo audio file and deleted automatically after the owner's retention period.
+41. The recording is saved as a stereo audio file (on a persistent volume in Docker) and deleted automatically after the owner's retention period.
 42. Every call carries quality signals: whether the model was used each turn, latency, tokens and cost by purpose, and how many questions were skipped.
 
 **UC3 · Act and follow up**
@@ -130,7 +131,7 @@ _Numbers match the badges in the diagram._
 46. Confirmation texts and replies go out by Twilio SMS. Test calls only simulate them.
 47. Calendar booking, CRM sync, WhatsApp and UPI payment links are planned, not built.
 48. A person approves every booking, and recordings can only be played through short-lived links.
-49. 42 backend tests and 9 mobile tests guard releases today; there is no automatic CI pipeline yet.
+49. Every change runs 47 backend tests, the understanding test gate, the web build and the Docker build in CI; 9 mobile tests also exist.
 
 <details><summary><b>Data and history calls</b></summary>
 
@@ -230,17 +231,16 @@ Claude is used for all text intelligence when `ANTHROPIC_API_KEY` is set (OpenAI
 | `JWT_SECRET`, `JWT_EXPIRES_IN`, `JWT_REFRESH_EXPIRES_IN` | Token signing and lifetimes | Required in production; 7 d; 30 d |
 | `ENABLE_DEMO_DATA` | Demo routes in production | Off |
 | `OTP_FORCE_SMS` | Send real codes in development | Off |
+| `STREAM_TOKEN_SECRET` | Signs the per-call audio stream token | Derived from `JWT_SECRET` |
+| `MIN_APP_VERSION` / `LATEST_APP_VERSION` | Android app forced / suggested update | Unset |
 
 </details>
 
 <details><summary><b>Known gaps (from the code)</b></summary>
 
 - The live phone path (Twilio + OpenAI Realtime) is complete in code but has not run on a real call; no keys are configured.
-- The `/voice/media-stream` WebSocket has no auth check of its own.
 - Active calls, test sessions and rate-limit counters live in memory: one server instance only, and a restart drops live calls.
-- Recordings are not on a Docker volume, so a container rebuild loses them.
-- No CI pipeline; no web unit tests.
-- Unused code and dependencies: `routes/webhooks.js` (never mounted), `config/redis.js`, `pg`, `bcrypt`.
+- Unused code and dependencies: `config/redis.js`, `pg`, `bcrypt`.
 - Per-turn replies take 2–9 s on Opus; a fast model (e.g. Haiku) is recommended for live calls.
 
 </details>
