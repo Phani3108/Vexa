@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Bell, BookOpen, Download, Bot, Gauge, HeartHandshake, Languages, Boxes, Building2, QrCode, CalendarCheck, ChevronRight, Clock, LogOut, Disc3, Mic2, Package, PhoneForwarded, ShieldBan, Star, Users } from 'lucide-react'
-import { api } from '../lib/api'
+import { Bell, BookOpen, Download, Bot, FileDown, Gauge, Trash2, HeartHandshake, Languages, Boxes, Building2, QrCode, CalendarCheck, ChevronRight, Clock, LogOut, Disc3, Mic2, Package, PhoneForwarded, ShieldBan, Star, Users } from 'lucide-react'
+import { api, session } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import type { UserConfig } from '../lib/types'
 import { formatPhone, initials } from '../lib/format'
@@ -55,6 +55,42 @@ function InstallRow() {
       <span className="avatar" style={{ width: 36, height: 36, borderRadius: 11 }}><Download size={17} /></span>
       <div className="grow"><h3>Install Vexa on this phone</h3><p className="xs muted">Opens like an app, works with notifications</p></div>
     </button>
+  )
+}
+
+/** Download everything Vexa holds about you, or erase it all. */
+function YourData({ onDeleted }: { onDeleted: () => void }) {
+  const [busy, setBusy] = useState(false)
+  async function download() {
+    setBusy(true)
+    try {
+      const res = await fetch('/api/account/export', { headers: { Authorization: `Bearer ${session.token}` } })
+      if (!res.ok) throw new Error('Export failed')
+      const url = URL.createObjectURL(await res.blob())
+      const a = Object.assign(document.createElement('a'), { href: url, download: `vexa-export-${new Date().toISOString().slice(0, 10)}.json` })
+      a.click(); URL.revokeObjectURL(url)
+    } catch (e) { toast(e instanceof Error ? e.message : 'Export failed') } finally { setBusy(false) }
+  }
+  async function erase() {
+    const typed = prompt('This permanently deletes your account, every call, transcript, recording, booking and memory. Type DELETE to confirm.')
+    if (typed !== 'DELETE') return
+    setBusy(true)
+    try { await api('/api/account', { method: 'DELETE', body: { confirm: 'DELETE' } }); toast('Your account and data were deleted'); onDeleted() } catch (e) { toast(e instanceof Error ? e.message : 'Delete failed'); setBusy(false) }
+  }
+  return (
+    <div className="section">
+      <div className="eyebrow" style={{ margin: '0 4px 8px' }}>Your data</div>
+      <div className="card tight">
+        <button className="list-row" style={{ width: '100%', textAlign: 'left' }} onClick={download} disabled={busy}>
+          <span className="avatar" style={{ width: 36, height: 36, borderRadius: 11 }}><FileDown size={17} /></span>
+          <div className="grow"><h3>Download my data</h3><p className="xs muted">Calls, transcripts, bookings, memories, settings (JSON)</p></div>
+        </button>
+        <button className="list-row" style={{ width: '100%', textAlign: 'left', color: 'var(--danger)' }} onClick={erase} disabled={busy}>
+          <span className="avatar" style={{ width: 36, height: 36, borderRadius: 11 }}><Trash2 size={17} /></span>
+          <div className="grow"><h3>Delete my account</h3><p className="xs muted">Erases everything, including recordings. Cannot be undone.</p></div>
+        </button>
+      </div>
+    </div>
   )
 }
 
@@ -137,6 +173,8 @@ export default function Me() {
           <InstallRow />
         </div>
       </div>
+
+      <YourData onDeleted={signOut} />
 
       <button className="btn block ghost section" style={{ color: 'var(--danger)' }} onClick={signOut}><LogOut size={16} /> Sign out</button>
       <p className="xs muted" style={{ textAlign: 'center', marginTop: 8 }}>Vexa · {meta?.aiEnabled ? 'AI connected' : 'Offline engine'}</p>
