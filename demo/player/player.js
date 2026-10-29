@@ -2,7 +2,7 @@
 (function () {
   const { timeline, run, screens } = window.DATA;
   const stage = document.getElementById('stage');
-  const SCREEN_DIR = '../build/screens/';
+  const SCREEN_DIR = `../${window.BUILD_DIR || 'build'}/screens/`;
   const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const fmtT = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
   const money = n => `$${(n || 0).toFixed(4)}`;
@@ -29,7 +29,7 @@
       <div class="logo"><div class="logo-mark"><svg width="18" height="18" viewBox="0 0 32 32"><path d="M8 9l8 15 8-15" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>Vexa</div>
       ${kicker ? `<span class="chip accent">${esc(kicker)}</span>` : ''}
       <div class="spacer"></div>
-      <span class="chip live"><span class="dot"></span>Real Claude run · claude-opus-5-5</span>
+      <span class="chip live"><span class="dot"></span>${esc(timeline.badge || 'Real Claude run · claude-opus-5-5')}</span>
       <span class="chip">Voices synthesized · thinking pauses shortened</span>
       <span class="chip">${fmtT(t)} / ${fmtT(timeline.duration)}</span>
     </div>`;
@@ -94,6 +94,30 @@
       </div>${'' && speaking}`;
   }
 
+  function renderDuo(seg, t) {
+    const [a, b] = seg.images;
+    const shown = (seg.steps || []).filter(s => t >= s.at);
+    const cur = shown[shown.length - 1];
+    const imgs = cur?.images || seg.images;
+    return `<div class="phone"><img class="screen" src="${SCREEN_DIR}${imgs[0] || a}" /></div><div class="phone-label" style="left:120px">${esc(seg.labels?.[0] || '')}</div>
+      <div class="phone second"><img class="screen" src="${SCREEN_DIR}${imgs[1] || b}" /></div><div class="phone-label" style="left:570px">${esc(seg.labels?.[1] || '')}</div>
+      <div class="side duo" style="justify-content:center">
+        <div class="kicker">${esc(seg.kicker)}</div>
+        <div class="caption" style="font-size:34px">${esc(cur?.caption || seg.caption)}</div>
+        ${(seg.bullets || []).length ? `<div class="card" style="flex:none"><div class="facts">${seg.bullets.map(x => `<div class="row"><span class="v">${esc(x)}</span></div>`).join('')}</div></div>` : ''}
+        <div class="card" style="flex:none;margin-top:10px"><h4>Voice</h4><canvas id="wave"></canvas></div>
+      </div>`;
+  }
+
+  function renderTerminal(seg, t) {
+    const shown = seg.entries.filter(e => t >= e.at).slice(-14);
+    const body = shown.map(e => `<div class="t-${e.kind}">${e.kind === 'call' ? '→ ' : e.kind === 'result' ? '← ' : ''}${esc(e.text)}</div>`).join('');
+    return `<div class="side" style="left:120px;right:120px;top:110px;bottom:160px;gap:16px">
+      <div><div class="kicker">${esc(seg.kicker)}</div><div class="title">${esc(seg.title)}</div><div class="subtitle">${esc(seg.subtitle)}</div></div>
+      <div class="term" style="flex:1">${body || '<span class="muted">…</span>'}</div>
+    </div>`;
+  }
+
   function lineAt(lines, t) {
     return lines.find(l => l.env && t >= l.start && t < l.end) || null;
   }
@@ -133,7 +157,7 @@
       const filled = Object.entries(und.slots || {});
       const slotHtml = filled.map(([k, v]) => `<span class="slot">${esc(v.label)} <b>${esc(v.value)}</b></span>`).join('') +
         (und.asked && !und.asked.startsWith('confirm:') && !und.slots?.[und.asked] ? `<span class="slot pending">${esc(und.asked)}…</span>` : '');
-      const name = (und.slots?.name?.value) || (sc.id === '3' ? 'Amma' : sc.callerName);
+      const name = (und.slots?.name?.value) || sc.callerName;
       const speaking = active && active.speaker === 'ai';
       phone = `<div class="phone"><div class="call">
         <div class="call-top"><span class="chip live" style="height:28px;font-size:12px"><span class="dot"></span>Live · ${fmtT(Math.max(0, t - seg.start))}</span>
@@ -154,7 +178,7 @@
     const multiT = convo.some(l => l.lang && l.lang !== 'en');
     const transcript = convo.slice(multiT ? -5 : -7).map(l => {
       const cls = l.speaker;
-      const who = l.speaker === 'caller' ? (sc.id === '3' ? 'Amma' : sc.callerName.replace('Delivery executive', 'Courier')) : LABEL[l.speaker] || l.speaker;
+      const who = l.speaker === 'caller' ? sc.callerName.replace('Delivery executive', 'Courier') : LABEL[l.speaker] || l.speaker;
       const f = typed(l, t);
       const foreign = l.lang && l.lang !== 'en';
       const style = l.style ? [l.style.mixed ? 'mixed with English' : '', l.style.script === 'latin' && l.lang !== 'en' && l.lang !== 'es' ? 'English letters' : ''].filter(Boolean).join(' · ') : '';
@@ -233,7 +257,9 @@
     else if (seg.type === 'call') body = renderCall(seg, t);
     else if (seg.type === 'costs') body = renderCosts(seg);
     else if (seg.type === 'table') body = renderTable(seg, t);
-    stage.innerHTML = top(seg, t) + body + subs(t, seg.type === 'call' || seg.type === 'screen');
+    else if (seg.type === 'duo') body = renderDuo(seg, t);
+    else if (seg.type === 'terminal') body = renderTerminal(seg, t);
+    stage.innerHTML = top(seg, t) + body + subs(t, seg.type === 'call' || seg.type === 'screen' || seg.type === 'duo');
     const canvas = document.getElementById('wave');
     if (canvas) {
       const lines = seg.type === 'call'

@@ -25,7 +25,7 @@ export default function FamilyMember() {
           <div key={c.callId} className={`card stack${c.scam ? ' scam-card' : ''}`} style={{ gap: 6, marginTop: 0 }}>
             <div className="row between">
               <h3 className="row" style={{ gap: 6 }}>{c.scam ? <ShieldAlert size={16} color="var(--danger)" /> : c.urgent ? <Siren size={16} color="var(--danger)" /> : null}{c.scam ? `Scam blocked: ${c.scam.label}` : c.from}</h3>
-              <span className="xs muted">{relativeTime(c.at)}</span>
+              <span className="xs muted">{c.test ? 'Test call · ' : ''}{relativeTime(c.at)}</span>
             </div>
             <p className="small">{c.summary}</p>
             {c.scam?.phrases?.[0] && <p className="xs muted">“{c.scam.phrases[0]}”</p>}

@@ -102,7 +102,8 @@ async function activeLink(guardianId, dependantId) {
 export async function calls(guardianId, dependantId, limit = 30) {
   const link = await activeLink(guardianId, dependantId);
   if (!link.share.summaries && !link.share.scamAlerts) return { calls: [], share: link.share };
-  const q = { userId: dependantId, isTest: { $ne: true } };
+  // Test calls are included (marked), so a parent can check the setup with one
+  const q = { userId: dependantId };
   if (!link.share.summaries) q['analysis.scam'] = { $ne: null };   // alerts only
   const rows = await Call.find(q).sort({ createdAt: -1 }).limit(Math.min(100, limit)).lean();
   return {
@@ -115,6 +116,7 @@ export async function calls(guardianId, dependantId, limit = 30) {
       category: c.analysis?.categoryLabel || null,
       scam: c.analysis?.scam ? { label: c.analysis.scam.label, phrases: c.analysis.scam.phrases } : null,
       urgent: c.analysis?.urgency === 'critical',
+      test: !!c.isTest,
       ...(link.share.recordings ? { transcript: (c.transcript || []).map(t => ({ speaker: t.speaker, text: t.textEn || t.text })) } : {})
     }))
   };
