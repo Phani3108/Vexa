@@ -43,7 +43,7 @@ else {
     else ok('MONGODB_URI', `connects · database "${name}"`);
   } catch (e) {
     const m = String(e.message);
-    bad('MONGODB_URI', /auth|Authentication/i.test(m) ? 'wrong user or password' : /ENOTFOUND|querySrv/i.test(m) ? 'host not found — copy the string again' : /timed out|Server selection/i.test(m) ? 'timed out — Atlas → Network Access → add 0.0.0.0/0' : m.slice(0, 120));
+    bad('MONGODB_URI', /auth|Authentication/i.test(m) ? 'wrong user or password' : /ENOTFOUND|querySrv/i.test(m) ? 'host not found — copy the string again' : /timed out|Server selection|whitelist|not allowed to access|Could not connect to any servers/i.test(m) ? 'Atlas is refusing this network — Atlas → Network Access → Add IP Address → Allow access from anywhere (0.0.0.0/0), then wait a minute' : m.slice(0, 120));
   }
 }
 
