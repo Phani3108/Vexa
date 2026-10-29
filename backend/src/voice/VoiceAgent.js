@@ -425,6 +425,15 @@ class VoiceAgent extends EventEmitter {
             const wantsRecording = callContext.flowSession ? callContext.flowSession.recording : callContext.context?.user?.recording?.enabled !== false;
             if (wantsRecording && !callContext.recorder) callContext.recorder = new CallRecorder(callSid);
             callContext.status = 'connected';
+            // Hard ceiling on call length (cost and abuse): wrap up politely, then hang up
+            const maxSeconds = Number(process.env.MAX_CALL_SECONDS) || 900;
+            callContext._maxTimer = setTimeout(() => {
+              if (callContext.isEnding) return;
+              console.warn(`⏱️  Call ${callSid} reached the ${maxSeconds}s limit — ending`);
+              this._speak(callContext, 'We have to wrap up here. I have passed everything on, and the team will call you back. Goodbye!');
+              callContext.flowEndAction = 'end';
+              this._afterFlowSpeech(callContext);
+            }, maxSeconds * 1000);
 
             // ── Context summary log ────────────────────────────────────
             const ctx = callContext.context || {};
@@ -597,7 +606,7 @@ class VoiceAgent extends EventEmitter {
       console.log('📞 Twilio media stream disconnected');
       // Mark as ending so the Azure close handler doesn't fire a spurious hangup
       clearTimeout(startTimer);
-      if (callContext) { callContext.isEnding = true; clearTimeout(callContext._bargeInTimer); }
+      if (callContext) { callContext.isEnding = true; clearTimeout(callContext._bargeInTimer); clearTimeout(callContext._maxTimer); }
       if (azureWs && azureWs.readyState === WebSocket.OPEN) {
         azureWs.close();
       }
