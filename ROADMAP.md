@@ -5,15 +5,27 @@ Small businesses miss a large share of their inbound calls, and most callers who
 
 **Wedge:** Start with home services (plumbing, HVAC, electrical). These businesses take a high volume of calls, each job is worth a lot, owners are on job sites and can't answer, and emergencies justify the "transfer to me" feature. Expand to clinics, salons and professional services using the industry templates that are already built.
 
-## India-first plan (current)
+## Commercial launch plan (current)
+
+Full plan: [docs/LAUNCH_PLAN.md](docs/LAUNCH_PLAN.md). It covers the Android APK, managed and bring-your-own keys, Indian numbers, billing, compliance, use-case waves, the 10-year bets and the next demo.
+
+| Phase | Outcome | Status |
+|---|---|---|
+| L0 Safety baseline + CI | Call audio stream authenticated, keys kept out of logs, CI with an understanding gate | **Done** (one real phone call still needs Twilio/OpenAI keys) |
+| L1 Tenancy + key vault | Each account's own keys, encrypted; Managed or bring-your-own | Next |
+| L2 Indian phone numbers | A Vexa number per user (Exotel), per-account webhook checks, forwarding codes | — |
+| L3 Android APK | Capacitor app, push, on-phone call screener, one-tap forwarding | — |
+| L4 Works-instantly onboarding | Install to a live answered test call in under 5 minutes | — |
+| L5 Metering and billing | Usage caps, then Razorpay plans with UPI Autopay | — |
+| L6 Production readiness | S3 recordings, Sentry, latency targets, Redis, multiple servers | — |
+| L7 Compliance | DPDP consent, export/delete, caller AI notice, TRAI-safe SMS and calls | — |
+| L8 Play Store | Public listing | — |
+
+Earlier Indian-speech phase:
 
 | Phase | Outcome | Status |
 |---|---|---|
 | 1 Indian speech | Accented and mixed-language callers understood; Indian voices reply | **1A done** (text understanding). 1B/1C need speech-vendor keys and real recordings |
-| 2 Real calls live | Indian number (Exotel/Plivo), replies start in ≤1.5s, 5–8 pilot users | Next |
-| 3 Android app | Play Store (Capacitor), WhatsApp alerts, Razorpay/UPI billing | — |
-| 4 Business tools | WhatsApp catalog/confirmations, UPI pay links, calendar, stock sync | — |
-| 5 Scale & compliance | DPDP Act, TRAI DLT for SMS, multi-instance | — |
 
 **Phase 1A, shipped:**
 - Hinglish, Tenglish, Tanglish, Manglish, Marathi and Gujarati in English letters are detected, and code-mixing is flagged.

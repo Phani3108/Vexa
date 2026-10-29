@@ -23,9 +23,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => session.subscribe(setToken), [])
 
+  // Re-read after sign-in: phone setup details are only returned to signed-in users
   useEffect(() => {
-    api<Meta>('/api/meta', { auth: false }).then(setMeta).catch(() => {})
-  }, [])
+    api<Meta>('/api/meta').then(setMeta).catch(() => {})
+  }, [token])
 
   const reloadConfig = useCallback(async () => {
     if (!session.token) return null

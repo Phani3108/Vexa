@@ -184,3 +184,14 @@ if (MODE === 'claude') {
 }
 const out = arg('out', null);
 if (out) fs.writeFileSync(out, JSON.stringify({ mode: MODE, at: new Date().toISOString(), results }, null, 2));
+
+// Release gate: `--min 0.97` fails the run (exit 1) if the whole-case pass rate is lower
+const min = arg('min', null);
+if (min !== null) {
+  const rate = casePass / results.length;
+  if (rate < Number(min)) {
+    console.error(`\nGATE FAILED: ${(rate * 100).toFixed(1)}% < required ${(Number(min) * 100).toFixed(1)}%`);
+    process.exit(1);
+  }
+  console.log(`Gate passed: ${(rate * 100).toFixed(1)}% ≥ ${(Number(min) * 100).toFixed(1)}%`);
+}

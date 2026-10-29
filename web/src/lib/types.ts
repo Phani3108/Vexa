@@ -199,6 +199,8 @@ export interface Meta {
   smsEnabled: boolean
   twilioNumber: string | null
   webhookUrl: string | null
+  minAppVersion?: string | null
+  latestAppVersion?: string | null
   demoDataEnabled: boolean
   nluEnabled?: boolean
 }

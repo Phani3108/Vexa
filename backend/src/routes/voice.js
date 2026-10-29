@@ -26,6 +26,7 @@ import pushService from '../services/pushNotificationService.js';
 import { authenticate } from '../middleware/auth.js';
 import { findByPhone, isValidE164 } from '../lib/phone.js';
 import { openCallSession, finalizeCallSession } from '../workflows/callSession.js';
+import { signStreamToken } from '../lib/streamToken.js';
 
 const router = express.Router();
 
@@ -58,6 +59,14 @@ function twilioWebhook(req, res, next) {
 function streamUrl(req) {
   const base = process.env.WEBHOOK_URL || `https://${req.get('host')}`;
   return `${base.replace(/^http/, 'ws').replace(/\/+$/, '')}/voice/media-stream`;
+}
+
+/** <Connect><Stream> with a single-use token bound to this call (checked when the audio socket opens). */
+function streamTwiml(req, callSid) {
+  const twiml = new twilio.twiml.VoiceResponse();
+  const stream = twiml.connect().stream({ url: streamUrl(req) });
+  stream.parameter({ name: 'token', value: signStreamToken(callSid) });
+  return twiml.toString();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -264,9 +273,7 @@ router.post('/incoming-call', twilioWebhook, async (req, res) => {
       }).catch(err => console.error('Push notification error:', err.message));
     }
 
-    const twiml = new twilio.twiml.VoiceResponse();
-    twiml.connect().stream({ url: streamUrl(req) });
-    res.type('text/xml').send(twiml.toString());
+    res.type('text/xml').send(streamTwiml(req, callSid));
   } catch (err) {
     console.error('❌ incoming-call error:', err);
     twimlError('Sorry, something went wrong. Please try again later.');
@@ -291,9 +298,7 @@ router.post('/takeover-status', twilioWebhook, (req, res) => {
 });
 
 router.post('/outbound-twiml', twilioWebhook, (req, res) => {
-  const twiml = new twilio.twiml.VoiceResponse();
-  twiml.connect().stream({ url: streamUrl(req) });
-  res.type('text/xml').send(twiml.toString());
+  res.type('text/xml').send(streamTwiml(req, req.body?.CallSid));
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

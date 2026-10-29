@@ -7,6 +7,7 @@
  */
 
 import axios from 'axios';
+import { safeError } from './redact.js';
 
 const AZURE_API_VERSION = process.env.OPENAI_API_VERSION || '2024-10-01-preview';
 
@@ -55,6 +56,10 @@ export async function chatCompletion(config, { messages, temperature = 0.4, maxT
     body.model = model;
   }
 
-  const response = await axios.post(url, body, { headers, timeout });
-  return response.data.choices[0].message.content;
+  try {
+    const response = await axios.post(url, body, { headers, timeout });
+    return response.data.choices[0].message.content;
+  } catch (err) {
+    throw safeError(err); // axios errors carry the request headers, including the API key
+  }
 }

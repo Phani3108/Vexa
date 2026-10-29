@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend tests and understanding eval
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      MONGOMS_DISABLE_POSTINSTALL: '1'   # unit tests don't start MongoDB
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - name: Understanding eval (offline, no API keys) — release gate
+        run: |
+          node eval/nlu/run.mjs --min 0.97
+          node eval/nlu/run.mjs --file holdout.jsonl --min 0.95
+      - name: Dependency audit (production, high severity)
+        run: npm audit --omit=dev --audit-level=high || echo "::warning::npm audit reported high-severity issues"
+
+  web:
+    name: Web app type-check, lint and build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+
+  docker:
+    name: Docker image builds
+    runs-on: ubuntu-latest
+    needs: [backend, web]
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t vexa:ci .
