@@ -51,6 +51,11 @@ export function withLedger(ledger, purpose, fn) {
   return store.run({ ledger, purpose }, fn);
 }
 
+/** The ledger the current code runs under (null outside any call). */
+export function currentLedger() {
+  return store.getStore()?.ledger || null;
+}
+
 /** Called by the Claude client after every response. */
 export function recordUsage(model, usage, latencyMs) {
   const ctx = store.getStore();

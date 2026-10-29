@@ -78,8 +78,8 @@ const businessProfileSchema = new mongoose.Schema({
   catalog: [new mongoose.Schema({
     name:    { type: String, required: true },
     aliases: [String],
-    stock:   { type: Number, default: 0 },
-    price:   { type: Number, default: 0 },
+    stock:   Number,                                    // leave empty when stock isn't tracked (services, menus); 0 = sold out
+    price:   Number,
     priceMax: Number,                                   // estimate ranges (home services)
     unit:    { type: String, default: '' },
     category: { type: String, default: '' },            // "Blood tests", "Starters", "Haircuts"
@@ -222,6 +222,11 @@ const userConfigSchema = new mongoose.Schema({
     enabled: { type: Boolean, default: false },
     slug: String,
     dailyLimit: { type: Number, default: 50, min: 1, max: 1000 }   // conversations per day
+  },
+
+  // Daily AI budget in USD (over it, Vexa runs on offline rules until midnight UTC); capped by MAX_DAILY_AI_BUDGET_USD
+  limits: {
+    dailyAiUsd: { type: Number, min: 0.1, max: 1000 }
   },
 
   // Callable agent API: other people's AI assistants ask questions and request bookings/orders

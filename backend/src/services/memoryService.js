@@ -16,6 +16,8 @@ import { isMongoConnected } from '../config/mongodb.js';
 import { structuredJson, llmAvailable } from '../lib/llm.js';
 import { nullableString, strictObject } from '../lib/claude.js';
 import { notifyUser } from './pushNotificationService.js';
+import UserConfig from '../models/mongodb/UserConfig.js';
+import quota from './quotaService.js';
 
 const SECRET = /\b(otp|pin|cvv|password|card number|account number|aadhaar|aadhar|\d{12,19})\b/i;
 const STOP = new Set('a an the is are was were do does did you your we our i to for of in on at and or can could what when where how my me it this that be have has with about any who which much many'.split(' '));
@@ -94,6 +96,11 @@ function keywordAnswer(question, notes) {
 }
 
 export async function ask(userId, question) {
+  const user = await UserConfig.findOne({ userId }).select('userId limits').lean();
+  return quota.metered(user || { userId }, 'memory', () => askWithin(userId, question));
+}
+
+async function askWithin(userId, question) {
   const notes = await notesFor(userId);
   if (!notes.memories.length && !notes.calls.length) return { answer: 'I don\'t have any calls to look through yet.', found: false, callIds: [] };
   if (!llmAvailable()) return keywordAnswer(question, notes);

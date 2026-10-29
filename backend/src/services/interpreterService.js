@@ -16,6 +16,8 @@ import { structuredJson, llmAvailable } from '../lib/llm.js';
 import { strictObject } from '../lib/claude.js';
 import { LANGUAGE_CODES, languageName } from '../lib/language.js';
 import { newLedger, withLedger, summarize } from '../lib/usage.js';
+import quota from './quotaService.js';
+import UserConfig from '../models/mongodb/UserConfig.js';
 
 const ROOM_TTL_MS = 2 * 3600 * 1000;
 const MAX_MESSAGES = 300;
@@ -54,12 +56,13 @@ If the text mixes languages (e.g. Hinglish), translate all of it.`,
   }
 }
 
-export function create(ownerId, ownerLang, guestLang = null) {
+export async function create(ownerId, ownerLang, guestLang = null) {
+  const owner = await UserConfig.findOne({ userId: ownerId }).select('userId limits').lean();
   const owned = [...rooms.values()].filter(r => r.ownerId === ownerId).sort((a, b) => a.updatedAt - b.updatedAt);
   while (owned.length >= MAX_ROOMS_PER_OWNER) rooms.delete(owned.shift().id);
   const id = crypto.randomBytes(9).toString('base64url');
   const room = {
-    id, ownerId,
+    id, ownerId, owner: owner || { userId: ownerId },
     langs: { owner: lang(ownerLang) || 'en', guest: lang(guestLang) },
     messages: [], seq: 0, createdAt: Date.now(), updatedAt: Date.now(), guestJoined: false,
     ledger: newLedger()
@@ -108,7 +111,11 @@ export async function say(id, side, text, ownerId = null) {
   const from = r.langs[side] || 'en';
   const other = side === 'owner' ? 'guest' : 'owner';
   const to = r.langs[other] || 'en';
+  r.ledger.blocked = !(await quota.allowed(r.owner));   // over budget: passes words through untranslated
+  const before = summarize(r.ledger);
   const out = await interpret(clean, from, to, r.ledger);
+  const after = summarize(r.ledger);
+  if (after.costUsd > before.costUsd) quota.record(r.ownerId, { costUsd: after.costUsd - before.costUsd, requests: after.requests - before.requests, purpose: 'interpreter', user: r.owner }).catch(() => {});
   const msg = { seq: ++r.seq, from: side, text: clean, lang: from, translation: out.text, translationLang: to, translated: out.translated, at: new Date().toISOString() };
   r.messages.push(msg);
   r.updatedAt = Date.now();

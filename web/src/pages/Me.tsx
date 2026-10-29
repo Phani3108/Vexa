@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Bell, BookOpen, Download, Bot, HeartHandshake, Languages, Boxes, Building2, QrCode, CalendarCheck, ChevronRight, Clock, LogOut, Disc3, Mic2, Package, PhoneForwarded, ShieldBan, Star, Users } from 'lucide-react'
+import { Bell, BookOpen, Download, Bot, Gauge, HeartHandshake, Languages, Boxes, Building2, QrCode, CalendarCheck, ChevronRight, Clock, LogOut, Disc3, Mic2, Package, PhoneForwarded, ShieldBan, Star, Users } from 'lucide-react'
 import { api } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import type { UserConfig } from '../lib/types'
@@ -113,6 +113,7 @@ export default function Me() {
             <Row to="/me/deliveries" icon={Package} label="Deliveries" hint="Address and drop-off instructions" />
           )}
           <Row to="/me/voice" icon={Mic2} label="Voice & language" hint={`${config.aiSettings?.voice ? `Voice: ${config.aiSettings.voice} · ` : ''}${LANG_SHORT[config.aiSettings?.language || 'en']} + 7 languages, auto-switch`} />
+          <Row to="/usage" icon={Gauge} label="AI usage & daily limit" hint={`Up to $${config.limits?.dailyAiUsd ?? 5} a day; offline rules after that`} />
           <Row to="/me/recording" icon={Disc3} label="Recording & privacy" hint={config.recording?.enabled === false ? 'Off' : `On · kept ${config.recording?.retentionDays ?? 90} days`} />
         </div>
       </div>

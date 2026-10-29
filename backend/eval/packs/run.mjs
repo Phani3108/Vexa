@@ -35,6 +35,11 @@ const { WorkflowSession } = await import('../../src/workflows/engine.js');
 const { defaultWorkflows } = await import('../../src/workflows/templates.js');
 const { PACKS, packUpdate } = await import('../../src/packs/index.js');
 const { understand, nluAvailable } = await import('../../src/workflows/nlu.js');
+const { default: UserConfig } = await import('../../src/models/mongodb/UserConfig.js');
+
+// Pass every account through the real Mongoose schema (defaults and casting, no database),
+// so the eval sees data exactly as a hosted server would store it
+const asStored = doc => { const o = new UserConfig({ userId: 'eval', ...doc }).toObject(); delete o._id; return o; };
 
 if (MODE === 'claude' && !nluAvailable()) { console.error('--mode claude needs ANTHROPIC_API_KEY in backend/.env'); process.exit(1); }
 
@@ -43,13 +48,13 @@ const OWNER_PHONE = '+919000000000';
 
 function userFor(c) {
   if (c.user === 'personal') {
-    return { accountType: 'personal', name: 'Phani Kumar', phoneNumber: OWNER_PHONE, escalationKeywords: ['emergency', 'hospital'], callCategories: [], deliveryAddress: { flat: 'Flat 302', street: 'Green Park, Kondapur', city: 'Hyderabad' }, workflows: defaultWorkflows('personal') };
+    return asStored({ accountType: 'personal', name: 'Phani Kumar', phoneNumber: OWNER_PHONE, escalationKeywords: ['emergency', 'hospital'], callCategories: [], deliveryAddress: { flat: 'Flat 302', street: 'Green Park, Kondapur', city: 'Hyderabad' }, workflows: defaultWorkflows('personal') });
   }
   const pack = PACKS[c.pack];
   if (!pack) throw new Error(`${c.id}: unknown pack ${c.pack}`);
   const u = { name: 'Phani Kumar', phoneNumber: OWNER_PHONE, callCategories: [], escalationKeywords: ['emergency'], ...packUpdate({}, pack, { sampleData: true }) };
   u.businessProfile = { ...u.businessProfile, timezone: 'UTC', transferNumber: '+919000000001' };
-  return u;
+  return asStored(u);
 }
 
 function loadCases() {

@@ -74,7 +74,8 @@ class ConversationAnalyzer {
     try {
       return await this._callAPI(lines, categories, context);
     } catch (err) {
-      console.error('❌ ConversationAnalyzer API error:', err.message);
+      if (/budget|switched off/i.test(err.message)) console.warn(`ConversationAnalyzer: ${err.message}`);
+      else console.error('❌ ConversationAnalyzer API error:', err.message);
       return this._fallback(lines, categories, context);
     }
   }

@@ -304,13 +304,16 @@ export class WorkflowSession {
       this.log('lookup', { found: true, item: item.name, mode: 'info' });
       return;
     }
-    const stock = Number(item.stock) || 0;
+    // No stock number = stock isn't tracked for this item: treat it as available
+    const tracked = item.stock != null && item.stock !== '';
+    const stock = tracked ? Number(item.stock) || 0 : qty;
     const price = Number(item.price) || 0;
     const unit = item.unit ? ` per ${item.unit}` : ' each';
     const reservable = Math.min(qty, stock);
     const total = this.money(price * reservable);
     let availability;
-    if (stock >= qty) availability = `Yes, the ${item.name} is in stock — we have ${stock}, at ${this.money(price)}${unit}. For ${qty}, that comes to ${total} in total.`;
+    if (!tracked) availability = `Yes, we have ${item.name}, at ${this.money(price)}${unit}. For ${qty}, that comes to ${total} in total.`;
+    else if (stock >= qty) availability = `Yes, the ${item.name} is in stock — we have ${stock}, at ${this.money(price)}${unit}. For ${qty}, that comes to ${total} in total.`;
     else if (stock > 0) availability = `We only have ${stock} ${item.name} in stock right now, at ${this.money(price)}${unit} — that is ${total} for all ${stock}. The team can arrange the remaining ${qty - stock}.`;
     else availability = `Sorry, ${item.name} is out of stock right now. It is usually ${this.money(price)}${unit}. I have noted your request and the team will call you as soon as it is back.`;
     this.computed = { itemName: item.name, stock, unitPrice: this.money(price), total, reservedQty: String(reservable), availability };

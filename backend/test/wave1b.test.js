@@ -84,3 +84,15 @@ test('a price question is answered but never put in the cart', () => {
   assert.match(k.say, /Yes, we have 9W LED bulb in stock\. 9W LED bulb is ₹99/);
   assert.equal(k.asked, 'items');
 });
+
+test('daily AI budget: owner limit capped by the server; a blocked ledger never reaches the model', async () => {
+  const { budgetFor, MAX_DAILY_USD, DEFAULT_DAILY_USD } = await import('../src/services/quotaService.js');
+  assert.equal(budgetFor({}), DEFAULT_DAILY_USD);
+  assert.equal(budgetFor({ limits: { dailyAiUsd: 2 } }), 2);
+  assert.equal(budgetFor({ limits: { dailyAiUsd: 99999 } }), MAX_DAILY_USD);
+  const { structuredJson } = await import('../src/lib/llm.js');
+  const { newLedger, withLedger } = await import('../src/lib/usage.js');
+  const ledger = newLedger(); ledger.blocked = true;
+  await assert.rejects(withLedger(ledger, 'test', () => structuredJson({ system: 's', user: 'u', schema: {} })), /budget/);
+  assert.equal(ledger.requests.length, 0);
+});

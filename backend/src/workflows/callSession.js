@@ -19,6 +19,7 @@ import PromptGenerator from '../voice/PromptGenerator.js';
 import callHistoryService from '../services/callHistoryService.js';
 import memoryService from '../services/memoryService.js';
 import familyService from '../services/familyService.js';
+import quota from '../services/quotaService.js';
 import userConfigService from '../services/userConfigService.js';
 import pushService from '../services/pushNotificationService.js';
 import Call from '../models/mongodb/Call.js';
@@ -85,6 +86,8 @@ export async function openCallSession({ user, callerNumber, isTest = false, io =
     : PromptGenerator.generateInitialGreeting(user, callerCtx);
   const greeting = engine.greeting(baseGreeting);
   const ledger = newLedger();
+  // Over today's AI budget: this call runs on the offline rules (flows still work)
+  if (!(await quota.allowed(user))) ledger.blocked = true;
 
   // Recording notice (live calls are recorded unless the owner turned it off)
   const recording = !isTest && !anonymous && user.recording?.enabled !== false;
@@ -174,6 +177,7 @@ export async function takeTurn(session, text, { nluTimeout, translate = true, tr
     e.log('slots', { filled: ['email'], values: { email: em.display } });
     return { ...e.result(e.run({ say: ['Got it, thank you.'] })), aiAssisted: false };
   }
+  if (!session.ledger.blocked && !(await quota.allowed(session.user))) session.ledger.blocked = true;   // budget ran out mid-call
   const nlu = await withLedger(session.ledger, 'understanding', () => understand(e, text, { timeout: nluTimeout }));
   const result = session.engine.turn(text, nlu);
 
@@ -319,6 +323,8 @@ export async function finalizeCallSession({ session, user, callResult, io = null
 
   const saved = await callHistoryService.saveCall({ channel: session.channel, ...callResult, transcripts: lines, languages, workflowRun: run, whispers: session.whispers, aiUsage: summarize(session.ledger) }, analysis);
   if (!saved) return null;
+  const spend = summarize(session.ledger);
+  quota.record(user.userId, { costUsd: spend.costUsd, requests: spend.requests, conversation: true, purpose: session.channel || 'phone', user }).catch(() => {});
 
   const results = await applyOutcomes({ run, call: saved, user, io });
   await Call.updateOne({ _id: saved._id }, { $set: { 'workflowRun.actions': results } });

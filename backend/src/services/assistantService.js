@@ -43,6 +43,7 @@ import { extractPhone } from '../workflows/extractors.js';
 import { defaultWorkflows } from '../workflows/templates.js';
 import { phonesMatch } from '../lib/phone.js';
 import memoryService from './memoryService.js';
+import quota from './quotaService.js';
 
 const escapeRx = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -261,7 +262,7 @@ export async function runCommand(userId, text) {
   const user = await userConfigService.getUser(userId);
   if (!user) throw Object.assign(new Error('User not found'), { status: 404 });
 
-  const modelActions = await parseWithModel(text, user.businessProfile?.timezone);
+  const modelActions = await quota.metered(user, 'ask-vexa', () => parseWithModel(text, user.businessProfile?.timezone));
   const actions = modelActions?.length ? modelActions : parseOffline(text, new Date(), user.businessProfile?.timezone);
   if (!actions.length) {
     return {

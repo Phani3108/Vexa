@@ -93,6 +93,7 @@ export interface UserConfig {
   link?: { enabled?: boolean; slug?: string; dailyLimit?: number }
   agentApi?: { enabled: boolean; dailyLimit: number }
   pushDevices?: number
+  limits?: { dailyAiUsd?: number }
   email?: string
   aiSettings: { voice?: string; tone?: string; greeting?: string; language?: string }
   recording?: { enabled?: boolean; announce?: boolean; retentionDays?: number }

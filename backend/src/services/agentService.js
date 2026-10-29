@@ -24,6 +24,7 @@ import { strictObject } from '../lib/claude.js';
 import { upiLink, isUpiId } from '../lib/upi.js';
 import { isValidE164 } from '../lib/phone.js';
 import { validSlug } from './linkService.js';
+import quota from './quotaService.js';
 
 const err = (status, message) => Object.assign(new Error(message), { status });
 const str = (v, n = 200) => (v == null ? '' : String(v).trim().slice(0, n));
@@ -167,12 +168,12 @@ export async function call(slug, { tool, arguments: args = {}, agent = {} } = {}
       const local = s.answerQuestion(question.endsWith('?') ? question : `${question}?`);
       if (local) return { answer: local, source: 'business info' };
       if (!llmAvailable()) return { answer: 'unknown', source: null };
-      const r = await structuredJson({
+      const r = await quota.metered(user, 'agent', () => structuredJson({
         effort: 'low', purposeModel: 'fast', maxTokens: 600, timeoutMs: 12000,
         schema: strictObject({ answer: { type: 'string' }, known: { type: 'boolean' } }),
         system: 'Answer a question about a business using ONLY its published information below. If the information does not answer it, set known=false and answer "unknown". Never invent prices, times or policies.',
         user: JSON.stringify({ question, business: { name: p.businessName, description: p.description, address: p.address, services: p.services, faqs: p.faqs, catalog: (p.catalog || []).map(i => itemView(user, i)) } })
-      }).catch(() => ({ answer: 'unknown', known: false }));
+      })).catch(() => ({ answer: 'unknown', known: false }));
       return { answer: r.known ? r.answer : 'unknown', source: r.known ? 'business info' : null };
     }
 
