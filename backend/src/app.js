@@ -256,15 +256,18 @@ app.use((err, req, res, next) => {
 // Start: connect the database first so early requests never hit a cold DB
 // ============================================
 async function start() {
-  const connected = await connectToMongoDB();
-  if (!connected && isProd) {
-    logger.error('Database connection failed — exiting');
-    process.exit(1);
-  }
-
-  if (isMongoConnected()) {
+  const startRetention = () => {
     enforceRecordingRetention().catch(err => logger.warn(`Retention check failed: ${err.message}`));
     setInterval(() => enforceRecordingRetention().catch(() => {}), 6 * 3600 * 1000).unref();
+  };
+  const connected = await connectToMongoDB();
+  if (connected) startRetention();
+  else if (isProd) {
+    // Stay up and say why (GET /health → 503 "mongodb: disconnected") instead of a restart loop that hangs every request
+    logger.error('Database unreachable — retrying every 15 s. On MongoDB Atlas: Network Access → Add IP Address → Allow access from anywhere (0.0.0.0/0); check the user, password and database name in MONGODB_URI.');
+    const retry = setInterval(async () => {
+      if (await connectToMongoDB()) { clearInterval(retry); logger.info('✅ Database connected'); startRetention(); }
+    }, 15000);
   }
 
   server.listen(PORT, () => {
