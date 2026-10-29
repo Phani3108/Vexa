@@ -18,6 +18,7 @@ import ConversationAnalyzer from '../voice/ConversationAnalyzer.js';
 import PromptGenerator from '../voice/PromptGenerator.js';
 import callHistoryService from '../services/callHistoryService.js';
 import memoryService from '../services/memoryService.js';
+import familyService from '../services/familyService.js';
 import userConfigService from '../services/userConfigService.js';
 import pushService from '../services/pushNotificationService.js';
 import Call from '../models/mongodb/Call.js';
@@ -47,7 +48,10 @@ export async function openCallSession({ user, callerNumber, isTest = false, io =
     if (action.type === 'notify_owner' && action.params?.kind === 'scam') {
       const scam = engine?.scam || {};
       io?.to(`user:${user.userId}`).emit('call:scam', { callId, type: scam.type, label: scam.label, phrases: scam.phrases || [] });
-      if (!isTest) pushService.sendScamAlertNotification(user.userId, { callId, callerNumber, label: scam.label, phrase: scam.phrases?.[0] }).catch(() => {});
+      if (!isTest) {
+        pushService.sendScamAlertNotification(user.userId, { callId, callerNumber, label: scam.label, phrase: scam.phrases?.[0] }).catch(() => {});
+        familyService.alert(user, { kind: 'scam', callId, label: scam.label, phrase: scam.phrases?.[0] }).catch(() => {});
+      }
       return;
     }
     // Urgent alerts can't wait for the call to end
@@ -60,6 +64,7 @@ export async function openCallSession({ user, callerNumber, isTest = false, io =
           callerNumber,
           reason: action.slots?.problem || 'Emergency call'
         }).catch(() => {});
+        familyService.alert(user, { kind: 'emergency', callId, detail: action.slots?.problem ? `Caller says: ${String(action.slots.problem).slice(0, 100)}` : null }).catch(() => {});
       }
     }
   };

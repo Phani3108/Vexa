@@ -28,6 +28,8 @@ import workflowRoutes from './routes/workflows.js';
 import packRoutes from './routes/packs.js';
 import pushRoutes from './routes/push.js';
 import memoryRoutes from './routes/memory.js';
+import familyRoutes from './routes/family.js';
+import { attachIO as attachFamilyIO, sendDigests } from './services/familyService.js';
 import { startReminderLoop } from './services/memoryService.js';
 import { publicLinkRouter, linkSettingsRouter } from './routes/link.js';
 import { attachIO as attachLinkIO } from './services/linkService.js';
@@ -183,11 +185,14 @@ app.use('/api/bookings', bookingsRouter);
 app.use('/api/packs', packRoutes);
 app.use('/api/push', pushRoutes);
 app.use('/api/memory', memoryRoutes);
+app.use('/api/family', familyRoutes);
 app.use('/api/link', linkSettingsRouter);
 app.use('/api/public/link/:slug', publicLinkRouter);
 attachSimulatorIO(io);
 attachLinkIO(io);
 startReminderLoop();
+attachFamilyIO(io);
+if (process.env.NODE_ENV !== 'test') setInterval(() => sendDigests().catch(err => console.error('Family digest:', err.message)), 15 * 60 * 1000).unref();
 
 if (voiceConfig) {
   initVoiceRoutes(voiceConfig, io);

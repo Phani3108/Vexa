@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Bell, BookOpen, Boxes, Building2, QrCode, CalendarCheck, ChevronRight, Clock, LogOut, Disc3, Mic2, Package, PhoneForwarded, ShieldBan, Star, Users } from 'lucide-react'
+import { Bell, BookOpen, HeartHandshake, Boxes, Building2, QrCode, CalendarCheck, ChevronRight, Clock, LogOut, Disc3, Mic2, Package, PhoneForwarded, ShieldBan, Star, Users } from 'lucide-react'
 import { api } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import type { UserConfig } from '../lib/types'
@@ -104,6 +104,7 @@ export default function Me() {
       <div className="section">
         <div className="eyebrow" style={{ margin: '0 4px 8px' }}>People</div>
         <div className="card tight">
+          <Row to="/family" icon={HeartHandshake} label="Family" hint="Watch over a parent's calls, or let family watch over yours" />
           <Row to="/me/contacts?tab=callers" icon={Users} label="Callers Vexa remembers" />
           <Row to="/me/contacts?tab=vip" icon={Star} label="VIPs" hint={`${config.vipContacts?.length || 0} people`} />
           <Row to="/me/contacts?tab=blocked" icon={ShieldBan} label="Blocked numbers" hint={`${config.blockedNumbers?.length || 0} numbers`} />

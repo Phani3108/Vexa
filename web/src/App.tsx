@@ -20,6 +20,8 @@ import Bookings from './pages/Bookings'
 import Packs from './pages/Packs'
 import Talk from './pages/Talk'
 import LinkSettings from './pages/LinkSettings'
+import Family from './pages/Family'
+import FamilyMember from './pages/FamilyMember'
 
 /** Phone-sized app; on desktop it sits in a device frame. */
 function Stage({ children }: { children: ReactNode }) {
@@ -95,6 +97,8 @@ export default function App() {
           <Route path="/bookings" element={full(<Bookings />)} />
           <Route path="/packs" element={full(<Packs />)} />
           <Route path="/link" element={full(<LinkSettings />)} />
+          <Route path="/family" element={full(<Family />)} />
+          <Route path="/family/:userId" element={full(<FamilyMember />)} />
           <Route path="/onboarding" element={<Onboarding />} />
           <Route path="/login" element={<Navigate to="/" replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />
