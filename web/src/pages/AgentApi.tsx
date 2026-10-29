@@ -47,12 +47,14 @@ export default function AgentApi() {
         <p className="xs muted" style={{ marginTop: 8 }}>Agents never see customer records, and nothing is confirmed without you.</p>
       </div>
 
+      <div className="section">
       <Field label="Bookings and orders per day" hint="Keeps runaway agents in check">
         <div className="row" style={{ gap: 8 }}>
           <input className="input" inputMode="numeric" value={limit} onChange={e => setLimit(e.target.value.replace(/\D/g, ''))} aria-label="Requests per day" />
           <button className="btn sm" disabled={!limit || Number(limit) === s.dailyLimit} onClick={() => save({ dailyLimit: Number(limit) })}>Save</button>
         </div>
       </Field>
+      </div>
     </>
   )
 }

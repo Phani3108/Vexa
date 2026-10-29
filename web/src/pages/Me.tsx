@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Bell, BookOpen, Bot, HeartHandshake, Languages, Boxes, Building2, QrCode, CalendarCheck, ChevronRight, Clock, LogOut, Disc3, Mic2, Package, PhoneForwarded, ShieldBan, Star, Users } from 'lucide-react'
+import { Bell, BookOpen, Download, Bot, HeartHandshake, Languages, Boxes, Building2, QrCode, CalendarCheck, ChevronRight, Clock, LogOut, Disc3, Mic2, Package, PhoneForwarded, ShieldBan, Star, Users } from 'lucide-react'
 import { api } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import type { UserConfig } from '../lib/types'
@@ -9,6 +9,7 @@ import { LANG_SHORT } from '../lib/speech'
 import Sheet from '../components/Sheet'
 import { Toggle, toast } from '../components/ui'
 import { disablePush, enablePush, pushState } from '../lib/push'
+import { canInstall, install, isInstalled, isIos, onInstallChange } from '../lib/install'
 
 function Row({ to, icon: Icon, label, hint }: { to: string; icon: typeof Clock; label: string; hint?: string }) {
   return (
@@ -43,6 +44,20 @@ function NotifyRow() {
   )
 }
 
+/** Install the app on this phone (shown until it is installed). */
+function InstallRow() {
+  const [, force] = useState(0)
+  useEffect(() => onInstallChange(() => force(n => n + 1)), [])
+  if (isInstalled()) return null
+  if (!canInstall() && !isIos()) return null
+  return (
+    <button className="list-row" style={{ width: '100%', textAlign: 'left' }} onClick={() => (isIos() ? toast('Tap Share, then “Add to Home Screen”') : install())}>
+      <span className="avatar" style={{ width: 36, height: 36, borderRadius: 11 }}><Download size={17} /></span>
+      <div className="grow"><h3>Install Vexa on this phone</h3><p className="xs muted">Opens like an app, works with notifications</p></div>
+    </button>
+  )
+}
+
 export default function Me() {
   const { config, meta, signOut, setConfig } = useAuth()
   const navigate = useNavigate()
@@ -67,7 +82,7 @@ export default function Me() {
         <span className="avatar lg">{initials(p.businessName || config.name || 'V')}</span>
         <div className="grow">
           <h2 className="truncate">{isBiz ? p.businessName || 'Your business' : config.name}</h2>
-          <p className="small muted">{formatPhone(config.phoneNumber)}</p>
+          <p className="small muted">{config.phoneNumber ? formatPhone(config.phoneNumber) : config.email || ''}</p>
           {isBiz && config.name !== 'User' && <p className="xs muted">{config.name}</p>}
         </div>
       </div>
@@ -118,6 +133,7 @@ export default function Me() {
         <div className="card tight">
           <Row to="/me/phone" icon={PhoneForwarded} label="Phone setup" hint={meta?.voiceEnabled ? 'Live calls connected' : 'Connect your number to go live'} />
           <NotifyRow />
+          <InstallRow />
         </div>
       </div>
 

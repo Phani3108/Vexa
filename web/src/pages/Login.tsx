@@ -3,18 +3,23 @@ import { ArrowLeft } from 'lucide-react'
 import { api } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import Orb from '../components/Orb'
+import GoogleButton from '../components/GoogleButton'
+
+// India first: a bare 10-digit number is Indian unless the device is set to a US time zone
+const INDIA = /Asia\/(Kolkata|Calcutta)/.test(Intl.DateTimeFormat().resolvedOptions().timeZone) || !/^America\//.test(Intl.DateTimeFormat().resolvedOptions().timeZone)
 
 function normalize(input: string): string {
   const t = input.trim()
   const d = t.replace(/\D/g, '')
   if (t.startsWith('+')) return `+${d}`
-  if (d.length === 10) return `+1${d}`
-  if (d.length === 11 && d.startsWith('1')) return `+${d}`
+  if (d.length === 10) return INDIA ? `+91${d}` : `+1${d}`
+  if (d.length === 11 && d.startsWith('1') && !INDIA) return `+${d}`
+  if (d.length === 12 && d.startsWith('91')) return `+${d}`
   return `+${d}`
 }
 
 export default function Login() {
-  const { signIn } = useAuth()
+  const { signIn, meta } = useAuth()
   const [step, setStep] = useState<'phone' | 'code'>('phone')
   const [phone, setPhone] = useState('')
   const [code, setCode] = useState('')
@@ -73,10 +78,16 @@ export default function Login() {
 
       {step === 'phone' ? (
         <form className="stack" onSubmit={request}>
-          <input className="input xl" type="tel" autoComplete="tel" placeholder="(415) 555-0123" value={phone} onChange={e => setPhone(e.target.value)} aria-label="Mobile number" autoFocus />
+          <input className="input xl" type="tel" autoComplete="tel" placeholder={INDIA ? '98765 43210' : '(415) 555-0123'} value={phone} onChange={e => setPhone(e.target.value)} aria-label="Mobile number" autoFocus />
           {error && <div className="alert danger" role="alert">{error}</div>}
           <button className="btn primary block" style={{ height: 54 }} disabled={busy || !phone.trim()}>{busy ? 'Sending…' : 'Continue'}</button>
           <p className="xs muted" style={{ textAlign: 'center' }}>We’ll text you a 6-digit code. No password.</p>
+          {meta?.googleClientId && (
+            <>
+              <div className="row xs muted" style={{ justifyContent: 'center', gap: 8 }}><span>or</span></div>
+              <GoogleButton clientId={meta.googleClientId} onToken={(t, r) => signIn(t, r)} onError={setError} />
+            </>
+          )}
         </form>
       ) : (
         <form className="stack" onSubmit={verify}>

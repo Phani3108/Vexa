@@ -1,6 +1,6 @@
 // Vexa service worker: app shell offline, network-first for everything live.
 const CACHE = 'vexa-shell-v2'
-const SHELL = ['/', '/manifest.webmanifest', '/icon.svg']
+const SHELL = ['/', '/manifest.webmanifest', '/icon.svg', '/icon-192.png']
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()))

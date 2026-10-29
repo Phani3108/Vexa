@@ -1,15 +1,25 @@
 {
+  "id": "/",
   "name": "Vexa — AI Receptionist",
   "short_name": "Vexa",
-  "description": "Your AI receptionist: answers calls, follows your playbooks, captures leads, blocks spam.",
-  "start_url": "/",
+  "description": "Your AI receptionist: answers calls, follows your playbooks, captures leads, blocks scams.",
+  "lang": "en-IN",
+  "start_url": "/?source=pwa",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#07080f",
   "theme_color": "#07080f",
+  "categories": ["business", "productivity", "utilities"],
   "icons": [
-    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
-    { "src": "/icon-maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ],
+  "shortcuts": [
+    { "name": "Test call", "short_name": "Test call", "url": "/test", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Vexa Link QR", "short_name": "QR", "url": "/link", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Interpreter", "short_name": "Interpreter", "url": "/interpret", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] }
   ]
 }

@@ -1,0 +1,37 @@
+# Render Blueprint — one web service (API + web app in one Docker image).
+# Render dashboard → New → Blueprint → pick this repo. Fill the "sync: false" values when asked.
+# Database: MongoDB Atlas (free M0, AWS Mumbai ap-south-1). Step by step: docs/DEPLOY.md
+services:
+  - type: web
+    name: vexa
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free            # sleeps after 15 min idle (first request then takes ~50 s); "starter" stays awake
+    region: singapore     # closest Render region to India
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false       # mongodb+srv://… from Atlas → Connect → Drivers
+      - key: JWT_SECRET
+        generateValue: true
+      - key: STREAM_TOKEN_SECRET
+        generateValue: true
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: ANTHROPIC_MODEL
+        value: claude-opus-5-5
+      - key: ANTHROPIC_FAST_MODEL
+        value: claude-haiku-5-5   # per-turn understanding and translation: faster replies
+      - key: GOOGLE_CLIENT_ID
+        sync: false       # sign-in without SMS; see docs/DEPLOY.md step 3
+      - key: VAPID_PUBLIC_KEY
+        sync: false       # npx web-push generate-vapid-keys
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      - key: VAPID_SUBJECT
+        sync: false       # mailto:you@yourdomain
+      - key: DEFAULT_COUNTRY_CODE
+        value: "+91"

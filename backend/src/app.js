@@ -48,9 +48,12 @@ const isProd = process.env.NODE_ENV === 'production';
 // Behind Render/Fly/ngrok the client IP comes from X-Forwarded-For
 app.set('trust proxy', 1);
 
-const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(',').map(s => s.trim())
-  : ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:8081'];
+// The public HTTPS address (Render sets RENDER_EXTERNAL_URL automatically)
+const PUBLIC_URL = (process.env.PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || '').replace(/\/+$/, '') || null;
+const ALLOWED_ORIGINS = [
+  ...(process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',').map(s => s.trim()).filter(Boolean) : ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:8081']),
+  ...(PUBLIC_URL ? [PUBLIC_URL] : [])
+];
 
 // ============================================
 // Socket.io — real-time events for the dashboard and mobile app.
@@ -129,7 +132,7 @@ function loadVoiceConfig() {
     TWILIO_ACCOUNT_SID: process.env.TWILIO_ACCOUNT_SID,
     TWILIO_AUTH_TOKEN: process.env.TWILIO_AUTH_TOKEN,
     TWILIO_PHONE_NUMBER: process.env.TWILIO_PHONE_NUMBER,
-    WEBHOOK_URL: process.env.WEBHOOK_URL || `http://localhost:${PORT}`
+    WEBHOOK_URL: process.env.WEBHOOK_URL || PUBLIC_URL || `http://localhost:${PORT}`
   };
 }
 
@@ -168,6 +171,7 @@ app.get('/api/meta', (req, res) => {
     demoDataEnabled: demoDataEnabled(),
     languages: LANGUAGES,
     nluEnabled: llmAvailable() && process.env.NLU_DISABLED !== 'true',
+    googleClientId: process.env.GOOGLE_CLIENT_ID || null,
   });
 });
 

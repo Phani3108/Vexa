@@ -200,6 +200,7 @@ export interface Stats {
 }
 
 export interface Meta {
+  googleClientId?: string | null
   voiceEnabled: boolean
   aiEnabled: boolean
   smsEnabled: boolean
