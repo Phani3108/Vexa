@@ -1,3 +1,44 @@
+## Guardrails and evals
+
+### Guardrails
+
+| Guardrail | What it prevents | Where it is enforced | Default and flag |
+|---|---|---|---|
+| Login and tokens | Account takeover, code guessing | `otpService.js`, `middleware/auth.js` | Hashed codes, 10 min, 5 tries; JWT 7 d / 30 d; production requires `JWT_SECRET` |
+| Rate limits | Abuse and runaway cost | `app.js`, `routes/auth.js`, `simulator.js`, `assistant.js` | API 600/15 min; codes 5/15 min; test calls 40/min; commands 30/min; outbound calls 10/min (in memory) |
+| Owner isolation | One owner seeing another's calls | Every query scoped by `req.userId`; `ownedCall()` for live calls | On |
+| Twilio signature | Forged call webhooks | `routes/voice.js` `twilioWebhook` | On in production; `TWILIO_VALIDATE_SIGNATURE`. Media-stream WebSocket not covered (gap) |
+| Spam screening | Robocalls and spoofing reaching the owner | `workflows/risk.js`, `routes/voice.js` | Risk 0–100; blocked numbers rejected; aggressive shield rejects ≥ 80 |
+| Flow validation | Broken, looping or dead-end flows | `workflows/validate.js` | Known steps only, valid targets, end step required, `maxTurns` 2–20 |
+| Engine limits | Endless calls | `workflows/engine.js` | 10 turns, 2 re-asks, 50-step loop guard; partial message saved |
+| Emergency override | Missing a real emergency | `engine.js` emergency switch, `callSession.js` urgent alert | Escalation words + model flag; owner alerted mid-call |
+| Who gets through | Interruptions the owner didn't want | `engine.js` `transfer_allowed` | VIP / always-transfer / emergency; never in Focus; business hours |
+| Human approval | AI committing the owner | `outcomes.js`, `PATCH /api/bookings/:id` | Bookings are requests until the owner confirms |
+| Grounded answers | Made-up prices, hours or directions | `nlu.js`, `callSession.js` directions prompt, `PromptGenerator.js` | "Answer ONLY from" business info; catalog for prices |
+| Prompt-injection sanitizer | Owner or caller text taking over prompts | `PromptGenerator._sanitize` | Strips "ignore previous instructions", "system prompt" and similar |
+| Model failure fallbacks | A slow or refusing model stalling a call | `nlu.js`, `translate.js`, `claude.js`, `ConversationAnalyzer.js` | Hard timeouts; offline rules; English; keyword analysis; refusal fallback (`ANTHROPIC_FALLBACKS`) |
+| Transcript filters | Acting on noise or echoes | `VoiceAgent.js` transcript handler | Noise, echo, URL, gibberish, post-interruption fragments dropped; backchannels ignored |
+| Recording consent and retention | Recording without notice; keeping audio forever | `callSession.js`, `media.js` | Notice on; 90 days; per-call delete; 15-minute signed links |
+| Dev-only routes | Demo data in production | `users.js`, `media.js` | Off in production unless `ENABLE_DEMO_DATA=true` |
+| Secrets | Keys leaking | `backend/.env` (git-ignored), `.dockerignore` | Only `.env.example` is tracked |
+| Test-call isolation | Rehearsals polluting real data | `simulatorService.js`, `callHistoryService.js`, `outcomes.js` | No caller memory, no real SMS |
+
+### Evals and quality gates
+
+| Eval | What it measures | When it runs | Threshold | Status |
+|---|---|---|---|---|
+| Indian-language understanding set (`backend/eval/nlu`) | Language, code-mixing, facts, yes/no, phone numbers across 8 languages (161 cases) | On demand: `npm run eval:nlu` (offline, free) or `-- --mode claude` | ≥ 90% on mixed-language and English-letter cases (Phase 1 target) | Live · offline 99%, Claude 100% (157-case run) |
+| Held-out set (`holdout.jsonl`) | Same, 50 new phrasings never tuned against | Same | Should track the main set | Live · offline 98%, Claude 100% |
+| Backend unit tests | Flows, extractors, emergency, shields, Focus, sanitizer, recorder, Indian numbers/dates/yes-no | `npm test` before release | All pass | Live · 42 tests passing |
+| Mobile tests | App render, API client, transcript store | `jest` in `mobile/` | All pass | Partial · 9 tests |
+| Web app checks | Type safety and build | `tsc -b && vite build`, `oxlint` | No errors | Partial · no unit tests |
+| Runtime quality signals | Model used per turn, latency, tokens and cost by purpose, questions asked/skipped, risk, action status | Every call (saved on the call) | — | Live |
+| Per-flow stats | Runs, completed, transferred, average turns and questions (30 days) | `GET /api/workflows` | — | Live |
+| Speech eval on real Indian voices | Word error rate, language detection, facts from audio, reply latency | Planned (Phase 1B/1C) | ≥ 95% facts clean, ≥ 90% noisy, ≤ 1.5 s p95 | Planned |
+| CI pipeline | Tests and evals on every change | — | — | Planned · none configured |
+
+---
+
 ## Vexa — end-to-end workflow
 
 How an owner sets Vexa up, how every call is answered, understood and acted on, and what happens after it ends. Each box names the exact code path, model, API or data store involved; numbered badges match the step-by-step walkthrough below.
@@ -91,7 +132,7 @@ _Numbers match the badges in the diagram._
 48. A person approves every booking, and recordings can only be played through short-lived links.
 49. 42 backend tests and 9 mobile tests guard releases today; there is no automatic CI pipeline yet.
 
-### Data and history calls
+<details><summary><b>Data and history calls</b></summary>
 
 What Vexa reads and writes about past calls, callers and the owner, and what is lost or not integrated.
 
@@ -108,7 +149,9 @@ What Vexa reads and writes about past calls, callers and the owner, and what is 
 | Redis (`config/redis.js`) | Not used | — | Client defined but never imported. |
 | Calendar, CRM, WhatsApp, UPI, Indian telephony | Not integrated | — | Planned in ROADMAP.md. |
 
-### LLM calls
+</details>
+
+<details><summary><b>LLM calls</b></summary>
 
 Claude is used for all text intelligence when `ANTHROPIC_API_KEY` is set (OpenAI chat is the fallback provider). OpenAI Realtime handles live speech. Every Claude call is metered per call (tokens, cost, latency).
 
@@ -125,13 +168,17 @@ Claude is used for all text intelligence when `ANTHROPIC_API_KEY` is set (OpenAI
 | Voice (speech in, speech out) | OpenAI Realtime `OPENAI_DEPLOYMENT_NAME` (gpt-realtime-mini) · voice shimmer by default | Live calls | Speaks the engine's lines in the caller's language; free conversation only when no flow is active | `OPENAI_API_KEY`, `OPENAI_ENDPOINT` (Azure) |
 | Text fallback provider · `chatCompletion()` | OpenAI `OPENAI_CHAT_DEPLOYMENT` (gpt-4.1-mini) | Only if no Anthropic key | Same JSON outputs as above | `OPENAI_API_KEY` |
 
-### Embedding models
+</details>
+
+<details><summary><b>Embedding models</b></summary>
 
 | Model | Used for | Where it runs |
 |---|---|---|
 | None | Vexa uses no embeddings or vector store. Knowledge is the owner's own structured profile, passed to Claude directly. | — |
 
-### API calls and integrations
+</details>
+
+<details><summary><b>API calls and integrations</b></summary>
 
 | System | Call | Purpose | Auth |
 |---|---|---|---|
@@ -144,44 +191,9 @@ Claude is used for all text intelligence when `ANTHROPIC_API_KEY` is set (OpenAI
 | Vexa API (owner app) | `/api/auth/*`, `/api/users/*`, `/api/calls/*`, `/api/workflows/*`, `/api/assistant/*`, `/api/bookings/*`, `/api/simulator/*`, `/media/recordings/:token` | Everything the app does | JWT bearer; recording via signed link |
 | Socket.io | Events `call:transcript`, `call:language`, `call:handoff`, `call:urgent`, `call:analyzed`, `booking:requested` | Live updates to the owner | JWT in handshake |
 
-### Guardrails
+</details>
 
-| Guardrail | What it prevents | Where it is enforced | Default and flag |
-|---|---|---|---|
-| Login and tokens | Account takeover, code guessing | `otpService.js`, `middleware/auth.js` | Hashed codes, 10 min, 5 tries; JWT 7 d / 30 d; production requires `JWT_SECRET` |
-| Rate limits | Abuse and runaway cost | `app.js`, `routes/auth.js`, `simulator.js`, `assistant.js` | API 600/15 min; codes 5/15 min; test calls 40/min; commands 30/min; outbound calls 10/min (in memory) |
-| Owner isolation | One owner seeing another's calls | Every query scoped by `req.userId`; `ownedCall()` for live calls | On |
-| Twilio signature | Forged call webhooks | `routes/voice.js` `twilioWebhook` | On in production; `TWILIO_VALIDATE_SIGNATURE`. Media-stream WebSocket not covered (gap) |
-| Spam screening | Robocalls and spoofing reaching the owner | `workflows/risk.js`, `routes/voice.js` | Risk 0–100; blocked numbers rejected; aggressive shield rejects ≥ 80 |
-| Flow validation | Broken, looping or dead-end flows | `workflows/validate.js` | Known steps only, valid targets, end step required, `maxTurns` 2–20 |
-| Engine limits | Endless calls | `workflows/engine.js` | 10 turns, 2 re-asks, 50-step loop guard; partial message saved |
-| Emergency override | Missing a real emergency | `engine.js` emergency switch, `callSession.js` urgent alert | Escalation words + model flag; owner alerted mid-call |
-| Who gets through | Interruptions the owner didn't want | `engine.js` `transfer_allowed` | VIP / always-transfer / emergency; never in Focus; business hours |
-| Human approval | AI committing the owner | `outcomes.js`, `PATCH /api/bookings/:id` | Bookings are requests until the owner confirms |
-| Grounded answers | Made-up prices, hours or directions | `nlu.js`, `callSession.js` directions prompt, `PromptGenerator.js` | "Answer ONLY from" business info; catalog for prices |
-| Prompt-injection sanitizer | Owner or caller text taking over prompts | `PromptGenerator._sanitize` | Strips "ignore previous instructions", "system prompt" and similar |
-| Model failure fallbacks | A slow or refusing model stalling a call | `nlu.js`, `translate.js`, `claude.js`, `ConversationAnalyzer.js` | Hard timeouts; offline rules; English; keyword analysis; refusal fallback (`ANTHROPIC_FALLBACKS`) |
-| Transcript filters | Acting on noise or echoes | `VoiceAgent.js` transcript handler | Noise, echo, URL, gibberish, post-interruption fragments dropped; backchannels ignored |
-| Recording consent and retention | Recording without notice; keeping audio forever | `callSession.js`, `media.js` | Notice on; 90 days; per-call delete; 15-minute signed links |
-| Dev-only routes | Demo data in production | `users.js`, `media.js` | Off in production unless `ENABLE_DEMO_DATA=true` |
-| Secrets | Keys leaking | `backend/.env` (git-ignored), `.dockerignore` | Only `.env.example` is tracked |
-| Test-call isolation | Rehearsals polluting real data | `simulatorService.js`, `callHistoryService.js`, `outcomes.js` | No caller memory, no real SMS |
-
-### Evals and quality gates
-
-| Eval | What it measures | When it runs | Threshold | Status |
-|---|---|---|---|---|
-| Indian-language understanding set (`backend/eval/nlu`) | Language, code-mixing, facts, yes/no, phone numbers across 8 languages (161 cases) | On demand: `npm run eval:nlu` (offline, free) or `-- --mode claude` | ≥ 90% on mixed-language and English-letter cases (Phase 1 target) | Live · offline 99%, Claude 100% (157-case run) |
-| Held-out set (`holdout.jsonl`) | Same, 50 new phrasings never tuned against | Same | Should track the main set | Live · offline 98%, Claude 100% |
-| Backend unit tests | Flows, extractors, emergency, shields, Focus, sanitizer, recorder, Indian numbers/dates/yes-no | `npm test` before release | All pass | Live · 42 tests passing |
-| Mobile tests | App render, API client, transcript store | `jest` in `mobile/` | All pass | Partial · 9 tests |
-| Web app checks | Type safety and build | `tsc -b && vite build`, `oxlint` | No errors | Partial · no unit tests |
-| Runtime quality signals | Model used per turn, latency, tokens and cost by purpose, questions asked/skipped, risk, action status | Every call (saved on the call) | — | Live |
-| Per-flow stats | Runs, completed, transferred, average turns and questions (30 days) | `GET /api/workflows` | — | Live |
-| Speech eval on real Indian voices | Word error rate, language detection, facts from audio, reply latency | Planned (Phase 1B/1C) | ≥ 95% facts clean, ≥ 90% noisy, ≤ 1.5 s p95 | Planned |
-| CI pipeline | Tests and evals on every change | — | — | Planned · none configured |
-
-### Tech stack
+<details><summary><b>Tech stack</b></summary>
 
 | Layer | Components and versions |
 |---|---|
@@ -194,7 +206,9 @@ Claude is used for all text intelligence when `ANTHROPIC_API_KEY` is set (OpenAI
 | Deploy | Multi-stage Dockerfile (node:22-alpine) serving API + web; docker-compose with mongo:7 |
 | Demo and evals | playwright-core 1.63, macOS speech synthesis, Swift AVFoundation encoder; node:test; custom NLU eval runner |
 
-### Switches
+</details>
+
+<details><summary><b>Switches</b></summary>
 
 | Env flag | Effect | Default |
 |---|---|---|
@@ -217,7 +231,9 @@ Claude is used for all text intelligence when `ANTHROPIC_API_KEY` is set (OpenAI
 | `ENABLE_DEMO_DATA` | Demo routes in production | Off |
 | `OTP_FORCE_SMS` | Send real codes in development | Off |
 
-### Known gaps (from the code)
+</details>
+
+<details><summary><b>Known gaps (from the code)</b></summary>
 
 - The live phone path (Twilio + OpenAI Realtime) is complete in code but has not run on a real call; no keys are configured.
 - The `/voice/media-stream` WebSocket has no auth check of its own.
@@ -226,3 +242,5 @@ Claude is used for all text intelligence when `ANTHROPIC_API_KEY` is set (OpenAI
 - No CI pipeline; no web unit tests.
 - Unused code and dependencies: `routes/webhooks.js` (never mounted), `config/redis.js`, `pg`, `bcrypt`.
 - Per-turn replies take 2–9 s on Opus; a fast model (e.g. Haiku) is recommended for live calls.
+
+</details>
