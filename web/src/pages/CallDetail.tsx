@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Ban, Check, CheckCircle2, ChevronDown, ChevronUp, Languages, Mic, MessageSquare, Phone, Send, Sparkles, Trash2, X } from 'lucide-react'
+import { Ban, Check, ShieldAlert, CheckCircle2, ChevronDown, ChevronUp, Languages, Mic, MessageSquare, Phone, Send, Sparkles, Trash2, X } from 'lucide-react'
 import { api } from '../lib/api'
 import type { CallDetail, CallerProfile, FollowUpStatus, TranscriptLine } from '../lib/types'
 import { LANG_NAMES, LANG_SHORT } from '../lib/speech'
@@ -133,7 +133,7 @@ export default function CallDetailPage() {
 
   return (
     <>
-      <TopBar title={call.isTest ? 'Test call' : 'Call'} right={<RiskBadge score={run?.risk?.score} />} />
+      <TopBar title={call.isTest ? 'Test call' : 'Call'} right={a.scam ? null : <RiskBadge score={run?.risk?.score} />} />
 
       <div style={{ display: 'grid', justifyItems: 'center', gap: 8, textAlign: 'center', marginBottom: 18 }}>
         <CallerAvatar call={{ callerName: name, isSpam: !!a.isSpam, urgency: a.urgency as 'normal', lead: a.lead || null }} size="lg" />
@@ -142,7 +142,7 @@ export default function CallDetailPage() {
         <div className="row wrap" style={{ justifyContent: 'center', gap: 6 }}>
           {run?.workflowName && <span className="badge accent">{run.workflowName}</span>}
           {run?.status === 'transferred' && <span className="badge live">Transferred to you</span>}
-          {a.isSpam && <span className="badge">Spam</span>}
+          {a.isSpam && <span className={`badge${a.scam ? ' danger' : ''}`}>{a.scam ? 'Scam' : 'Spam'}</span>}
           <FollowUpBadge status={call.followUp?.status || 'none'} />
         </div>
       </div>
@@ -153,6 +153,19 @@ export default function CallDetailPage() {
         <button className="btn icon round" onClick={() => setFollow('done')} aria-label="Mark done"><Check size={18} /></button>
         <button className="btn icon round danger" onClick={block} aria-label="Block number"><Ban size={18} /></button>
       </div>
+
+      {a.scam && (
+        <div className="card scam-card stack" style={{ gap: 8 }}>
+          <div className="row" style={{ gap: 8 }}><ShieldAlert size={18} color="var(--danger)" /><h3>Scam blocked: {a.scam.label}</h3></div>
+          {a.scam.phrases.map((p, i) => <p key={i} className="small">“{p}”</p>)}
+          <p className="xs muted">Vexa shared nothing and ended the call. Never share an OTP, UPI PIN or card details on a call. To report it, call 1930 or visit cybercrime.gov.in.</p>
+          <div className="row wrap" style={{ gap: 8 }}>
+            <button className="btn danger" onClick={block}><Ban size={16} /> Block this number</button>
+            <a className="btn" href="tel:1930"><Phone size={16} /> Call 1930</a>
+            <a className="btn" href="https://cybercrime.gov.in" target="_blank" rel="noreferrer">Report online</a>
+          </div>
+        </div>
+      )}
 
       {a.summary && (
         <div className="card glow">

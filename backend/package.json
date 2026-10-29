@@ -8,7 +8,9 @@
     "start": "node src/app.js",
     "dev": "nodemon --watch src src/app.js",
     "test": "node --test test/*.test.js",
-    "eval:nlu": "node eval/nlu/run.mjs"
+    "eval:nlu": "node eval/nlu/run.mjs",
+    "eval:packs": "node eval/packs/run.mjs",
+    "check:deploy": "node scripts/check-deploy.mjs"
   },
   "keywords": [
     "ai",
@@ -27,6 +29,7 @@
     "express": "^5.2.1",
     "express-rate-limit": "^8.3.2",
     "firebase-admin": "^13.8.0",
+    "google-auth-library": "^10.6.2",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
     "mongodb": "^6.21.0",
@@ -35,6 +38,7 @@
     "redis": "^4.6.12",
     "socket.io": "^4.7.4",
     "twilio": "^5.12.1",
+    "web-push": "^3.6.7",
     "winston": "^3.19.0",
     "ws": "^8.19.0"
   },

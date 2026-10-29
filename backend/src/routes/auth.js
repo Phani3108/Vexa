@@ -8,6 +8,8 @@
  *                                  → { user, token, refreshToken } (creates the account on first login)
  *   3. POST /api/auth/refresh      { refreshToken }               → { token, refreshToken }
  *   4. GET  /api/auth/me                                           (requires auth)
+ *   5. POST /api/auth/google      { credential, name?, accountType?, timezone? }
+ *                                  → Google Identity Services ID token, verified against GOOGLE_CLIENT_ID
  *
  * The old /login and /register endpoints issued a JWT for ANY phone number
  * without proof of ownership — they have been removed.
@@ -19,6 +21,9 @@ import { generateToken, generateRefreshToken, verifyToken, authenticate } from '
 import userConfigService from '../services/userConfigService.js';
 import otpService from '../services/otpService.js';
 import { isValidE164 } from '../lib/phone.js';
+import { OAuth2Client } from 'google-auth-library';
+
+const googleClient = process.env.GOOGLE_CLIENT_ID ? new OAuth2Client(process.env.GOOGLE_CLIENT_ID) : null;
 
 const router = express.Router();
 
@@ -77,6 +82,29 @@ router.post('/otp/verify', otpVerifyLimiter, async (req, res) => {
   } catch (err) {
     console.error('OTP verify error:', err);
     res.status(500).json({ error: 'Verification failed' });
+  }
+});
+
+// Google sign-in (off unless GOOGLE_CLIENT_ID is set). The ID token's signature,
+// audience, expiry and verified email are all checked by Google's library.
+router.post('/google', otpVerifyLimiter, async (req, res) => {
+  if (!googleClient) return res.status(503).json({ error: 'Google sign-in is not set up on this server' });
+  const { credential, name, accountType, industry, timezone } = req.body || {};
+  if (typeof credential !== 'string' || credential.length > 4096) return res.status(400).json({ error: 'Missing Google credential' });
+  let payload;
+  try {
+    const ticket = await googleClient.verifyIdToken({ idToken: credential, audience: process.env.GOOGLE_CLIENT_ID });
+    payload = ticket.getPayload();
+  } catch {
+    return res.status(401).json({ error: 'Google sign-in failed. Please try again.' });
+  }
+  if (!payload?.sub || payload.email_verified === false) return res.status(401).json({ error: 'Your Google email is not verified' });
+  try {
+    const user = await userConfigService.setupGoogleUser({ sub: payload.sub, email: payload.email, name: payload.name }, { name, accountType, industry, timezone });
+    res.json(sessionResponse(user, user.isNewUser));
+  } catch (err) {
+    console.error('Google sign-in error:', err.message);
+    res.status(500).json({ error: 'Sign-in failed' });
   }
 });
 

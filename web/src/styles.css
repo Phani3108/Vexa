@@ -154,6 +154,7 @@ p { margin: 0; }
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
 .card.tight { padding: 0; overflow: hidden; }
 .card.glow { border-color: transparent; background: linear-gradient(var(--surface-solid), var(--surface-solid)) padding-box, var(--grad) border-box; border: 1px solid transparent; }
+.card.scam-card { border-color: var(--danger); background: var(--danger-soft); }
 .card.live { background: linear-gradient(160deg, rgba(62, 230, 213, 0.16), rgba(139, 123, 255, 0.1)); border-color: rgba(62, 230, 213, 0.3); }
 .card + .card { margin-top: 12px; }
 
@@ -351,3 +352,9 @@ p { margin: 0; }
 .mode-pill { display: inline-flex; background: var(--surface-2); padding: 3px; border-radius: 999px; gap: 2px; }
 .mode-pill button { border: 0; background: transparent; padding: 6px 12px; border-radius: 999px; font-weight: 600; font-size: 12.5px; color: var(--text-3); cursor: pointer; }
 .mode-pill button.on { background: var(--text); color: var(--bg); }
+
+/* Vexa Link public page + shared centred states */
+.center-page { min-height: 70vh; display: grid; place-content: center; justify-items: center; gap: 10px; text-align: center; padding: 24px; }
+.call-screen.talk .call-hero { padding-top: 18px; }
+.qr-box { background: #fff; border-radius: 16px; padding: 14px; display: grid; place-items: center; width: fit-content; margin: 0 auto; }
+.qr-box img, .qr-box canvas { display: block; width: 220px; height: 220px; }

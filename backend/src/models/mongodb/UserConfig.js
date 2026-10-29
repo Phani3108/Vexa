@@ -80,8 +80,21 @@ const businessProfileSchema = new mongoose.Schema({
     aliases: [String],
     stock:   { type: Number, default: 0 },
     price:   { type: Number, default: 0 },
-    unit:    { type: String, default: '' }
+    priceMax: Number,                                   // estimate ranges (home services)
+    unit:    { type: String, default: '' },
+    category: { type: String, default: '' },            // "Blood tests", "Starters", "Haircuts"
+    note:    { type: String, default: '' },             // spoken as-is: "12-hour fast needed"
+    veg:     Boolean,                                    // restaurants
+    duration: Number                                     // minutes (salons, clinics)
   }, { _id: false })],
+  // Rows Vexa can look up on a call: order/report/job status by reference or phone
+  records: { type: [mongoose.Schema.Types.Mixed], default: [] },
+  // Properties / courses / anything matched against what the caller wants
+  listings: { type: [mongoose.Schema.Types.Mixed], default: [] },
+  // UPI payment links after a call: upi://pay?pa=<upiId>&pn=<upiName>&am=…
+  upiId:   { type: String, default: '' },
+  upiName: { type: String, default: '' },
+  payLinkAutoLimit: { type: Number, default: 5000 },   // ₹; larger payment links wait for the owner
   afterHoursMessage: { type: String, default: '' },
   afterHoursEmergencyTransfer: { type: Boolean, default: true },
   // Number calls are transferred to (owner / front desk). Defaults to the account phone.
@@ -98,6 +111,8 @@ const userConfigSchema = new mongoose.Schema({
   twilioNumber: String,
 
   businessProfile: { type: businessProfileSchema, default: () => ({}) },
+  // Installed business packs (flows + data + guardrails), e.g. ['clinic']
+  packs: { type: [String], default: [] },
 
   // Physical delivery address — AI uses this to guide callers
   deliveryAddress: { type: deliveryAddressSchema, default: () => ({}) },
@@ -188,9 +203,38 @@ const userConfigSchema = new mongoose.Schema({
     token: String,
     platform: { type: String, enum: ['ios', 'android'] },
     addedAt: { type: Date, default: Date.now }
-  }]
+  }],
+
+  // Web Push (installed app / browser) — no Firebase account needed
+  pushSubscriptions: [{
+    _id: false,
+    endpoint: String,
+    keys: { p256dh: String, auth: String },
+    addedAt: { type: Date, default: Date.now }
+  }],
+
+  // Google sign-in (accounts created this way have no phone number until they add one)
+  googleSub: String,
+  email: String,
+
+  // Vexa Link: a public page where customers talk to this account's receptionist
+  link: {
+    enabled: { type: Boolean, default: false },
+    slug: String,
+    dailyLimit: { type: Number, default: 50, min: 1, max: 1000 }   // conversations per day
+  },
+
+  // Callable agent API: other people's AI assistants ask questions and request bookings/orders
+  agentApi: {
+    enabled: { type: Boolean, default: false },
+    enabledAt: Date,
+    dailyLimit: { type: Number, default: 100, min: 1, max: 2000 }   // bookings + orders per day
+  }
 
 }, { timestamps: true });
+
+userConfigSchema.index({ 'link.slug': 1 }, { unique: true, partialFilterExpression: { 'link.slug': { $type: 'string', $gt: '' } } });
+userConfigSchema.index({ googleSub: 1 }, { unique: true, partialFilterExpression: { googleSub: { $type: 'string', $gt: '' } } });
 
 // Sparse unique: two accounts can never claim the same Twilio number (call hijacking)
 userConfigSchema.index({ twilioNumber: 1 }, { unique: true, partialFilterExpression: { twilioNumber: { $type: 'string', $gt: '' } } });

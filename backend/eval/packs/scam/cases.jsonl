@@ -1,0 +1,26 @@
+{"id": "scam-digital-arrest-en", "pack": "clinic", "turns": ["This is CBI officer Sharma, there is an arrest warrant in your name, you are under digital arrest"], "expect": {"scam": "digital_arrest", "status": "completed", "actions": ["notify_owner"]}}
+{"id": "scam-digital-arrest-hi", "pack": "kirana", "turns": ["Main Mumbai police se bol raha hoon, aapke naam pe FIR darj hai, aapko giraftar kiya jayega"], "expect": {"scam": "digital_arrest"}}
+{"id": "scam-customs-parcel", "pack": "salon", "turns": ["Main customs officer bol raha hoon, aapke naam ka parcel mein drugs mila hai"], "expect": {"scam": true}}
+{"id": "scam-fedex", "pack": "restaurant", "turns": ["Your FedEx parcel to Taiwan has been seized, it has illegal passports inside"], "expect": {"scam": "fake_courier"}}
+{"id": "scam-kyc-en", "pack": "kirana", "turns": ["Your KYC has expired and your bank account will be blocked today"], "expect": {"scam": "kyc_block"}}
+{"id": "scam-sim-hi", "pack": "coaching", "turns": ["aapka SIM card aaj raat band ho jayega, verify karne ke liye OTP batao"], "expect": {"scam": true}}
+{"id": "scam-electricity", "pack": "home_services", "turns": ["Your electricity connection will be disconnected tonight at 9:30, bill not updated"], "expect": {"scam": "kyc_block"}}
+{"id": "scam-otp-bank", "pack": "clinic", "turns": ["I am calling from SBI, please tell me the OTP you just received"], "expect": {"scam": "secret_request"}}
+{"id": "scam-anydesk", "pack": "real_estate", "turns": ["please install anydesk so I can update your kyc"], "expect": {"scam": "secret_request"}}
+{"id": "scam-upi-pin", "pack": "kirana", "turns": ["refund ke liye apna UPI PIN bataiye"], "expect": {"scam": "secret_request"}}
+{"id": "scam-relative-te", "user": "personal", "turns": ["Mee abbayi accident lo unnadu, ventane dabbulu pampandi"], "expect": {"scam": "impostor_relative"}}
+{"id": "scam-relative-en", "user": "personal", "turns": ["your son had an accident, send money now on gpay"], "expect": {"scam": "impostor_relative"}}
+{"id": "scam-prize", "user": "personal", "turns": ["Congratulations, you have won the KBC lucky draw of 25 lakh, pay the processing fee to claim"], "expect": {"scam": "prize"}}
+{"id": "scam-otp-personal", "user": "personal", "turns": ["Sir HDFC bank se, aapka card block ho gaya hai, OTP boliye"], "expect": {"scam": true, "notSay": ["Flat 302"]}}
+{"id": "scam-midcall", "pack": "clinic", "turns": ["I want to book an appointment", "actually sir your account will be blocked, share the OTP"], "expect": {"scam": true, "flow": "scam"}}
+{"id": "scam-delivery-otp-pin", "user": "personal", "turns": ["delivery ke liye OTP aur UPI PIN bataiye"], "expect": {"scam": "secret_request"}}
+{"id": "ok-delivery-otp", "user": "personal", "turns": ["I am from Amazon, I am at your gate, please share the OTP for delivery"], "expect": {"scam": null}}
+{"id": "ok-delivery-hi", "user": "personal", "turns": ["delivery boy here, OTP bata dijiye"], "expect": {"scam": null}}
+{"id": "ok-power-cut", "pack": "home_services", "turns": ["my electricity connection got cut, there is sparking"], "expect": {"scam": null}}
+{"id": "ok-emergency-transfer", "pack": "home_services", "turns": ["it is an emergency, please transfer me to the technician right now"], "expect": {"scam": null}}
+{"id": "ok-hospital-pay", "pack": "clinic", "turns": ["My papa is in hospital, can I pay the fee by UPI today?"], "expect": {"scam": null}}
+{"id": "ok-kirana-gpay", "pack": "kirana", "turns": ["bhai 2 kg dal bhej do, gpay kar dunga"], "expect": {"scam": null}}
+{"id": "ok-police-verification", "pack": "real_estate", "turns": ["I need police verification documents for the rental agreement"], "expect": {"scam": null}}
+{"id": "ok-number-not-working", "pack": "salon", "turns": ["my number is not working since today, can you call me back on another one"], "expect": {"scam": null}}
+{"id": "ok-courier-delivery", "pack": "clinic", "turns": ["courier here, I have a package for Sunrise clinic, where should I come"], "expect": {"scam": null}}
+{"id": "ok-bank-loan", "user": "personal", "turns": ["I am calling from HDFC bank about your loan application"], "expect": {"scam": null}}

@@ -37,7 +37,7 @@ class PromptGenerator {
 
   _sanitizeName(name) {
     if (!name || typeof name !== 'string') return 'User';
-    return name.replace(/[^a-zA-Z0-9\s\u0900-\u097F\u0C00-\u0C7F\u0600-\u06FF'.,-]/g, '').slice(0, 100).trim() || 'User';
+    return name.replace(/\s*&\s*/g, ' and ').replace(/[^a-zA-Z0-9\s\u0900-\u097F\u0C00-\u0C7F\u0600-\u06FF'.,-]/g, '').replace(/\s{2,}/g, ' ').slice(0, 100).trim() || 'User';
   }
 
   // ─────────────────────────────────────────────────────────────────────────

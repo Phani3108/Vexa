@@ -25,7 +25,7 @@ const COMMAND_SCHEMA = strictObject({
   actions: {
     type: 'array',
     items: strictObject({
-      type: { type: 'string', enum: ['brief', 'shield', 'block', 'unblock', 'vip_add', 'always_transfer', 'note', 'flow_toggle'] },
+      type: { type: 'string', enum: ['brief', 'ask', 'shield', 'block', 'unblock', 'vip_add', 'always_transfer', 'note', 'flow_toggle'] },
       mode: { anyOf: [{ type: 'string', enum: ['focus', 'aggressive', 'silent', 'standard'] }, { type: 'null' }] },
       until: nullableString,
       who: nullableString,
@@ -42,6 +42,7 @@ const COMMAND_SCHEMA = strictObject({
 import { extractPhone } from '../workflows/extractors.js';
 import { defaultWorkflows } from '../workflows/templates.js';
 import { phonesMatch } from '../lib/phone.js';
+import memoryService from './memoryService.js';
 
 const escapeRx = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -179,10 +180,13 @@ export function parseOffline(text, now = new Date(), tz = null) {
     return [{ type: 'vip_add', name: m[1].replace(/\+?[\d\s()-]{10,}/, '').trim(), phone }];
   }
 
-  if ((m = t.match(/\b(?:always\s+)?(?:put|transfer|connect|send)\s+(.+?)\s+(?:straight\s+)?(?:through|to me)\b/i)) || (m = t.match(/\bwhen\s+(.+?)\s+calls?,?\s+(?:put|transfer|connect)\b/i))) {
+  if ((m = t.match(/\bwhen\s+(.+?)\s+calls?,?\s+(?:put|transfer|connect)\b/i)) || (m = t.match(/\b(?:always\s+)?(?:put|transfer|connect|send)\s+(.+?)\s+(?:straight\s+)?(?:through|to me)\b/i))) {
     const off = /\b(stop|don'?t|never|no longer)\b/i.test(t);
     return [{ type: 'always_transfer', who: m[1].replace(/^(stop|don'?t|never)\s+/i, ''), phone, on: !off }];
   }
+
+  // A question about past calls ("what did the electrician quote?", "when is the bank calling back?")
+  if (/^(what|when|who|which|where|how much|how many|did|has|have|was|is there)\b/.test(lower) || /\?\s*$/.test(t)) return [{ type: 'ask', text: t }];
 
   return [];
 }
@@ -197,7 +201,8 @@ async function parseWithModel(text, tz) {
       schema: COMMAND_SCHEMA,
       system: `Convert the owner's instruction for their AI phone receptionist into actions. ${timeContext(tz)}
 Action types:
-- brief: the owner wants a recap of recent calls.
+- brief: the owner wants a recap of recent calls ("what did I miss?").
+- ask: the owner asks about something said on a past call ("what did the electrician quote?", "when is the bank calling back?", "did Ravi pay?"). Put the question in "text".
 - shield: change call-screening mode. "focus" = do not disturb: the owner is busy (meeting, surgery, driving, sleeping, "don't bother me") — nobody is put through except emergencies. "silent" = calls handled as normal but no notifications. "aggressive" = spam shield. "standard" = back to normal. "until" is an ISO 8601 time WITH the owner's UTC offset, or null.
 - block / unblock: a caller by name ("who") or number ("phone", E.164).
 - vip_add: add "name" with "phone" (E.164) as a VIP.
@@ -278,6 +283,13 @@ export async function runCommand(userId, text) {
         replies.push(brief.text);
         done.push({ type: 'brief' });
         break;
+
+      case 'ask': {
+        const r = await memoryService.ask(userId, a.text || text);
+        replies.push(r.answer + (r.followUp ? ` ${r.followUp}` : ''));
+        done.push({ type: 'ask', found: r.found, callIds: r.callIds });
+        break;
+      }
 
       case 'shield': {
         const mode = ['focus', 'aggressive', 'silent', 'standard'].includes(a.mode) ? a.mode : 'standard';

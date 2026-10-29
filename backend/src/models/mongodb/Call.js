@@ -21,6 +21,7 @@ const callSchema = new mongoose.Schema({
   duration: { type: Number, default: 0 },                        // seconds
 
   // true for calls made from the dashboard "Test your receptionist" simulator
+  channel: { type: String, enum: ['phone', 'test', 'link', 'agent'], default: 'phone' },
   isTest: { type: Boolean, default: false, index: true },
 
   transcript: [{
@@ -54,6 +55,8 @@ const callSchema = new mongoose.Schema({
     actionItems: [String],          // follow-up items if any
 
     isSpam: { type: Boolean, default: false },
+    // Scam shield evidence: { type: 'digital_arrest' | 'kyc_otp' | …, label, phrases: [quoted caller lines] }
+    scam: { type: mongoose.Schema.Types.Mixed, default: null },
 
     // SME lead capture — a potential or existing customer who needs a response
     lead: {

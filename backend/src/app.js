@@ -25,6 +25,16 @@ import callRoutes from './routes/calls.js';
 import contextRoutes from './routes/context.js';
 import simulatorRoutes from './routes/simulator.js';
 import workflowRoutes from './routes/workflows.js';
+import packRoutes from './routes/packs.js';
+import pushRoutes from './routes/push.js';
+import memoryRoutes from './routes/memory.js';
+import familyRoutes from './routes/family.js';
+import { interpreterRouter, publicInterpreterRouter } from './routes/interpreter.js';
+import { agentPublicRouter, agentSettingsRouter } from './routes/agent.js';
+import { attachIO as attachFamilyIO, sendDigests } from './services/familyService.js';
+import { startReminderLoop } from './services/memoryService.js';
+import { publicLinkRouter, linkSettingsRouter } from './routes/link.js';
+import { attachIO as attachLinkIO } from './services/linkService.js';
 import { assistantRouter, bookingsRouter } from './routes/assistant.js';
 import { attachIO as attachSimulatorIO } from './services/simulatorService.js';
 import { callMediaRouter, mediaRouter, enforceRecordingRetention } from './routes/media.js';
@@ -38,9 +48,12 @@ const isProd = process.env.NODE_ENV === 'production';
 // Behind Render/Fly/ngrok the client IP comes from X-Forwarded-For
 app.set('trust proxy', 1);
 
-const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(',').map(s => s.trim())
-  : ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:8081'];
+// The public HTTPS address (Render sets RENDER_EXTERNAL_URL automatically)
+const PUBLIC_URL = (process.env.PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || '').replace(/\/+$/, '') || null;
+const ALLOWED_ORIGINS = [
+  ...(process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',').map(s => s.trim()).filter(Boolean) : ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:8081']),
+  ...(PUBLIC_URL ? [PUBLIC_URL] : [])
+];
 
 // ============================================
 // Socket.io — real-time events for the dashboard and mobile app.
@@ -119,7 +132,7 @@ function loadVoiceConfig() {
     TWILIO_ACCOUNT_SID: process.env.TWILIO_ACCOUNT_SID,
     TWILIO_AUTH_TOKEN: process.env.TWILIO_AUTH_TOKEN,
     TWILIO_PHONE_NUMBER: process.env.TWILIO_PHONE_NUMBER,
-    WEBHOOK_URL: process.env.WEBHOOK_URL || `http://localhost:${PORT}`
+    WEBHOOK_URL: process.env.WEBHOOK_URL || PUBLIC_URL || `http://localhost:${PORT}`
   };
 }
 
@@ -158,6 +171,7 @@ app.get('/api/meta', (req, res) => {
     demoDataEnabled: demoDataEnabled(),
     languages: LANGUAGES,
     nluEnabled: llmAvailable() && process.env.NLU_DISABLED !== 'true',
+    googleClientId: process.env.GOOGLE_CLIENT_ID || null,
   });
 });
 
@@ -174,7 +188,21 @@ app.use('/api/simulator', simulatorRoutes);
 app.use('/api/workflows', workflowRoutes);
 app.use('/api/assistant', assistantRouter);
 app.use('/api/bookings', bookingsRouter);
+app.use('/api/packs', packRoutes);
+app.use('/api/push', pushRoutes);
+app.use('/api/memory', memoryRoutes);
+app.use('/api/family', familyRoutes);
+app.use('/api/interpreter', interpreterRouter);
+app.use('/api/public/interpreter/:room', publicInterpreterRouter);
+app.use('/api/agent/v1/:slug', agentPublicRouter);
+app.use('/api/agent-settings', agentSettingsRouter);
+app.use('/api/link', linkSettingsRouter);
+app.use('/api/public/link/:slug', publicLinkRouter);
 attachSimulatorIO(io);
+attachLinkIO(io);
+startReminderLoop();
+attachFamilyIO(io);
+if (process.env.NODE_ENV !== 'test') setInterval(() => sendDigests().catch(err => console.error('Family digest:', err.message)), 15 * 60 * 1000).unref();
 
 if (voiceConfig) {
   initVoiceRoutes(voiceConfig, io);

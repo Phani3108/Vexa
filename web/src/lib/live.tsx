@@ -7,6 +7,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import { io } from 'socket.io-client'
 import { useAuth } from './auth'
 import type { Handoff, Risk, TranscriptLine } from './types'
+import { toast } from '../components/ui'
 
 export interface LiveCall {
   callId: string
@@ -23,6 +24,7 @@ export interface LiveCall {
   progress?: number
   asked?: string | null
   urgent?: boolean
+  scam?: { type: string; label: string } | null
   summary?: string
 }
 
@@ -72,6 +74,8 @@ export function LiveProvider({ children }: { children: ReactNode }) {
     socket.on('call:flow', (e: { callId: string; workflow: LiveCall['workflow']; slots: LiveCall['slots']; progress: number; asked: string | null }) =>
       patch(e.callId, c => ({ ...c, workflow: e.workflow, slots: e.slots, progress: e.progress, asked: e.asked })))
     socket.on('call:urgent', (e: { callId: string }) => patch(e.callId, c => ({ ...c, urgent: true })))
+    socket.on('family:alert', (e: { title: string; body: string }) => toast(`${e.title} — ${e.body}`))
+    socket.on('call:scam', (e: { callId: string; type: string; label: string }) => patch(e.callId, c => ({ ...c, scam: { type: e.type, label: e.label } })))
     socket.on('call:ended', (e: { callId: string }) => {
       patch(e.callId, c => ({ ...c, status: 'ended', partial: '' }))
       setTimeout(() => setCalls(p => { const n = { ...p }; delete n[e.callId]; return n }), 30000)

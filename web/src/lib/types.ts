@@ -89,6 +89,11 @@ export interface UserConfig {
   name: string
   about: string
   businessProfile: BusinessProfile
+  packs?: string[]
+  link?: { enabled?: boolean; slug?: string; dailyLimit?: number }
+  agentApi?: { enabled: boolean; dailyLimit: number }
+  pushDevices?: number
+  email?: string
   aiSettings: { voice?: string; tone?: string; greeting?: string; language?: string }
   recording?: { enabled?: boolean; announce?: boolean; retentionDays?: number }
   callCategories: CallCategory[]
@@ -168,6 +173,7 @@ export interface CallDetail {
     isSpam?: boolean
     lead?: Lead
     summaryLocal?: { lang: string; text: string }
+    scam?: ScamEvidence | null
   }
   languages?: string[]
   recording?: Recording
@@ -194,6 +200,7 @@ export interface Stats {
 }
 
 export interface Meta {
+  googleClientId?: string | null
   voiceEnabled: boolean
   aiEnabled: boolean
   smsEnabled: boolean
@@ -339,3 +346,37 @@ export interface TurnResult {
   pending?: boolean
   call?: { callId: string; analysis: CallDetail['analysis']; workflowRun?: WorkflowRun }
 }
+
+export interface ScamEvidence {
+  type: string
+  label: string
+  phrases: string[]
+}
+
+export interface PackSummary {
+  id: string
+  name: string
+  industry: string
+  icon: string
+  description: string
+  flows: string[]
+  guardrails: string[]
+}
+
+export interface Memory {
+  _id: string
+  kind: 'promise' | 'quote' | 'fact'
+  text: string
+  who: string | null
+  amount: number | null
+  dueAt: string | null
+  status: 'open' | 'done' | 'dismissed'
+  callId: string | null
+  isTest: boolean
+  createdAt: string
+}
+
+export interface FamilyShare { summaries: boolean; scamAlerts: boolean; recordings: boolean }
+export interface FamilyMemberLink { linkId: string; userId: string; name: string; phoneNumber: string | null; share: FamilyShare; since: string }
+export interface FamilyOverview { guardians: FamilyMemberLink[]; dependants: FamilyMemberLink[]; pendingInvite: { linkId: string; expiresAt: string; share: FamilyShare } | null }
+export interface FamilyCall { callId: string; at: string; from: string; summary: string; category: string | null; scam: { label: string; phrases: string[] } | null; urgent: boolean; transcript?: { speaker: string; text: string }[] }
