@@ -257,94 +257,93 @@ Claude is used for all text intelligence when `ANTHROPIC_API_KEY` is set (OpenAI
 
 ---
 
-## What makes it different
+## Highlights
 
-| Feature | What it does |
+| | |
 |---|---|
-| **Flow engine** | Each call type is a playbook of steps: questions, confirmations, if/else branches, actions, transfers. One sentence like "I'm Dana, I need a quote for a water heater tomorrow" fills 4 fields at once, so Vexa skips 3 questions. It answers side questions from your FAQs and then resumes. It switches to the Emergency flow mid-call. A turn cap stops it looping. |
-| **Live understanding** | The call screen fills in "Name ✓, Needs ✓, Timing…" while the caller talks. |
-| **Copilot** | Steer a live call: "Tell them I'll call back in 10 min", ask for their email, put them through, end politely. |
-| **Ask Vexa** | Plain-English commands, typed or spoken: "Tell Dana her parts arrived" (delivered on her next call), "Always put Mom straight through", "Focus for 2 hours", "Block that warranty number", "What did I miss?" |
-| **Shields** | Standard, Focus, Spam shield and Silent modes. Each call gets a spam risk score (0–100) before it rings. |
-| **Outcomes** | Leads go to your inbox. Booking requests get one-tap approval and a confirmation text. The caller gets an SMS. You get urgent alerts during the call. |
-| **8 languages, mid-call switching** | English, Hindi, Telugu, Tamil, Malayalam, Marathi, Gujarati, Spanish. Vexa replies in whatever language the caller is speaking *right now* — Telugu → Hindi → English in one call works. The flow engine stays in English, so playbooks, prices and addresses are written once. |
-| **Bilingual transcripts** | Every line is stored as spoken **and** in English; the summary comes in English plus the caller's language. "Read the whole call in…" translates any call into any of the 8 languages on demand (cached). |
-| **Call recording** | Phone calls are recorded in stereo (caller left, Vexa right) straight from the media stream — no extra Twilio cost. Tap a transcript line to jump to that moment. Optional "this call may be recorded" notice, auto-delete after 7–365 days, per-call delete. |
-| **Phone app** | Installable app (Add to Home Screen) with test calls by voice or text (browser speech). |
+| **Flow engine** | 17 editable playbooks (10 business, 7 personal). One sentence can fill several facts, so Vexa skips questions; it answers side questions and resumes; it switches to Emergency mid-call. The engine decides every step, the model only reads and speaks. |
+| **Speaks your caller's language** | English, Hindi, Telugu, Tamil, Malayalam, Marathi, Gujarati, Spanish, with mid-call switching. Understands Hinglish and other languages typed in English letters, lakh/dedh, kal/parso, haan/avunu/illa, and replies the way the caller talks. |
+| **Live call and Copilot** | Watch the transcript and captured facts live. Pick up from the handoff prompt, or send Vexa a note, ask for an email, transfer or end the call. |
+| **Ask Vexa** | Plain-English commands: "Focus until 7 pm", "Always put Mom straight through", "Tell Dana her parts arrived" (delivered on her next call), "Block that number". |
+| **Screening** | Standard, Focus, Spam shield and Silent modes; a spam risk score before the phone rings; VIPs and emergencies can break through. |
+| **Outcomes** | Leads in your inbox, booking requests you approve with one tap (the caller is texted), live stock, price and totals from your catalog, urgent alerts during the call. |
+| **After the call** | Summary in English and in the caller's language, transcript as spoken with English under each line, "Read in…" any of 8 languages, stereo recording with tap-to-jump. |
+| **Cost on every call** | Exact Claude tokens and cost saved with each call: about $0.05 (₹4.34) per call in the demo, on Claude Opus 5.5. |
 
-```
-Caller ─▶ Twilio ─▶ risk score ─▶ Flow engine (English) ◀── NLU: facts + language + English translation
-                                     │  says next line ─▶ Realtime voice, in the caller's language ─▶ caller
-                                     ├─▶ recorder (stereo WAV) ─▶ signed playback link
-                                     ├─▶ live events ─▶ phone app (Copilot, take over)
-                                     └─▶ outcomes: lead · booking · SMS · alert · spam tag
-```
+## Demo
+
+▶ [demo/output/vexa-demo.mp4](demo/output/vexa-demo.mp4) · 18 min · [subtitles](demo/output/vexa-demo.srt) · [cost of each call](demo/output/COSTS.md). Every call in it was handled live by Claude; the voices are synthesized.
+
+- Personal: a courier guided to the door and handed to you for the OTP, a bank loan call negotiated from 14% to 12.5%, Amma told you're free after 7 PM.
+- Business: a booking, directions and Sunday hours, stock with price and total.
+- Languages: Telugu → Hindi → English in one call, a Hinglish caller, six more languages, then the bilingual transcript, "Read in Gujarati" and the recording.
+
+<details><summary>Rebuild the video</summary>
+
+With the backend running: `node demo/run-scenarios.mjs`, `node demo/attach-recording.mjs`, `node demo/capture-screens.mjs`, `node demo/build-timeline.mjs`, `node demo/make-data.mjs`, `node demo/write-costs.mjs`, `node demo/render-frames.mjs`, then `swift demo/encode.swift demo/build/frames 12 demo/build/audio/mix.wav demo/output/vexa-demo.mp4`.
+
+</details>
 
 ## Quick start (local, zero config)
 
 ```bash
-cd backend && npm install && npm run dev      # API on :3000 (embedded MongoDB starts automatically)
-cd web && npm install && npm run dev          # Phone app on :5173 (proxies to :3000)
+cd backend && npm install && npm run dev      # API on :3000, embedded MongoDB starts automatically
+cd web && npm install && npm run dev          # phone app on :5173
 ```
 
-Open http://localhost:5173 and sign in with any phone number. In development the login code is filled in and no SMS is sent. Then:
+1. Open http://localhost:5173 and sign in with any phone number (in development the code is filled in; no SMS is sent).
+2. Pick **Just me** or **My business** and finish setup. You land on a **test call**: type or speak as the caller.
+3. On **Home**, tap **Load sample calls**, then explore Activity, a call's detail, Flows and Ask Vexa (the centre orb).
 
-1. Pick **Just me** or **My business** and finish the 3-step setup.
-2. You land on a **test call**. Play the caller by typing or using the mic. Try saying everything at once and watch the flow skip questions.
-3. On **Home**, tap **Load sample calls**, then explore Activity, a call's detail page, Flows (open one to edit its steps), and the center orb (Ask Vexa).
-
-Without `ANTHROPIC_API_KEY` (or `OPENAI_API_KEY`), understanding uses the deterministic offline engine (English; script-based language detection only). With a key, Claude extracts the facts, detects the language and translates, but the engine still decides every step.
-
-Per-turn latency: set `ANTHROPIC_FAST_MODEL=claude-haiku-4-5` to run understanding and translation on Haiku while post-call analysis stays on the main model. Recordings live in `RECORDINGS_DIR` (default `backend/.data/recordings`).
-
-Indian-language understanding test set: `npm run eval:nlu` (offline, free) or `npm run eval:nlu -- --mode claude` (about $1.80 per run). Add `--file holdout.jsonl` for the held-out set.
-
-Multilingual demo against a real model: `node demo/run-multilingual.mjs` (needs the server on :3000), then `node demo/attach-recording.mjs` to attach a synthesized stereo recording to that call.
-
-To run a single server instead: `cd web && npm run build`, then `cd backend && npm start`. The API serves the built dashboard at http://localhost:3000.
+- **No AI key:** offline rules detect all 8 languages and pick up names, dates, numbers and yes/no; the engine still runs every flow. Free-form understanding needs Claude.
+- **`ANTHROPIC_API_KEY` in `backend/.env`:** Claude handles understanding, translation and post-call analysis. For faster turns, add `ANTHROPIC_FAST_MODEL=claude-haiku-4-5`.
+- **One server:** `cd web && npm run build`, then `cd backend && npm start` serves the app at http://localhost:3000.
+- **Checks:** `cd backend && npm test && npm run eval:nlu`.
 
 ## Going live with real calls
 
-1. Fill in `backend/.env` (see `.env.example`): `OPENAI_API_KEY`, `TWILIO_*`, `WEBHOOK_URL`, `MONGODB_URI`, `JWT_SECRET`.
-2. Point your Twilio number's voice webhook to `https://YOUR-SERVER/voice/incoming-call`.
-3. Forward the business line to the Twilio number. The **Phone setup** page lists the carrier codes.
+1. In `backend/.env` (see `.env.example`): `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` (live voice), `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_PHONE_NUMBER`, `WEBHOOK_URL`, `MONGODB_URI`, `JWT_SECRET`.
+2. Point the Twilio number's voice webhook to `https://YOUR-SERVER/voice/incoming-call`.
+3. Forward your phone to the Twilio number. **Me → Phone setup** shows the codes (GSM `*004*<number>#`, Verizon `*71<number>`).
+4. Deploy: `JWT_SECRET=$(openssl rand -hex 32) docker compose up --build` (API, web app and MongoDB).
 
-Deploy: `JWT_SECRET=$(openssl rand -hex 32) docker compose up --build` builds a single image with the API and dashboard, plus MongoDB.
+The live phone path is complete in code but has not yet run on a real call: place test calls before onboarding customers.
 
 ## Project layout
 
 ```
-backend/   Express API, Twilio webhooks, OpenAI Realtime bridge, Socket.io
-  src/voice/        VoiceAgent, PromptGenerator, ConversationAnalyzer
-  src/services/     calls, user config, OTP, simulator, Twilio, push
-  src/config/       Mongo (embedded in dev), industry templates
-  test/             node --test unit tests (npm test)
+backend/
+  src/workflows/    flow engine, templates, extractors, NLU, risk score, outcomes
+  src/voice/        live calls: VoiceAgent (Twilio ↔ OpenAI Realtime), prompts, post-call analysis
+  src/services/     calls, user config, OTP, test calls, Ask Vexa, Twilio, push
+  src/lib/          Claude client, translation, languages, Indian-language rules, recorder, cost ledger
+  src/routes/       REST API and Twilio webhooks
+  test/             unit tests (npm test)
   eval/nlu/         Indian-language understanding eval (npm run eval:nlu)
-web/       React + Vite phone app (installable PWA; device frame on desktop)
-backend/src/workflows/  flow engine, templates, extractors, NLU, risk, outcomes
-mobile/    React Native app (owners on the go)
-docs/workflow/  CEO workflow readout: workflow.json (source), workflow.png, readout.html
-demo/      Scripted demo pipeline and the recorded demo video
+web/                React + Vite phone app (installable PWA)
+mobile/             React Native client on the same API (predates flows, Copilot and Ask Vexa)
+docs/workflow/      CEO workflow readout: workflow.json (source), workflow.png, readout.html
+demo/               demo recording pipeline and the video
 ```
 
-## API overview
+## API reference
 
 | Area | Endpoints |
 |---|---|
 | Auth | `POST /api/auth/otp/request`, `POST /api/auth/otp/verify`, `POST /api/auth/refresh`, `GET /api/auth/me` |
-| Account | `GET/PUT /api/users/config`, `POST /api/users/onboarding`, `GET /api/users/templates`, categories, VIPs, blocked numbers, priority time |
-| Calls | `GET /api/calls` (filters: `q`, `category`, `followUp`, `leads`, `includeTest`), `GET /api/calls/stats`, `GET /api/calls/callers`, `GET/DELETE /api/calls/:id`, `PATCH /api/calls/:id/follow-up` |
+| Account | `GET/PUT /api/users/config`, `POST /api/users/onboarding`, `POST /api/users/mode`, `GET /api/users/templates`, categories, VIPs, blocked numbers, priority time |
+| Calls | `GET /api/calls` (`q`, `category`, `followUp`, `leads`, `includeTest`), `GET /api/calls/stats`, `GET /api/calls/callers`, `GET/DELETE /api/calls/:id`, `PATCH /api/calls/:id/follow-up`, `GET /api/calls/:id/reply-draft`, `POST /api/calls/:id/sms` |
+| Recording and languages | `GET /api/calls/:id/recording-link` (15-min signed link to `GET /media/recordings/:token`), `DELETE /api/calls/:id/recording`, `POST /api/calls/:id/translate` `{ lang }` |
 | Flows | `GET/POST /api/workflows`, `PUT/PATCH/DELETE /api/workflows/:id`, `POST /api/workflows/reset` |
-| Assistant | `GET /api/assistant/brief`, `POST /api/assistant/command`, `PUT /api/assistant/shield` |
-| Bookings | `GET /api/bookings`, `PATCH /api/bookings/:id` (confirm or decline, texts the caller) |
-| Test calls | `POST /api/simulator/start` (`flowId` optional), `/:id/message`, `/:id/whisper`, `/:id/end` |
-| Recording & languages | `GET /api/calls/:id/recording-link` (15-min signed URL → `GET /media/recordings/:token`, Range supported), `DELETE /api/calls/:id/recording`, `POST /api/calls/:id/translate` `{ lang }` |
-| Voice | Twilio webhooks (signature-checked in production) plus owner actions `POST /voice/takeover`, `/voice/whisper`, `/voice/end-call`, `/voice/outbound-call` (JWT) |
+| Ask Vexa and bookings | `GET /api/assistant/brief`, `POST /api/assistant/command`, `PUT /api/assistant/shield`, `GET /api/bookings`, `PATCH /api/bookings/:id` |
+| Test calls | `POST /api/simulator/start`, `/:id/message`, `/:id/whisper`, `/:id/end` |
+| Mobile context | `POST /api/context/outgoing-call`, `GET/PUT /api/context/caller/:phoneNumber`, `GET/PUT /api/context/user-profile`, `GET /api/context/summary` |
+| Voice | Twilio webhooks `POST /voice/incoming-call`, `/voice/call-status` (signature-checked in production); owner actions `POST /voice/takeover`, `/voice/whisper`, `/voice/end-call`, `/voice/outbound-call` |
 
-Every `/api/*` route and every owner voice action requires `Authorization: Bearer <token>`. Socket.io clients authenticate with `io(url, { auth: { token } })`.
+All routes need `Authorization: Bearer <token>` except sign-in (`/api/auth/otp/*`, `/api/auth/refresh`), `GET /api/meta`, `GET /health`, Twilio webhooks and signed recording links. Socket.io connects with `io(url, { auth: { token } })`.
 
-See [ROADMAP.md](ROADMAP.md) for the launch plan.
+Plans: [ROADMAP.md](ROADMAP.md).
 
 ## License
 
-MIT
+MIT, as declared in `backend/package.json`.
